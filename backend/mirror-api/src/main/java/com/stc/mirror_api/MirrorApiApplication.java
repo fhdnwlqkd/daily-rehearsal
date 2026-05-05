@@ -6,8 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class MirrorApiApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(MirrorApiApplication.class, args);
-	}
-
+  public static void main(String[] args) {
+    SpringApplication.run(MirrorApiApplication.class, args);
+  }
 }
