@@ -42,6 +42,12 @@
 3.  **Loading State:** 백엔드 서버가 외부 AI API를 오케스트레이션하여 맥락을 분석하고 합성 이미지를 생성합니다. 동시에 Redis를 활용해 요청의 중복을 막고 진행 상태를 관리합니다.
 4.  **Result State:** 완성된 렌더링 이미지와 안내 텍스트가 프론트엔드로 응답되어 화면에 출력됩니다.
 
+<details>
+  <summary><b>🔍 시스템 흐름도</b></summary>
+  <br>
+  <img src="assets/system-flow.png" alt="StyleCaster 시스템 흐름도" width="720" />
+</details>
+
 ## 👥 팀원 및 역할 (Team Roles)
 *   **PM & AI Prompting:** 기획 총괄, 외부 AI 모델(VTON) 파이프라인 구축 및 프롬프트 엔지니어링
 *   **Frontend Developer:** 웹캠/마이크 연동, MediaPipe 비전 처리, 4단계 UI/UX 상태 관리 및 애니메이션 구현
