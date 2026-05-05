@@ -1,0 +1,117 @@
+@startuml
+title State 2 - 음성 입력, 외부 맥락 선수집, STT/LLM 비동기 callback
+
+skinparam responseMessageBelowArrow true
+skinparam sequence {
+    ArrowColor #2B2B2B
+    LifeLineBorderColor #777777
+    LifeLineBackgroundColor #F7F7F7
+    ParticipantBorderColor #555555
+    ParticipantBackgroundColor #FAFAFA
+    ActorBorderColor #555555
+    ActorBackgroundColor #FAFAFA
+}
+
+actor "사용자" as user
+participant "스마트 거울 웹\n(React)" as web
+participant "미러 API\n(Spring Boot)" as api
+participant "STT API\n(음성 추출)" as stt
+participant "날씨/대기 API" as weather
+participant "LLM API\n(맥락 추출)" as llm
+database "세션 저장소\n(Redis)" as redis
+
+web -> web: 이미 생성된 세션 ID 보유\n(자세 정렬 완료 시 생성)
+web --> user: 오늘 일정/상황 질문
+
+par 사용자 음성 입력
+    user -> web: 일정과 선호를 음성으로 답변
+    web -> web: 음성 녹음 종료까지 대기
+else 서버의 외부 맥락 선수집
+    web -> api: POST /sessions/{sessionId}/context-prefetch\n위치 + 현재 시간 + 클라이언트 환경
+    api -> redis: 세션 상태 갱신\n상태=외부 맥락 수집 중
+    api -> weather: 위치/현재 시간 기준\n날씨/대기 정보 조회
+    weather --> api: 외부 맥락\n- 현재 기온/체감온도\n- 시간대별 예보\n- 강수/바람/일교차\n- 자외선/미세먼지?
+    api -> redis: 외부 맥락 저장\n상태=음성 입력 대기
+    api --> web: 사전 수집 맥락 프리뷰\n날씨/온도/강수 등
+    web --> user: 맥락 수집 중 UI 표시\n"오늘 기온은 ..."\n"강수 확률은 ..."
+end
+
+== STT 비동기 작업 시작 ==
+
+web -> api: POST /sessions/{sessionId}/speech\n오디오 데이터
+api -> redis: 입력 오디오 저장\n상태=STT 처리 중
+api -> stt: STT 작업 생성 요청\n오디오 + callbackUrl
+stt --> api: STT 작업 ID
+api -> redis: STT 작업 ID 저장
+api --> web: 202 접수됨\n세션 ID + 상태=STT 처리 중
+
+note right of api
+STT와 LLM callback은 성공/실패를 모두 처리한다.
+실패 callback이 들어오면 세션 상태를 실패로 바꾸고,
+프론트는 GET /sessions/{sessionId}로 실패 사유를 조회한다.
+end note
+
+par 사용자는 세션 상태를 조회하며 대기
+    loop 맥락 추출이 끝날 때까지
+        web -> api: GET /sessions/{sessionId}
+        api -> redis: 세션 상태/사전 수집 맥락 조회
+        api --> web: 현재 상태 + 사전 수집 맥락 프리뷰
+        web --> user: "음성을 분석 중입니다"\n"오늘 날씨는 ..."
+    end
+else STT callback 이후 LLM 맥락 추출 작업 시작
+    stt -> api: POST /callbacks/stt\nSTT 작업 ID + 변환된 텍스트
+    api -> redis: 입력 텍스트 저장\n상태=사용자 맥락 추출 중
+    api -> redis: 세션 조회\n베이스 스냅샷/자세 지표/입력 텍스트/외부 맥락
+    redis --> api: 세션 데이터
+
+    api -> llm: 사용자 맥락 추출 작업 생성\n엄격한 스키마/열거형\n누락 필드와 추가 질문 포함\ncallbackUrl
+
+note right of llm
+LLM은 허용된 값만 반환한다.
+
+주요 열거형:
+- 시간대
+- 일정 유형
+- 장소 유형
+- 격식 수준
+- 도보량
+- 선호 스타일
+
+판단할 수 없는 값은
+알 수 없음으로 둔다.
+
+응답에는 다음을 함께 포함한다.
+- 사용자 맥락
+- 누락된 중요 필드
+- 추가 질문 목록
+
+누락 필드 확인 후 추가 질문 생성을 위해
+LLM을 다시 호출하지 않는다.
+end note
+
+    llm --> api: LLM 맥락 추출 작업 ID
+    api -> redis: LLM 작업 ID 저장\n상태=사용자 맥락 추출 중
+
+    llm -> api: POST /callbacks/llm/context\nLLM 작업 ID + 사용자 맥락 JSON\n+ 누락 필드 목록 + 추가 질문 목록
+    api -> api: 스키마 및 열거형 값 검증
+    api -> api: 누락 필드/추가 질문 유효성 검증
+end
+
+alt 중요한 필드가 누락됨
+    api -> redis: 부분 사용자 맥락 저장\n상태=추가 질문 필요
+    web -> api: GET /sessions/{sessionId}
+    api --> web: 200 추가 질문 필요\n변환된 텍스트 + 사전 수집 맥락 프리뷰 + 추가 질문 목록
+
+    web --> user: 짧은 추가 질문 1-2개 표시/발화
+    user -> web: 추가 질문에 답변
+    web -> api: PATCH /sessions/{sessionId}/context\n선택지 기반 추가 답변
+
+    api -> api: 추가 답변을 기존 사용자 맥락에 직접 병합
+    api -> redis: 병합된 사용자 맥락 저장\n상태=리스크 분석 준비
+else 필수 맥락이 충분함
+    api -> redis: 사용자 맥락 저장\n상태=리스크 분석 준비
+    web -> api: GET /sessions/{sessionId}
+    api --> web: 200 맥락 추출 완료\n변환된 텍스트 + 사전 수집 맥락 프리뷰
+end
+
+@enduml

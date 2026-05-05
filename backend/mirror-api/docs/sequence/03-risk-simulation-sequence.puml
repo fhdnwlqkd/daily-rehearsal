@@ -1,0 +1,70 @@
+@startuml
+title State 3A - 룰 기반 리스크, 스타일 추천, VTON 프롬프트 생성
+
+skinparam responseMessageBelowArrow true
+skinparam sequence {
+    ArrowColor #2B2B2B
+    LifeLineBorderColor #777777
+    LifeLineBackgroundColor #F7F7F7
+    ParticipantBorderColor #555555
+    ParticipantBackgroundColor #FAFAFA
+    ActorBorderColor #555555
+    ActorBackgroundColor #FAFAFA
+}
+
+participant "미러 API\n(Spring Boot)" as api
+participant "룰 엔진\n(RiskRuleEngine)" as riskEngine
+participant "스타일 빌더\n(StylePromptBuilder)" as styleBuilder
+database "세션 저장소\n(Redis)" as redis
+participant "날씨 API" as weather
+
+api -> redis: 사용자 맥락/자세 지표/외부 맥락 조회
+redis --> api: 사용자 맥락 + 자세 지표 + 사전 수집 외부 맥락
+
+alt 사전 수집 외부 맥락이 충분하고 최신임
+    api -> api: 저장된 외부 맥락 재사용
+else 외부 맥락이 없거나 오래됨
+    api -> weather: 위치/시간대 기준 예보 재조회
+    weather --> api: 날씨 맥락\n- 기온/체감온도\n- 강수\n- 바람\n- 일교차\n- 자외선/미세먼지?
+    api -> redis: 갱신된 외부 맥락 저장
+end
+
+api -> redis: 상태=룰 기반 추천 생성 중
+api -> riskEngine: 리스크 평가\n사용자 맥락 + 외부 맥락 + 자세 지표
+
+note right of riskEngine
+LLM은 여기서 사용하지 않는다.
+
+정확히 저장된 구조화 맥락과 수치 기반 신호로
+enum 리스크를 빠르게 계산한다.
+
+예:
+- 강수 확률 >= 60% + 야외 일정 => 강수 리스크
+- 도보량 높음 => 도보 피로 리스크
+- 격식 요구 높음 + 캐주얼 선호 => TPO 불일치 리스크
+- 자세 정렬 부족 => VTON 정확도 저하 리스크
+end note
+
+riskEngine --> api: 최종 리스크 목록\n- 리스크 유형\n- 심각도\n- 이유\n- 스타일 힌트
+
+api -> styleBuilder: 스타일 추천 및 VTON 프롬프트 생성\n최종 리스크 + 사용자 맥락 + 외부 맥락
+
+note right of styleBuilder
+룰 매핑으로 추천과 프롬프트를 조합한다.
+
+입력:
+- 일정 유형/격식/장소/도보량
+- 날씨/대기 정보
+- 선호/회피 조건
+- 리스크별 스타일 힌트
+
+출력:
+- 결과 화면용 추천 문장
+- 아이템/색상/소재 힌트
+- VTON API용 프롬프트
+end note
+
+styleBuilder --> api: 스타일 추천\n+ VTON 프롬프트
+api -> redis: 최종 리스크/추천/프롬프트 저장\n상태=VTON 처리 준비
+
+@enduml
