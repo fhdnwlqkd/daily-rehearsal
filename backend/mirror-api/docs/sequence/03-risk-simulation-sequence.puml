@@ -12,7 +12,7 @@ skinparam sequence {
     ActorBackgroundColor #FAFAFA
 }
 
-participant "미러 API\n(Spring Boot)" as api
+participant "리허설 API\n(Spring Boot)" as api
 participant "룰 엔진\n(RiskRuleEngine)" as riskEngine
 participant "스타일 빌더\n(StylePromptBuilder)" as styleBuilder
 database "세션 저장소\n(Redis)" as redis

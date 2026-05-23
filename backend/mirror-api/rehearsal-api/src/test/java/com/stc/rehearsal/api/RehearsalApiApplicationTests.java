@@ -1,4 +1,4 @@
-package com.stc.mirror_api;
+package com.stc.rehearsal.api;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -6,7 +6,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 @ActiveProfiles("test")
 @SpringBootTest
-class MirrorApiApplicationTests {
+class RehearsalApiApplicationTests {
 
   @Test
   void contextLoads() {}

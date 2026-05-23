@@ -15,7 +15,7 @@ skinparam sequence {
 actor "사용자" as user
 participant "스마트 거울 웹\n(React)" as web
 participant "클라이언트 비전\n(MediaPipe)" as vision
-participant "미러 API\n(Spring Boot)" as api
+participant "리허설 API\n(Spring Boot)" as api
 participant "외부 서비스\n(STT/날씨/LLM/VTON)" as external
 participant "룰 엔진\n(리스크/추천/프롬프트)" as rule
 database "세션 저장소\n(Redis)" as redis

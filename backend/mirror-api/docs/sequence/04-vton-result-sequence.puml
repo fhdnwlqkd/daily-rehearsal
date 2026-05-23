@@ -15,7 +15,7 @@ skinparam sequence {
 actor "사용자" as user
 participant "스마트 거울 웹\n(React)" as web
 participant "MediaPipe Hand\n(클라이언트)" as hand
-participant "미러 API\n(Spring Boot)" as api
+participant "리허설 API\n(Spring Boot)" as api
 participant "스타일 빌더\n(StylePromptBuilder)" as styleBuilder
 database "세션 저장소\n(Redis)" as redis
 participant "VTON API\n(가상 피팅)" as vton

@@ -16,7 +16,7 @@ actor "사용자" as user
 participant "스마트 거울 웹\n(React)" as web
 participant "웹캠" as camera
 participant "MediaPipe Pose\n(클라이언트)" as pose
-participant "미러 API\n(Spring Boot)" as api
+participant "리허설 API\n(Spring Boot)" as api
 database "세션 저장소\n(Redis)" as redis
 
 user -> web: 거울 앞에 선다

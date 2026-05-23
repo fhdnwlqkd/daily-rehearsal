@@ -14,7 +14,7 @@ skinparam sequence {
 
 actor "사용자" as user
 participant "스마트 거울 웹\n(React)" as web
-participant "미러 API\n(Spring Boot)" as api
+participant "리허설 API\n(Spring Boot)" as api
 participant "STT API\n(음성 추출)" as stt
 participant "날씨/대기 API" as weather
 participant "LLM API\n(맥락 추출)" as llm

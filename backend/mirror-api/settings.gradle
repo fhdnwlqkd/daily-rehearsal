@@ -1,1 +1,5 @@
-rootProject.name = 'mirror-api'
+rootProject.name = 'rehearsal-modules'
+
+include 'rehearsal-api'
+include 'data-source'
+include 'domain'
