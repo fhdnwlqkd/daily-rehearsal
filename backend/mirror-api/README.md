@@ -1,6 +1,34 @@
-# Mirror API
+# Rehearsal API
 
 StyleCaster 스마트 거울의 백엔드 API입니다.
+
+## 프로젝트 구조 및 모듈 전략
+
+본 프로젝트는 레이어드 아키텍처와 클린 아키텍처의 개념을 차용한 멀티 모듈 구조로 구성되어 있습니다.
+
+### 1. `domain` (Core Business Logic)
+최상위 모듈로, 외부 라이브러리나 프레임워크에 의존하지 않는 순수한 도메인 영역입니다.
+- **역할**: 핵심 비즈니스 로직, 도메인 모델(Entity/VO), 비즈니스 규칙 정의
+- **포트(Interface)**: 
+    - `rehearsal-api`가 호출할 **UseCase** 인터페이스
+    - `data-source`가 구현할 **Port**(Repository 인터페이스, 외부 API 인터페이스 등)
+- **의존성**: 없음
+
+### 2. `data-source` (Infrastructure & Adapters)
+`domain`에서 정의한 인터페이스를 실제로 구현하는 인프라스트럭처 영역입니다.
+- **역할**: 
+    - **Persistence**: JPA Repository 구현, Redis 데이터 저장 및 조회
+    - **External API**: 외부 서비스(STT, 날씨, LLM, VTON 등) 호출 클라이언트 구현
+    - **Infrastructure**: Flyway 마이그레이션 관리, DB/Redis 관련 설정
+- **의존성**: `:domain`
+
+### 3. `rehearsal-api` (Application & Presentation)
+사용자의 요청을 받고 전체 흐름을 제어하는 진입점입니다.
+- **역할**: 
+    - **Presentation**: REST Controllers, 요청/응답 DTO
+    - **Application**: UseCase 구현체를 통한 비즈니스 흐름 제어(Orchestration)
+    - **Configuration**: Spring Boot 메인 애플리케이션, Security, Swagger, 공통 예외 처리
+- **의존성**: `:domain`, `:data-source` (구현체 주입을 위해 참조)
 
 ## 로컬 인프라 실행
 
@@ -15,20 +43,20 @@ docker compose up -d
 
 | 서비스 | 이미지 | 포트 | 용도 |
 | --- | --- | --- | --- |
-| MySQL | `mysql:8.0` | `3306` | 로컬 RDB, Flyway migration 대상 |
+| MySQL | `mysql:8.0` | `3306` | 로컬 RDB (rehearsal), Flyway migration 대상 |
 | Redis | `redis:7.0-alpine` | `6379` | 세션 상태, 작업 ID, polling 상태 저장 |
 
 MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이터는 `docker/mysql_data`에 저장되며 git에는 포함하지 않습니다.
 
 ## Spring Profile
 
-설정 파일은 profile별로 분리되어 있습니다.
+설정 파일은 `rehearsal-api` 모듈의 profile별로 분리되어 있습니다.
 
 | 파일 | 용도 |
 | --- | --- |
-| `src/main/resources/application.yml` | 공통 설정, 서버 포트, 기본 active profile |
-| `src/main/resources/application-local.yml` | 로컬 MySQL/Redis/Flyway 설정 |
-| `src/main/resources/application-test.yml` | 테스트용 H2 설정 |
+| `application.yml` | 공통 설정, 서버 포트, 기본 active profile |
+| `application-local.yml` | 로컬 MySQL/Redis/Flyway 설정 |
+| `application-test.yml` | 테스트용 H2 설정 |
 
 기본 active profile은 `local`입니다.
 
@@ -43,17 +71,16 @@ spring:
     locations: classpath:db/migration
 ```
 
-마이그레이션 파일은 아래 경로에 추가합니다.
+마이그레이션 파일은 `data-source` 모듈의 아래 경로에 추가합니다.
 
 ```text
-src/main/resources/db/migration
+data-source/src/main/resources/db/migration
 ```
 
 파일명 예시는 다음과 같습니다.
 
 ```text
-V1__create_session_tables.sql
-V2__create_risk_result_tables.sql
+V1__init.sql
 ```
 
 `local` profile에서는 Hibernate가 직접 테이블을 생성하지 않도록 `ddl-auto: validate`를 사용합니다. 실제 테이블 변경은 Flyway migration으로 처리합니다.

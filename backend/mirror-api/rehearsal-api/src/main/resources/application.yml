@@ -3,7 +3,7 @@ server:
 
 spring:
   application:
-    name: mirror-api
+    name: rehearsal-api
   profiles:
     active: local
   main:
