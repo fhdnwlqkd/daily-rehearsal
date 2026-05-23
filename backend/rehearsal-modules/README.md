@@ -1,10 +1,10 @@
-# Rehearsal API
+# Rehearsal Modules
 
-StyleCaster 스마트 거울의 백엔드 API입니다.
+Daily Rehearsal 프로젝트의 백엔드 API입니다.
 
 ## 프로젝트 구조 및 모듈 전략
 
-본 프로젝트는 레이어드 아키텍처와 클린 아키텍처의 개념을 차용한 멀티 모듈 구조로 구성되어 있습니다.
+본 프로젝트는 레이어드 아키텍처와 클린 아키텍처의 개념을 차용한 멀티 모듈 구조로 구성되어 있습니다. 모든 패키지는 `com.rehearsal`로 시작합니다.
 
 ### 1. `domain` (Core Business Logic)
 최상위 모듈로, 외부 라이브러리나 프레임워크에 의존하지 않는 순수한 도메인 영역입니다.

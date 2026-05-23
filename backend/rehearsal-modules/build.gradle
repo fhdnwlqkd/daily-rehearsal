@@ -6,7 +6,7 @@ plugins {
 }
 
 allprojects {
-    group = 'com.stc'
+    group = 'com.rehearsal'
     version = '0.0.1-SNAPSHOT'
 
     repositories {

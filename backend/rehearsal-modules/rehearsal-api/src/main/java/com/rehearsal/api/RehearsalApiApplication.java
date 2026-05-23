@@ -1,9 +1,9 @@
-package com.stc.rehearsal.api;
+package com.rehearsal.api;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = "com.stc.rehearsal")
+@SpringBootApplication(scanBasePackages = "com.rehearsal")
 public class RehearsalApiApplication {
 
   public static void main(String[] args) {
