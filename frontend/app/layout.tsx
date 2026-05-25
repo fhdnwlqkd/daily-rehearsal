@@ -1,15 +1,11 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import './globals.css'
 
-const _geist = Geist({ subsets: ["latin"] });
-const _geistMono = Geist_Mono({ subsets: ["latin"] });
-
 export const metadata: Metadata = {
-  title: 'AI Style Caster',
-  description: 'Your personal AI lifecare agent that simulates daily uncertainties and provides perfect styling recommendations',
-  generator: 'StyleCaster.app',
+  title: 'Daily Rehearsal',
+  description: 'An offline daily simulator that lets visitors preview tomorrow through appearance, context, condition, and rehearsal.',
+  generator: 'DailyRehearsal.app',
   icons: {
     icon: [
       {
@@ -35,7 +31,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="ko">
       <body className="font-sans antialiased bg-black overflow-hidden">
         {children}
         {process.env.NODE_ENV === 'production' && <Analytics />}

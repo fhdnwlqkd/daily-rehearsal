@@ -3,17 +3,14 @@
 import { useState, useEffect, useCallback } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { WebcamBackground } from "./webcam-background"
-import { StateSelector } from "./state-selector"
-import { StandbyState } from "./states/standby-state"
-import { ListeningState } from "./states/listening-state"
-import { LoadingState } from "./states/loading-state"
-import { ResultState } from "./states/result-state"
 import { PermissionGuide } from "./permission-guide"
+import { P1ExperienceStage, experiencePhases } from "./p1-experience"
 
-export type MirrorState = 1 | 2 | 3 | 4
+export type MirrorState = (typeof experiencePhases)[number]["id"]
 
 export function SmartMirror() {
-  const [currentState, setCurrentState] = useState<MirrorState>(1)
+  const [phaseIndex, setPhaseIndex] = useState(0)
+  const [showDebug, setShowDebug] = useState(false)
   const [permissions, setPermissions] = useState<{
     camera: boolean | null
     audio: boolean | null
@@ -49,9 +46,38 @@ export function SmartMirror() {
   }, [checkPermissions])
 
   const showPermissionGuide = permissions.camera === false || permissions.audio === false
+  const currentPhase = experiencePhases[phaseIndex]
+
+  const goToNextPhase = useCallback(() => {
+    setPhaseIndex((current) => (current + 1) % experiencePhases.length)
+  }, [])
+
+  const goToPhase = useCallback((index: number) => {
+    setPhaseIndex(index)
+  }, [])
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === " " || event.key === "Enter") {
+        event.preventDefault()
+        goToNextPhase()
+      }
+
+      if (event.key.toLowerCase() === "d") {
+        setShowDebug((visible) => !visible)
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [goToNextPhase])
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-black">
+    <div
+      className="relative h-screen w-screen cursor-none overflow-hidden bg-black"
+      onClick={goToNextPhase}
+      role="presentation"
+    >
       {/* Permission Guide Overlay */}
       <AnimatePresence>
         {showPermissionGuide && (
@@ -68,58 +94,44 @@ export function SmartMirror() {
 
       {/* State Content Layer */}
       <AnimatePresence mode="wait">
-        {currentState === 1 && (
-          <motion.div
-            key="standby"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="absolute inset-0 z-10"
-          >
-            <StandbyState />
-          </motion.div>
-        )}
-        {currentState === 2 && (
-          <motion.div
-            key="listening"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="absolute inset-0 z-10"
-          >
-            <ListeningState />
-          </motion.div>
-        )}
-        {currentState === 3 && (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="absolute inset-0 z-10"
-          >
-            <LoadingState />
-          </motion.div>
-        )}
-        {currentState === 4 && (
-          <motion.div
-            key="result"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.6, ease: "easeInOut" }}
-            className="absolute inset-0 z-10"
-          >
-            <ResultState />
-          </motion.div>
-        )}
+        <motion.div
+          key={currentPhase.id}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.65, ease: "easeInOut" }}
+          className="absolute inset-0 z-10"
+        >
+          <P1ExperienceStage
+            phase={currentPhase}
+            phaseIndex={phaseIndex}
+            totalPhases={experiencePhases.length}
+          />
+        </motion.div>
       </AnimatePresence>
 
-      {/* State Selector (Top Right) */}
-      <StateSelector currentState={currentState} onStateChange={setCurrentState} />
+      {showDebug && (
+        <div className="absolute right-6 top-6 z-50 flex gap-2">
+          {experiencePhases.map((phase, index) => (
+            <motion.button
+              key={phase.id}
+              onClick={(event) => {
+                event.stopPropagation()
+                goToPhase(index)
+              }}
+              className={`flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-xs backdrop-blur-xl transition-all ${
+                phaseIndex === index
+                  ? "border-white/40 bg-white/20 text-white"
+                  : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white/80"
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              {index + 1}
+            </motion.button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
