@@ -1,5 +1,5 @@
 rootProject.name = 'rehearsal-modules'
 
 include 'rehearsal-api'
-include 'data-source'
+include 'datasource'
 include 'domain'
