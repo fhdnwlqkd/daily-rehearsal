@@ -3,3 +3,5 @@ node_modules/
 .next/
 .env*
 .idea
+frontend/package-lock.json
+codex/

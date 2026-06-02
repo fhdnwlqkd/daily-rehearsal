@@ -1,0 +1,71 @@
+@startuml
+title Daily Rehearsal - VTON 대기 중 type별 ContextSlot 기반 맥락 수집 시퀀스
+
+skinparam responseMessageBelowArrow true
+
+actor "사용자" as user
+participant "스마트 거울 웹\n(React)" as web
+participant "리허설 API\n(Spring Boot)" as api
+database "설정 DB\n(MySQL)" as mysql
+database "세션 저장소\n(Redis)" as redis
+participant "STT API" as stt
+participant "LLM API" as llm
+participant "Context Engine" as contextEngine
+
+note over web, redis
+이 단계는 VTON 비동기 작업이 진행되는 동안 병렬로 실행된다.
+이미 세션에는 experienceType, selectedOutfitId, baseSnapshot이 저장되어 있다.
+end note
+
+web -> api: GET /sessions/{sessionId}/context-question
+api -> redis: sessionId로 experienceType 조회
+redis --> api: experienceType
+api -> mysql: ContextSlot 조회\nexperienceType + active=true
+mysql --> api: slot 목록\nrequired/priority/initialQuestion/followUpQuestion/defaultValue/options
+api -> contextEngine: 첫 질문 구성
+contextEngine --> api: openingQuestion
+api --> web: openingQuestion
+web --> user: type별 브리핑 질문 표시/발화
+
+user -> web: 음성 브리핑
+web -> api: POST /sessions/{sessionId}/speech
+api -> redis: contextStatus=STT_PROCESSING
+api -> stt: STT 작업 생성
+api --> web: 202 Accepted
+
+par 프론트는 VTON/context 통합 상태 조회
+    loop contextStatus=COMPLETED까지
+        web -> api: GET /sessions/{sessionId}
+        api -> redis: vtonStatus/contextStatus 조회
+        api --> web: VTON 진행 상태 + 맥락 수집 상태
+    end
+else STT/LLM callback으로 context 추출
+    stt -> api: POST /callbacks/stt\ntranscript
+    api -> redis: transcript 저장\ncontextStatus=CONTEXT_EXTRACTING
+    api -> mysql: type별 ContextSlot/ContextOption 조회
+    mysql --> api: 동적 추출 스키마
+    api -> contextEngine: LLM 프롬프트 생성\nslotKey/type/options/null 처리 기준
+    contextEngine --> api: extractionPrompt
+    api -> llm: 맥락 추출 요청
+
+    llm -> api: POST /callbacks/llm/context\nslot별 value 또는 null
+    api -> contextEngine: 완성도 평가
+    contextEngine --> api: filledSlots/missingRequiredSlots/followUpQuestion
+end
+
+alt 필수 slot 부족 + 추가 질문 가능
+    api -> redis: contextStatus=FOLLOW_UP_REQUIRED\npartialContext 저장\nfollowUpAttempt=1
+    api --> web: followUpQuestion
+    web --> user: 추가 질문 1회
+    user -> web: 추가 답변
+    web -> api: PATCH /sessions/{sessionId}/context
+    api -> contextEngine: 추가 답변 병합\n남은 slot 기본값 적용
+else 충분함 또는 추가 질문 횟수 초과
+    api -> contextEngine: 비어 있는 optional slot 기본값 적용
+end
+
+contextEngine --> api: finalUserContext
+api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED
+api --> web: 맥락 수집 완료
+
+@enduml

@@ -1,0 +1,184 @@
+@startuml
+title Daily Rehearsal - 체험 type, 옷 선택, VTON/맥락 병렬 처리 전체 시퀀스
+
+skinparam responseMessageBelowArrow true
+skinparam sequence {
+    ArrowColor #2B2B2B
+    LifeLineBorderColor #777777
+    LifeLineBackgroundColor #F7F7F7
+    ParticipantBorderColor #555555
+    ParticipantBackgroundColor #FAFAFA
+    ActorBorderColor #555555
+    ActorBackgroundColor #FAFAFA
+}
+
+actor "사용자" as user
+participant "스마트 거울 웹\n(React)" as web
+participant "클라이언트 비전\n(MediaPipe)" as vision
+participant "리허설 API\n(Spring Boot)" as api
+database "설정 DB\n(MySQL)" as mysql
+database "옷 이미지/에셋 저장소" as outfitStore
+database "세션 저장소\n(Redis)" as redis
+participant "STT API" as stt
+participant "LLM API" as llm
+participant "VTON API" as vton
+participant "시뮬레이터 엔진\n(Context/Prompt/Feedback/Result)" as engine
+
+note over api, mysql
+DB는 체험 type과 context slot을 관리한다.
+옷 리스트와 옷 사진은 별도 에셋 저장소에서 관리한다.
+
+세션의 experienceType은 시작 시 고정된다.
+VTON은 옷 선택과 base snapshot 확보 직후 비동기로 시작하고,
+그 대기 시간 동안 음성 브리핑/STT/LLM 맥락 수집을 병렬로 진행한다.
+end note
+
+== 0. 체험 type 선택 ==
+
+web -> api: GET /experience-types
+api -> mysql: 활성 체험 type 조회
+mysql --> api: type 목록\ncode/displayName/introCopy
+api --> web: 체험 선택지
+web --> user: 발표/소개팅/면접 등 선택 화면 표시
+
+user -> web: 체험 type 선택\n예: PRESENTATION
+web -> api: POST /sessions\nexperienceType=PRESENTATION
+api -> mysql: type별 ContextSlot 설정 조회
+mysql --> api: context slot 설정
+api -> redis: 세션 생성\nexperienceType 고정\nstatus=OUTFIT_SELECTING
+api --> web: sessionId + introCopy
+
+== 1. type별 옷 리스트 제공 및 사용자 옷 선택 ==
+
+web -> api: GET /experience-types/{experienceType}/outfits
+api -> outfitStore: type별 옷 이미지/메타데이터 조회
+outfitStore --> api: 옷 리스트\noutfitId/displayName/imageUrl/vtonAssetRef
+api --> web: type에 어울리는 옷 리스트
+web --> user: 옷 선택 화면 표시
+
+user -> web: 옷 선택
+web -> api: PATCH /sessions/{sessionId}/outfit\nselectedOutfitId
+api -> redis: selectedOutfitId 저장\nstatus=BASE_CAPTURE_WAITING
+api --> web: 옷 선택 저장 완료
+
+== 2. base snapshot 캡처 ==
+
+web --> user: VTON용 정자세 안내
+web -> vision: 자세 추적 시작
+
+loop VTON 준비 자세가 안정될 때까지
+    vision --> web: poseContext\n전신 포함/중앙 정렬/어깨 기울기/안정화 시간
+    alt 자세가 불충분함
+        web --> user: 위치/자세 조정 안내
+    else 자세 안정화
+        web -> web: baseSnapshot 캡처
+        web -> api: PATCH /sessions/{sessionId}/base-snapshot\nbaseSnapshot + poseContext
+        api -> redis: baseSnapshot/poseContext 저장
+    end
+end
+
+== 3. VTON 비동기 처리와 음성 맥락 수집 병렬 진행 ==
+
+par 선택한 옷으로 VTON 비동기 시작
+    web -> api: POST /sessions/{sessionId}/vton
+    api -> redis: selectedOutfitId/baseSnapshot 조회
+    redis --> api: 옷 선택 + 베이스 이미지
+    api -> outfitStore: selectedOutfitId의 VTON asset 조회
+    outfitStore --> api: vtonAssetRef
+    api -> vton: VTON 작업 생성\nbaseSnapshot + vtonAssetRef + callbackUrl
+    vton --> api: vtonJobId
+    api -> redis: vtonJobId 저장\nvtonStatus=PROCESSING
+    api --> web: 202 Accepted\nVTON 처리 중
+
+    vton -> api: POST /callbacks/vton\nresultImageUrl 또는 failureReason
+    alt VTON 성공
+        api -> redis: vtonResult 저장\nvtonStatus=COMPLETED
+    else VTON 실패
+        api -> redis: vtonFallback 저장\nvtonStatus=FAILED
+    end
+
+else 동시에 type별 음성 브리핑 수집
+    web -> api: GET /sessions/{sessionId}/context-question
+    api -> redis: sessionId로 experienceType 조회
+    redis --> api: experienceType
+    api -> mysql: type별 ContextSlot 조회
+    mysql --> api: slot 목록\nrequired/priority/initialQuestion/followUpQuestion
+    api -> engine: 첫 질문 구성
+    engine --> api: openingQuestion
+    api --> web: openingQuestion
+    web --> user: type별 브리핑 질문 표시/발화
+
+    user -> web: 음성 브리핑
+    web -> api: POST /sessions/{sessionId}/speech\n오디오
+    api -> redis: contextStatus=STT_PROCESSING
+    api -> stt: STT 작업 생성\ncallbackUrl
+    stt --> api: sttJobId
+    api --> web: 202 Accepted\nSTT 처리 중
+
+    stt -> api: POST /callbacks/stt\nsttJobId + transcript
+    api -> redis: transcript 저장\ncontextStatus=CONTEXT_EXTRACTING
+    api -> mysql: 세션 type의 ContextSlot/ContextOption 조회
+    mysql --> api: 동적 추출 스키마 재료
+    api -> engine: LLM 추출 프롬프트 구성\ntranscript + slot 정의
+    engine --> api: contextExtractionPrompt
+    api -> llm: 맥락 추출 작업 생성\n동적 스키마 + callbackUrl
+    llm --> api: llmJobId
+    llm -> api: POST /callbacks/llm/context\nslotValue + missingSlot
+    api -> engine: 완성도 판단\nrequired slot의 null/empty 여부 + priority 기준
+    engine --> api: completionResult
+
+    alt 필수 맥락 부족 + 추가 질문 가능
+        api -> redis: 부분 맥락 저장\ncontextStatus=FOLLOW_UP_REQUIRED\nfollowUpAttempt=1
+        web -> api: GET /sessions/{sessionId}
+        api --> web: 부족 slot 기반 묶음 질문
+        web --> user: 추가 질문 1회 표시/발화
+        user -> web: 추가 답변
+        web -> api: PATCH /sessions/{sessionId}/context\nfollowUpAnswer
+        api -> engine: 기존 맥락과 병합\n남은 빈 slot은 기본값 적용
+        engine --> api: finalUserContext
+        api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED
+    else 맥락 충분 또는 질문 횟수 초과
+        api -> engine: 빈 slot 기본값 적용\n최종 맥락 생성
+        engine --> api: finalUserContext
+        api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED
+    end
+
+else 프론트는 통합 세션 상태 조회
+    loop VTON과 맥락이 모두 준비될 때까지
+        web -> api: GET /sessions/{sessionId}
+        api -> redis: vtonStatus/contextStatus 조회
+        api --> web: 상태 + 진행 메시지
+    end
+end
+
+== 4. VTON 결과와 맥락으로 시뮬레이션 구성 ==
+
+web -> api: POST /sessions/{sessionId}/simulation
+api -> redis: experienceType/finalUserContext/vtonResult 조회
+redis --> api: 시뮬레이션 입력 데이터
+api -> engine: simulatorPrompt 생성\nexperienceType + finalUserContext + VTON/fallback 결과
+engine --> api: AI 상대 한마디/관찰 항목/피드백 기준
+api -> redis: simulatorPrompt 저장\nstatus=REHEARSAL_READY
+api --> web: 리허설 화면 데이터
+
+web --> user: VTON 결과 + type별 리허설 장면 표시
+user -> web: 리허설 응답\n음성/자세/시선/반응
+web -> api: POST /sessions/{sessionId}/rehearsal-response\n오디오 + observationMetrics
+api -> stt: 리허설 응답 STT 작업 생성\ncallbackUrl
+stt --> api: sttJobId
+stt -> api: POST /callbacks/stt/rehearsal\n응답 텍스트
+api -> engine: 피드백 생성\nfinalUserContext + response + observationMetrics
+engine --> api: feedbackResult
+api -> redis: feedbackResult 저장\nstatus=RESULT_READY
+
+== 5. 최종 결과지 생성 ==
+
+web -> api: POST /sessions/{sessionId}/result
+api -> redis: finalUserContext/feedbackResult/vtonResult 조회
+api -> engine: 결과지 생성\n맥락 + 피드백 + VTON 결과
+engine --> api: finalResult
+api -> redis: finalResult 저장\nstatus=COMPLETED
+api --> web: finalResult
+web --> user: 변화 카드/피드백/QR 표시
+
+@enduml
