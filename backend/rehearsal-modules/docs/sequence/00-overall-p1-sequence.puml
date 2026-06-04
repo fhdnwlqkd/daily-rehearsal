@@ -124,29 +124,38 @@ web --> user: LOOK carousel + 이동 변수 + 장소 분위기 표시
 
 == 4. gesture-fit - 인식 연출과 제스처 기반 outfit switching ==
 
-web --> user: "거울이 내일의 모습을 맞추는 중입니다"\n인식 연출/스캔 UI 표시
-web -> media: getUserMedia video stream 유지
-media --> web: cameraStream
-web -> outfitStore: 첫 outfit referenceImageUrl fetch\nCORS/signed URL
-outfitStore --> web: reference image Blob/File\n10MB 이하
-web -> decart: connect(cameraStream, token, model)\ninitialState={prompt, image, enhance}
-decart --> web: remoteStream\nconnectionChange=connected/generating
-web --> user: Decart preview 표시\n연결 시간은 인식 연출로 덮음
+par 프론트는 Decart preview와 outfit switching 진행
+    web --> user: "거울이 내일의 모습을 맞추는 중입니다"\n인식 연출/스캔 UI 표시
+    web -> media: getUserMedia video stream 유지
+    media --> web: cameraStream
+    web -> outfitStore: 첫 outfit referenceImageUrl fetch\nCORS/signed URL
+    outfitStore --> web: reference image Blob/File\n10MB 이하
+    web -> decart: connect(cameraStream, token, model)\ninitialState={prompt, image, enhance}
+    decart --> web: remoteStream\nconnectionChange=connected/generating
+    web --> user: Decart preview 표시\n연결 시간은 인식 연출로 덮음
 
-loop 사용자가 옷을 바꾸고 싶을 때
-    user -> web: 손 좌/우 swipe 또는 open-palm dwell
-    web -> vision: gesture 감지\nconfidence + direction + debounce
-    vision --> web: outfitChangeIntent\nNEXT/PREV/CONFIRM
-    alt NEXT/PREV
-        web -> outfitStore: 다음 outfit referenceImageUrl fetch\npreloaded면 생략
-        outfitStore --> web: reference image Blob/File
-        web -> decart: rt.set({ prompt, image, enhance })\n선택 outfit으로 상태 교체
-        decart --> web: remoteStream 업데이트
-        web --> user: 새 outfit preview 표시
-    else CONFIRM
-        web -> api: PATCH /sessions/{sessionId}/outfit\nselectedOutfitId + decartSessionId
-        api -> redis: selectedOutfitId 저장\nvtonPreviewStatus=CONNECTED\nstatus=REHEARSAL_READY
+    loop 사용자가 옷을 바꾸고 싶을 때
+        user -> web: 손 좌/우 swipe 또는 open-palm dwell
+        web -> vision: gesture 감지\nconfidence + direction + debounce
+        vision --> web: outfitChangeIntent\nNEXT/PREV/CONFIRM
+        alt NEXT/PREV
+            web -> outfitStore: 다음 outfit referenceImageUrl fetch\npreloaded면 생략
+            outfitStore --> web: reference image Blob/File
+            web -> decart: rt.set({ prompt, image, enhance })\n선택 outfit으로 상태 교체
+            decart --> web: remoteStream 업데이트
+            web --> user: 새 outfit preview 표시
+        else CONFIRM
+            web -> api: PATCH /sessions/{sessionId}/outfit\nselectedOutfitId + decartSessionId
+            api -> redis: selectedOutfitId 저장\nvtonPreviewStatus=CONNECTED\nstatus=REHEARSAL_READY
+        end
     end
+
+else 백엔드는 리허설 장면을 사전 생성
+    api -> redis: finalUserContext 조회
+    redis --> api: finalUserContext
+    api -> llm: 결정적 순간 장면/대사 생성
+    llm --> api: sceneTitle/sceneDescription/aiLine/observationTargets
+    api -> redis: simulationDraft 저장
 end
 
 alt Decart preview 연결 성공
@@ -158,14 +167,19 @@ end
 
 == 5. rehearsal - 결정적 순간 리허설 ==
 
-web -> api: POST /sessions/{sessionId}/simulation
-api -> redis: finalUserContext/selectedOutfitId 조회
-redis --> api: 시뮬레이션 입력 데이터
-api -> api: simulation-dialogue 프롬프트 구성\nsituation_type + critical_moment + persona
-api -> llm: 결정적 순간 대사/장면 생성
-llm --> api: sceneTitle/sceneDescription/aiLine/observationTargets
-api -> redis: simulation 저장\nstatus=REHEARSAL_PLAYING
-api --> web: 리허설 화면 데이터\nAI 한마디 text/관찰 항목
+web -> api: GET /sessions/{sessionId}/simulation
+api -> redis: simulationDraft/finalUserContext/selectedOutfitId 조회
+alt simulationDraft 준비됨
+    redis --> api: 리허설 화면 데이터
+    api -> redis: status=REHEARSAL_PLAYING
+    api --> web: sceneTitle/sceneDescription/aiLine/observationTargets
+else simulationDraft 아직 없음
+    redis --> api: finalUserContext/selectedOutfitId
+    api -> llm: 결정적 순간 장면/대사 생성
+    llm --> api: sceneTitle/sceneDescription/aiLine/observationTargets
+    api -> redis: simulationDraft 저장\nstatus=REHEARSAL_PLAYING
+    api --> web: sceneTitle/sceneDescription/aiLine/observationTargets
+end
 
 web -> frontTts: SpeechSynthesisUtterance(aiLine)\nko-KR voice
 frontTts --> user: AI 상대의 첫 한마디 재생

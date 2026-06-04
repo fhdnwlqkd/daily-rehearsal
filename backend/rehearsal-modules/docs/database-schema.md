@@ -79,6 +79,32 @@ formality_level = SINGLE_SELECT
 anxiety_type = MULTI_SELECT
 ```
 
+## P1 공통 active context_slot
+
+P1 MVP에서는 상황별로 다른 질문지를 먼저 고르지 않는다. 사용자의 첫 transcript를 아래 공통 active slot으로 추출하고, `situation_type` 값에 따라 리허설 장면과 피드백 표현을 다르게 만든다.
+
+| slot_key | 필수 | 역할 |
+| --- | --- | --- |
+| situation_type | true | 발표/소개팅/면접/일상 정돈 등 상황 분류 |
+| critical_moment | true | 리허설할 결정적 순간 |
+| desired_persona | true | 되고 싶은 태도/인상 |
+| anxiety_point | false | 걱정/불안 포인트 |
+| place_context | false | 장소/공간 분위기 |
+| opponent_context | false | 상대/청중 분위기 |
+| outfit_direction | false | 복장 방향 |
+| change_action | false | 내일 바꿀 행동 |
+
+### 충분한 맥락의 기준
+
+MVP에서는 LLM confidence 점수를 사용하지 않는다. 충분한 맥락은 다음 기준으로 판단한다.
+
+```text
+required=true인 공통 slot이 모두 null/empty가 아니면 충분하다.
+required slot 중 하나라도 null/empty이면 follow-up 후보가 된다.
+follow-up은 최대 1회만 수행한다.
+follow-up 이후에도 비어 있는 slot은 default_value 또는 fallback 값으로 채운다.
+```
+
 ## context_option
 
 여러 체험과 slot에서 재사용할 수 있는 객관식 선택지다.

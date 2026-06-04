@@ -29,6 +29,19 @@ P1에서 사용자의 음성 브리핑으로 채워야 하는 맥락이다.
 - 되고 싶은 태도
 - 상대 분위기
 
+P1 MVP 공통 active slot:
+
+| slot_key | 필수 | 역할 |
+| --- | --- | --- |
+| situation_type | true | 발표/소개팅/면접/일상 정돈 등 상황 분류 |
+| critical_moment | true | 리허설할 결정적 순간 |
+| desired_persona | true | 되고 싶은 태도/인상 |
+| anxiety_point | false | 걱정/불안 포인트 |
+| place_context | false | 장소/공간 분위기 |
+| opponent_context | false | 상대/청중 분위기 |
+| outfit_direction | false | 복장 방향 |
+| change_action | false | 내일 바꿀 행동 |
+
 ### context_option
 
 여러 체험에서 재사용 가능한 객관식 선택지이다.
@@ -67,6 +80,7 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 역할:
 - transcript에서 slot별 값을 추출한다.
 - `critical_moment` slot은 결정적 순간 리허설을 구성하는 기준으로 사용한다.
+- `situation_type` slot은 발표/소개팅/면접/일상 정돈 등 상황별 표현을 고르는 기준으로 사용한다.
 - 판단할 수 없는 값은 억지로 채우지 않고 `null`로 둔다.
 - slot key를 DB 정의와 동일하게 반환한다.
 - 부족한 required slot 목록과 follow-up question을 같은 응답에서 반환한다.
