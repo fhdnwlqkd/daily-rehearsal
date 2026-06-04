@@ -2,11 +2,13 @@
 
 ## Role
 
-부족한 필수 context slot을 사용자에게 한 번 더 물어볼 짧은 묶음 질문으로 만든다.
+부족한 필수 context slot을 사용자에게 물어볼 짧은 묶음 질문으로 만든다.
+
+> 현재 기본 흐름에서는 `context-extraction.md`의 Structured Outputs 응답이 `followUpQuestion`까지 함께 반환한다.
+> 이 파일은 질문 생성 로직을 분리해야 할 때의 fallback prompt로만 사용한다.
 
 ## Inputs
 
-- experienceType
 - filledContext
 - missingRequiredSlots
   - slotKey

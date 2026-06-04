@@ -2,61 +2,35 @@
 
 이 문서는 Daily Rehearsal MVP에서 DB에 저장할 최소 설정 스키마를 정의한다.
 
-MVP에서는 체험별로 달라지는 "맥락 수집 구조"만 DB에 둔다. 옷 리스트/옷 이미지, LLM prompt, 정량 rule, 결과지 템플릿은 DB에서 제외한다.
+MVP에서는 P1에서 채울 "맥락 slot 구조"만 DB에 둔다. 옷 리스트/옷 이미지, LLM prompt, 정량 rule, 결과지 템플릿은 DB에서 제외한다.
 
 ## 설계 원칙
 
-- 사용자는 세션 시작 시 하나의 체험 type을 선택한다.
-- 선택된 `experienceType`은 세션이 끝날 때까지 유지된다.
-- 체험 type별로 받아야 하는 사용자 맥락은 `context_slot`으로 정의한다.
+- 사용자는 세션 시작 시 상황 카드를 선택하지 않는다.
+- 내일의 상황 맥락은 별도 분류 호출이 아니라 `situation_type` slot으로 추출한다.
+- P1에서 받아야 하는 사용자 맥락은 active `context_slot`으로 정의한다.
 - LLM은 DB에 정의된 `slot_key` 기준으로 사용자 발화에서 값을 추출한다.
 - MVP에서는 LLM confidence 점수를 사용하지 않는다.
 - 필수 slot의 값이 `null`이거나 비어 있으면 부족한 맥락으로 판단한다.
 
 ## DB에 남기는 테이블
 
-MVP에서 필요한 테이블은 다음 4개로 제한한다.
+MVP에서 필요한 테이블은 다음 3개로 제한한다.
 
 ```text
-experience_type
 context_slot
 context_option
 context_slot_option
 ```
 
-## experience_type
-
-사용자가 처음 선택하는 체험 종류이다. 예를 들면 발표, 소개팅, 면접 같은 단위다.
-
-| 필드 | 설명 | 필요 이유 |
-| --- | --- | --- |
-| id | DB 내부 PK | 다른 테이블에서 체험 type을 참조하기 위해 필요 |
-| code | 내부 식별자 | API, Redis, LLM prompt, 로그에서 같은 체험을 안정적으로 식별하기 위해 필요 |
-| display_name | 사용자에게 보이는 이름 | 체험 선택 화면에 표시하기 위해 필요 |
-| active | 노출 여부 | 개발 중인 체험을 숨기거나 비활성화하기 위해 필요 |
-| sort_order | 표시 순서 | 체험 선택 화면의 순서를 제어하기 위해 필요 |
-
-### code 예시
-
-`code`는 사용자에게 보이는 문구가 아니라 시스템 내부에서 사용하는 안정적인 이름이다.
-
-```text
-PRESENTATION
-DATE
-INTERVIEW
-DAILY_RESET
-```
-
-예를 들어 사용자에게 보이는 이름이 `발표`에서 `발표 리허설`로 바뀌어도 `code=PRESENTATION`은 유지한다.
-
 ## context_slot
 
-체험 type별로 사용자에게 받아야 하는 맥락 항목이다. 이 테이블이 MVP 설정 DB의 핵심이다.
+P1에서 사용자에게 받아야 하는 맥락 항목이다. 이 테이블이 MVP 설정 DB의 핵심이다.
+slot은 코드 enum이 아니라 DB 설정이다. 새 slot을 추가하거나 기존 slot을 끄면, 서버는 active slot 목록으로 LLM Structured Outputs JSON Schema를 다시 생성한다.
 
 | 필드 | 설명 | 필요 이유 |
 | --- | --- | --- |
 | id | DB 내부 PK | slot을 고유하게 구분하기 위해 필요 |
-| experience_type_id | 이 slot이 속한 체험 type FK | 발표/소개팅/면접마다 필요한 맥락이 다르기 때문에 필요 |
 | slot_key | LLM 결과와 서버 저장에 쓰는 내부 key | LLM이 반환한 값을 어떤 맥락으로 저장할지 식별하기 위해 필요 |
 | label | 사람이 읽는 이름 | 관리자, 디버깅, 결과 확인에서 slot 의미를 이해하기 위해 필요 |
 | slot_type | 값의 형태 | LLM 출력 형식과 객관식 option 사용 여부를 정하기 위해 필요 |
@@ -71,23 +45,18 @@ DAILY_RESET
 
 `slot_key`는 enum이 아니라 DB에 저장되는 문자열 key다. LLM은 이 key와 같은 이름으로 JSON을 반환한다.
 
-발표 체험 예:
+P1 active slot 예:
 
 ```text
-presentation_topic
-presentation_place
+situation_type
+place_context
 anxiety_point
 desired_persona
-speaking_habit
-```
-
-소개팅 체험 예:
-
-```text
-meeting_place
-desired_first_impression
+critical_moment
 opponent_mood
-awkward_moment
+outfit_direction
+route_risk
+change_action
 conversation_style
 ```
 
@@ -104,7 +73,8 @@ BOOLEAN
 예:
 
 ```text
-presentation_topic = TEXT
+situation_type = SINGLE_SELECT
+critical_moment = TEXT
 formality_level = SINGLE_SELECT
 anxiety_type = MULTI_SELECT
 ```
@@ -149,46 +119,67 @@ option_group=anxiety_type
 | context_slot_id | context_slot FK | 어떤 slot에 연결되는 option인지 알기 위해 필요 |
 | context_option_id | context_option FK | 해당 slot에서 허용할 option을 지정하기 위해 필요 |
 
-예를 들어 발표 체험의 장소 유형 slot에는 `meeting_room`, `classroom`, `auditorium`만 연결하고, 소개팅 체험의 장소 유형 slot에는 `restaurant`, `cafe`, `outdoor`만 연결할 수 있다.
+예를 들어 `situation_type` slot에는 `presentation`, `date`, `interview`, `daily_reset` 같은 option을 연결하고, `outfit_direction` slot에는 `casual`, `smart_casual`, `business`, `formal` 같은 option을 연결할 수 있다.
 
 ## Redis 세션 저장 모델
 
-세션 진행 상태와 외부 API callback 결과는 빠른 조회를 위해 Redis에 저장한다.
+세션 진행 상태와 프론트가 확정한 transcript/context, Decart preview metadata는 빠른 조회를 위해 Redis에 저장한다.
 
 ```json
 {
   "sessionId": "uuid",
-  "experienceType": "PRESENTATION",
   "selectedOutfitId": "presentation_jacket_01",
   "status": "REHEARSAL_READY",
-  "vtonStatus": "COMPLETED",
+  "vtonPreviewStatus": "CONNECTED",
   "contextStatus": "COMPLETED",
-  "baseSnapshot": {
-    "imageUrl": "object-storage-url",
-    "poseContext": {
-      "fullBodyVisible": true,
-      "shoulderTilt": 0.04,
-      "centered": true,
-      "stableSeconds": 2.3
-    }
+  "decartPreview": {
+    "sessionId": "decart-session-id",
+    "model": "lucy-2.1-vton",
+    "referenceImageUrl": "https://asset-store/outfits/presentation_jacket_01.png"
   },
   "transcript": "내일 팀 발표가 있는데 질문을 받으면 말이 꼬일 것 같아요.",
   "userContext": {
-    "presentation_topic": "팀 프로젝트 발표",
+    "situation_type": "presentation",
     "anxiety_point": "질문을 받으면 말이 꼬일까 봐 걱정됨"
   },
   "finalUserContext": {
-    "presentation_topic": "팀 프로젝트 발표",
-    "presentation_place": "회의실",
+    "situation_type": "presentation",
+    "place_context": "회의실",
     "anxiety_point": "질문을 받으면 말이 꼬일까 봐 걱정됨",
-    "desired_persona": "차분하고 신뢰감 있는 태도"
+    "desired_persona": "차분하고 신뢰감 있는 태도",
+    "critical_moment": "예상 질문을 받는 순간"
   },
   "followUpAttempt": 0,
-  "vtonResult": {
-    "imageUrl": "vton-result-url"
-  },
   "feedbackResult": {},
   "finalResult": {}
+}
+```
+
+## LLM Structured Outputs schema 생성
+
+context 추출은 고정 DTO에 맞추지 않는다. 서버는 P1 active `context_slot`을 읽고 매 요청마다 JSON Schema를 만든다.
+
+생성 규칙:
+
+- `slots` object의 property는 active slot의 `slot_key`로 만든다.
+- Structured Outputs에서 key 누락을 막기 위해 active slot key는 모두 `required`에 넣는다.
+- 값이 비어 있을 수 있는 slot은 type을 `["string", "null"]`, `["number", "null"]`, `["boolean", "null"]`처럼 null 허용으로 만든다.
+- `additionalProperties: false`를 사용해 DB에 없는 slot key가 나오지 않게 한다.
+- `missingRequiredSlotKeys`는 required slot 중 값이 비어 있는 key만 담는다.
+- `followUpQuestion`은 부족한 required slot이 있고 follow-up 횟수가 남아 있을 때만 문자열로 채운다.
+- `readyForSimulation`은 required slot이 모두 채워졌거나 follow-up 횟수를 모두 사용했을 때 true다.
+
+출력 envelope:
+
+```json
+{
+  "slots": {
+    "critical_moment": "예상 질문을 받는 순간",
+    "desired_persona": "차분하고 신뢰감 있는 태도"
+  },
+  "missingRequiredSlotKeys": [],
+  "followUpQuestion": null,
+  "readyForSimulation": true
 }
 ```
 
@@ -204,7 +195,8 @@ option_group=anxiety_type
 별도 에셋/이미지 저장소
 ```
 
-세션에는 사용자가 선택한 옷의 id 또는 asset reference만 저장한다.
+세션에는 사용자가 선택한 옷의 id, reference image URL, Decart preview session metadata만 저장한다.
+사용자 카메라 stream과 VTON media는 프론트에서 Decart WebRTC로 직접 전달하며 백엔드를 거치지 않는다.
 
 ### Prompt 파일
 
@@ -223,7 +215,7 @@ result-card.md
 정량적으로 계산 가능한 판정은 DB나 LLM이 아니라 code/rule로 처리한다.
 
 ```text
-pose-stability-rule
+gesture-navigation-rule
 voice-volume-rule
 speech-rate-rule
 silence-duration-rule
@@ -252,12 +244,12 @@ result_template
 
 ## 체험별 확장 방식
 
-새 체험 type을 추가할 때는 공통 파이프라인을 유지하고 DB 설정만 추가한다.
+새 상황 유형을 추가할 때는 공통 파이프라인을 유지하고 slot/option 설정만 추가한다.
 
-1. `experience_type`에 새 체험 type을 추가한다.
-2. `context_slot`에 그 체험에서 받아야 할 맥락을 정의한다.
+1. `situation_type`의 `context_option`에 새 상황 option을 추가한다.
+2. 새 상황에서도 공통으로 받을 맥락은 active `context_slot`으로 유지한다.
 3. 객관식이 필요한 slot은 `context_option`을 재사용하거나 새로 추가한다.
 4. `context_slot_option`으로 slot과 option을 연결한다.
-5. prompt 파일은 `experienceType`과 `context_slot` 목록을 입력으로 받아 체험별 차이를 처리한다.
+5. prompt 파일은 `finalUserContext.situation_type`과 active `context_slot` 값을 입력으로 받아 표현 차이를 처리한다.
 
 코드가 달라지는 지점은 새로운 외부 API, 새로운 관찰 지표, 새로운 정량 rule처럼 파이프라인 자체가 늘어날 때로 제한한다.

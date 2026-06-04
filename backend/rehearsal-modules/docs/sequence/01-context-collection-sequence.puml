@@ -1,71 +1,91 @@
 @startuml
-title Daily Rehearsal - VTON 대기 중 type별 ContextSlot 기반 맥락 수집 시퀀스
+title Daily Rehearsal P1 - 브리핑 기반 ContextSlot 수집/재질문 시퀀스
 
 skinparam responseMessageBelowArrow true
 
 actor "사용자" as user
-participant "스마트 거울 웹\n(React)" as web
+participant "스마트 거울 웹\n(Next/React)" as web
 participant "리허설 API\n(Spring Boot)" as api
 database "설정 DB\n(MySQL)" as mysql
 database "세션 저장소\n(Redis)" as redis
-participant "STT API" as stt
+participant "프론트 STT\n(Browser/On-device)" as frontStt
 participant "LLM API" as llm
-participant "Context Engine" as contextEngine
 
-note over web, redis
-이 단계는 VTON 비동기 작업이 진행되는 동안 병렬로 실행된다.
-이미 세션에는 experienceType, selectedOutfitId, baseSnapshot이 저장되어 있다.
+note over web, api
+이 시퀀스는 프론트의 briefing(0-15s)과 context(15-25s)에 해당한다.
+사용자는 상황 카드를 먼저 고르지 않고 내일의 상황을 자유롭게 말한다.
+프론트가 음성을 transcript로 확정하고 API는 text만 받는다.
+API는 P1 active ContextSlot schema로 필요한 맥락을 한 번에 채운다.
+내일의 상황 맥락은 별도 분류 호출이 아니라 `situation_type` slot으로 추출한다.
+결정적 순간 리허설은 별도 플로우가 아니라 critical_moment slot 값에서 출발한다.
+재질문은 maxFollowUpAttempt=2까지 가능하지만, 매번 부족한 slot을 한 화면에 묶는다.
+slot schema 생성, prompt 구성, 기본값 적용은 rehearsal-api 내부 처리다.
 end note
 
-web -> api: GET /sessions/{sessionId}/context-question
-api -> redis: sessionId로 experienceType 조회
-redis --> api: experienceType
-api -> mysql: ContextSlot 조회\nexperienceType + active=true
-mysql --> api: slot 목록\nrequired/priority/initialQuestion/followUpQuestion/defaultValue/options
-api -> contextEngine: 첫 질문 구성
-contextEngine --> api: openingQuestion
-api --> web: openingQuestion
-web --> user: type별 브리핑 질문 표시/발화
+== 1. 최초 브리핑 수집 ==
 
-user -> web: 음성 브리핑
-web -> api: POST /sessions/{sessionId}/speech
-api -> redis: contextStatus=STT_PROCESSING
-api -> stt: STT 작업 생성
-api --> web: 202 Accepted
+web -> api: POST /sessions\nchannel=P1_OFFLINE
+api -> redis: 세션 생성\nstatus=BRIEFING\nfollowUpAttempt=0
+api --> web: sessionId
 
-par 프론트는 VTON/context 통합 상태 조회
-    loop contextStatus=COMPLETED까지
+web --> user: "내일 하루를 짧게 말해주세요"
+user -> web: 일정/걱정/되고 싶은 모습 자유 발화
+web -> frontStt: 브리핑 음성 실시간 인식 시작
+frontStt --> web: partial transcript\n화면에 REAL-TIME STT 표시
+frontStt --> web: final transcript
+web -> api: POST /sessions/{sessionId}/briefing\ntranscript
+api -> redis: transcript 저장\ncontextStatus=CONTEXT_EXTRACTING
+
+par 프론트 상태 조회
+    loop contextStatus가 COMPLETED 또는 FOLLOW_UP_REQUIRED가 될 때까지
         web -> api: GET /sessions/{sessionId}
-        api -> redis: vtonStatus/contextStatus 조회
-        api --> web: VTON 진행 상태 + 맥락 수집 상태
+        api -> redis: contextStatus/transcript/partialContext 조회
+        api --> web: 진행 상태 + 화면용 메시지
     end
-else STT/LLM callback으로 context 추출
-    stt -> api: POST /callbacks/stt\ntranscript
-    api -> redis: transcript 저장\ncontextStatus=CONTEXT_EXTRACTING
-    api -> mysql: type별 ContextSlot/ContextOption 조회
-    mysql --> api: 동적 추출 스키마
-    api -> contextEngine: LLM 프롬프트 생성\nslotKey/type/options/null 처리 기준
-    contextEngine --> api: extractionPrompt
-    api -> llm: 맥락 추출 요청
-
-    llm -> api: POST /callbacks/llm/context\nslot별 value 또는 null
-    api -> contextEngine: 완성도 평가
-    contextEngine --> api: filledSlots/missingRequiredSlots/followUpQuestion
+else 백엔드는 전달받은 transcript로 slot 추출
+    api -> mysql: P1 active ContextSlot/ContextOption 조회
+    mysql --> api: slot 목록\nsituation_type/critical_moment 포함
+    api -> api: Structured Outputs schema 생성\nactive slot 기반
 end
 
-alt 필수 slot 부족 + 추가 질문 가능
-    api -> redis: contextStatus=FOLLOW_UP_REQUIRED\npartialContext 저장\nfollowUpAttempt=1
-    api --> web: followUpQuestion
-    web --> user: 추가 질문 1회
-    user -> web: 추가 답변
-    web -> api: PATCH /sessions/{sessionId}/context
-    api -> contextEngine: 추가 답변 병합\n남은 slot 기본값 적용
-else 충분함 또는 추가 질문 횟수 초과
-    api -> contextEngine: 비어 있는 optional slot 기본값 적용
+== 2. P1 active ContextSlot 추출 ==
+
+api -> api: context-extraction prompt 생성\ntranscript + slot 정의
+api -> llm: slot 추출 + 부족 slot + follow-up 질문 생성
+llm --> api: slots + missingRequiredSlotKeys\nfollowUpQuestion + readyForSimulation
+api -> redis: partialContext 저장\ncontextStatus 갱신
+
+== 3. 부족한 맥락 재질문 ==
+
+loop 필수 slot 부족 + followUpAttempt < maxFollowUpAttempt
+    api -> api: 부족 slot 묶음 질문 확정\nfollowUpQuestion 우선 사용
+    api -> redis: partialContext 저장\nmissingRequiredSlots 저장\ncontextStatus=FOLLOW_UP_REQUIRED\nfollowUpAttempt 증가
+    api --> web: 채워진 tags + 부족 맥락 + followUpQuestion
+
+    web --> user: "조금만 더 알려주세요"\n부족한 질문을 한 화면에 묶어서 표시
+    user -> web: 추가 답변 발화
+    web -> frontStt: 추가 답변 음성 인식
+    frontStt --> web: followUpTranscript
+    web -> api: POST /sessions/{sessionId}/follow-up\ntranscript=followUpTranscript
+    api -> redis: followUpTranscript 저장\ncontextStatus=CONTEXT_MERGING
+    api -> mysql: P1 active ContextSlot/ContextOption 조회
+    mysql --> api: slot 목록
+    api -> api: 기존 partialContext와 추가 답변 병합 prompt/schema 생성
+    api -> llm: slot 재추출 + ready 여부 판단
+    llm --> api: mergedSlots + missingRequiredSlotKeys\nfollowUpQuestion + readyForSimulation
 end
 
-contextEngine --> api: finalUserContext
-api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED
-api --> web: 맥락 수집 완료
+alt 필수 slot 충분
+    api -> api: optional 빈 값 기본값 적용
+else 질문 횟수 초과 또는 일부 slot 미확정
+    api -> api: 남은 빈 값 defaultValue/fallback 적용
+end
+
+== 4. 최종 맥락 확정 ==
+
+api -> api: finalUserContext 확정
+api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED\nstatus=TRANSFORMATION_READY
+api --> web: finalUserContext\n파악한 맥락 tags/이동 변수/장소 분위기 hint
+web --> user: 데이터 스캐닝 완료\n다음 단계 전환
 
 @enduml

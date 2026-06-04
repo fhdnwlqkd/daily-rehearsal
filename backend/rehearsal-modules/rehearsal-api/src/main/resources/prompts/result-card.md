@@ -2,13 +2,13 @@
 
 ## Role
 
-최종 사용자 맥락, VTON 결과, 피드백을 바탕으로 변화 카드를 만든다.
+최종 사용자 맥락, 선택된 outfit, 피드백을 바탕으로 변화 카드를 만든다.
 
 ## Inputs
 
-- experienceType
 - finalUserContext
-- vtonResult or vtonFallback
+- selectedOutfitId
+- decartPreview metadata
 - feedbackResult
 
 ## Rules

@@ -11,24 +11,10 @@
 
 ## DB에 둘 것
 
-### experience_type
-
-세션 내내 유지되는 체험 type이다.
-
-역할:
-- 사용자가 고를 수 있는 체험 종류를 제공한다.
-- 세션 생성 시 `experienceType`으로 고정된다.
-- 이후 context slot, prompt 입력, feedback 기준을 선택하는 기준값이 된다.
-
-예:
-- `PRESENTATION`
-- `DATE`
-- `INTERVIEW`
-- `DAILY_RESET`
-
 ### context_slot
 
-체험 type별로 사용자의 음성 브리핑에서 채워야 하는 맥락이다.
+P1에서 사용자의 음성 브리핑으로 채워야 하는 맥락이다.
+내일의 상황 맥락은 별도 분류 호출이 아니라 `situation_type` slot으로 다룬다.
 
 역할:
 - LLM이 어떤 값을 추출해야 하는지 알려준다.
@@ -37,9 +23,9 @@
 - 비어 있는 값에 기본값을 적용할 수 있게 한다.
 
 예:
-- 발표 주제
-- 발표 공간
-- 가장 걱정되는 순간
+- 내일의 상황 맥락
+- 장소/공간 맥락
+- 결정적 순간
 - 되고 싶은 태도
 - 상대 분위기
 
@@ -71,17 +57,19 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 ### context-extraction.md
 
 사용자 음성 브리핑을 구조화된 context로 바꾸는 프롬프트이다.
+이 단계에서 slot 추출, 부족 slot 판정, follow-up question 생성을 한 번에 처리한다.
 
 입력:
-- `experienceType`
-- STT transcript
+- 프론트 STT가 확정한 transcript text
 - DB에서 가져온 `context_slot` 목록
 - 각 slot의 required 여부, type, option, extraction hint
 
 역할:
 - transcript에서 slot별 값을 추출한다.
+- `critical_moment` slot은 결정적 순간 리허설을 구성하는 기준으로 사용한다.
 - 판단할 수 없는 값은 억지로 채우지 않고 `null`로 둔다.
 - slot key를 DB 정의와 동일하게 반환한다.
+- 부족한 required slot 목록과 follow-up question을 같은 응답에서 반환한다.
 - MVP에서는 confidence 점수를 반환하지 않는다.
 
 출력 예:
@@ -89,19 +77,39 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 ```json
 {
   "slots": {
-    "presentation_topic": {
-      "value": "팀 프로젝트 발표"
+    "situation_type": {
+      "value": "presentation"
+    },
+    "critical_moment": {
+      "value": "예상 질문을 받는 순간"
     },
     "audience_mood": {
       "value": null
     }
-  }
+  },
+  "missingRequiredSlotKeys": [],
+  "followUpQuestion": null,
+  "readyForSimulation": true
 }
 ```
 
+### Structured Outputs 적용 방식
+
+Java 서버는 active `context_slot` 목록으로 OpenAI Structured Outputs JSON Schema를 런타임 생성한다.
+
+원칙:
+- 고정 Java enum/DTO에 slot key를 박지 않는다.
+- slot 추가/삭제는 DB의 `active` 상태와 schema 재생성으로 처리한다.
+- Java에서는 Jackson `ObjectNode` 등으로 JSON Schema를 만들고, OpenAI 요청의 `response_format`/`text.format`에 `json_schema`와 `strict: true`를 설정한다.
+- schema의 `slots.properties`는 active slot key로 동적으로 구성한다.
+- `additionalProperties: false`를 설정해 정의되지 않은 slot이 나오지 않게 한다.
+- 모든 active slot key를 `required`에 넣고, 비어 있는 값은 `null`로 표현한다.
+- 후속 질문은 별도 LLM 호출을 하지 않고 같은 응답의 `followUpQuestion`으로 받는다.
+
 ### follow-up-question.md
 
-부족한 맥락을 사용자에게 한 번 더 묻는 프롬프트이다.
+부족한 맥락을 사용자에게 묻는 fallback 프롬프트이다.
+기본 흐름에서는 `context-extraction.md`의 Structured Outputs 응답이 `followUpQuestion`까지 함께 반환한다.
 
 입력:
 - 부족한 required slot 목록
@@ -126,13 +134,14 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 시뮬레이터 단계에서 AI 상대의 첫 한마디나 장면을 구성하는 프롬프트이다.
 
 입력:
-- `experienceType`
 - 최종 사용자 context
-- 사용자가 선택한 옷 또는 VTON 결과 메타 정보
+- 최종 사용자 context의 `situation_type`
+- 최종 사용자 context의 `critical_moment`
+- 사용자가 선택한 옷 또는 Decart preview metadata
 - 체험 목표
 
 역할:
-- 발표, 소개팅, 면접 등 type별로 어울리는 상호작용 장면을 만든다.
+- `situation_type`과 `critical_moment`에 어울리는 상호작용 장면을 만든다.
 - 사용자가 짧게 답할 수 있는 한 문장 또는 짧은 상황을 생성한다.
 - 평가보다 리허설 감각을 우선한다.
 
@@ -146,7 +155,6 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 리허설 응답에 대한 정성 피드백을 생성하는 프롬프트이다.
 
 입력:
-- `experienceType`
 - 최종 사용자 context
 - 사용자 리허설 응답 텍스트
 - code/rule에서 계산한 정량 지표
@@ -167,14 +175,14 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 
 입력:
 - 최종 사용자 context
-- VTON 결과 또는 fallback 정보
+- 사용자가 선택한 outfit/Decart preview metadata
 - 피드백 결과
-- 체험 type
+- `finalUserContext.situation_type`
 
 역할:
 - 긴 리포트가 아니라 짧은 변화 카드로 결과를 정리한다.
 - 오늘 바꿀 행동, 내일 유지할 태도, If-Then 카드를 만든다.
-- 체험 type별 표현 차이는 프롬프트 조건으로 처리한다.
+- 상황별 표현 차이는 `situation_type` 조건으로 처리한다.
 
 출력 예:
 
@@ -190,16 +198,17 @@ Prompt 파일은 `docs/prompts` 또는 실제 구현 시 `src/main/resources/pro
 
 Code/rule은 LLM이 아니라 서버 또는 클라이언트에서 계산 가능한 정량 판정이다.
 
-### pose-stability-rule
+### gesture-navigation-rule
 
 역할:
-- VTON 베이스 스냅샷에 적합한 자세인지 판단한다.
-- 전신 포함 여부, 중앙 정렬, 어깨 기울기, 안정화 시간을 계산한다.
+- 프론트에서 outfit switching 제스처를 안정적으로 판정한다.
+- 좌/우 swipe, open-palm dwell 같은 단순 제스처만 사용한다.
+- Decart `rt.set({ prompt, image })` 호출이 과도하게 발생하지 않도록 debounce/cooldown을 둔다.
 
 판정 예:
-- 전신이 프레임 밖이면 캡처 불가
-- 어깨 기울기가 기준보다 크면 자세 조정 안내
-- 일정 시간 이상 안정되면 base snapshot 캡처 가능
+- 오른손 좌/우 이동 거리가 threshold를 넘으면 `NEXT_OUTFIT` 또는 `PREV_OUTFIT`
+- 손바닥이 일정 시간 유지되면 `CONFIRM_OUTFIT`
+- confidence가 낮거나 cooldown 중이면 gesture를 무시
 
 ### voice-volume-rule
 
@@ -225,7 +234,7 @@ Code/rule은 LLM이 아니라 서버 또는 클라이언트에서 계산 가능�
 
 판정 예:
 - 일정 시간 이상 침묵하면 `response_delay=LONG`
-- 소개팅/면접/발표 type마다 해석은 다를 수 있지만, 원시 판정은 code/rule에서 한다.
+- 소개팅/면접/발표 같은 `situation_type`마다 해석은 다를 수 있지만, 원시 판정은 code/rule에서 한다.
 
 ### response-length-rule
 
@@ -244,7 +253,7 @@ Code/rule은 LLM이 아니라 서버 또는 클라이언트에서 계산 가능�
 
 보류 이유:
 - MVP에서는 체험별 장면이 아직 자주 바뀔 가능성이 높다.
-- prompt 파일과 `experienceType` 조건으로 충분히 실험할 수 있다.
+- prompt 파일과 `situation_type` 조건으로 충분히 실험할 수 있다.
 
 추후 DB화 조건:
 - 체험별 장면 수가 늘어나고, 관리자 화면에서 장면을 켜고 끄거나 순서를 바꿔야 할 때.
@@ -262,10 +271,10 @@ Code/rule은 LLM이 아니라 서버 또는 클라이언트에서 계산 가능�
 
 보류 이유:
 - 사용자가 고르는 옷 사진과 VTON용 옷 정보는 별도 에셋 관리에서 다룬다.
-- DB에는 체험 type과 context만 먼저 안정화한다.
+- DB에는 context slot과 option만 먼저 안정화한다.
 
 추후 DB화 조건:
-- 같은 옷 이미지라도 체험 type/context에 따라 VTON prompt를 다르게 조합해야 할 때.
+- 같은 옷 이미지라도 `situation_type`/context에 따라 VTON prompt를 다르게 조합해야 할 때.
 
 ### result_template
 
@@ -281,7 +290,6 @@ Code/rule은 LLM이 아니라 서버 또는 클라이언트에서 계산 가능�
 현재 MVP에서 필요한 DB 테이블은 다음 정도로 제한한다.
 
 ```text
-experience_type
 context_slot
 context_option
 context_slot_option
@@ -300,7 +308,7 @@ result-card.md
 Code/rule은 다음을 우선 구현한다.
 
 ```text
-pose-stability-rule
+gesture-navigation-rule
 voice-volume-rule
 speech-rate-rule
 silence-duration-rule

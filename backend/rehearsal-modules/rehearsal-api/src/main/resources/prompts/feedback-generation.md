@@ -6,7 +6,6 @@
 
 ## Inputs
 
-- experienceType
 - finalUserContext
 - rehearsalResponseText
 - observationMetrics
