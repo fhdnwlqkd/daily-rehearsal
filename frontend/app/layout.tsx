@@ -4,7 +4,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: 'Daily Rehearsal',
-  description: 'An offline daily simulator that lets visitors preview tomorrow through appearance, context, condition, and rehearsal.',
+  description: 'An offline daily simulator that lets visitors preview tomorrow through appearance, context, gesture fitting, and rehearsal.',
   generator: 'DailyRehearsal.app',
   icons: {
     icon: [

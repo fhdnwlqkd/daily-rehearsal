@@ -11,10 +11,10 @@ Daily Rehearsal 프로젝트의 백엔드 API입니다.
 - **역할**: 핵심 비즈니스 로직, 도메인 모델(Entity/VO), 비즈니스 규칙 정의
 - **포트(Interface)**: 
     - `rehearsal-api`가 호출할 **UseCase** 인터페이스
-    - `data-source`가 구현할 **Port**(Repository 인터페이스, 외부 API 인터페이스 등)
+    - `datasource`가 구현할 **Port**(Repository 인터페이스, 외부 API 인터페이스 등)
 - **의존성**: 없음
 
-### 2. `data-source` (Infrastructure & Adapters)
+### 2. `datasource` (Infrastructure & Adapters)
 `domain`에서 정의한 인터페이스를 실제로 구현하는 인프라스트럭처 영역입니다.
 - **역할**: 
     - **Persistence**: JPA Repository 구현, Redis 데이터 저장 및 조회
@@ -28,7 +28,7 @@ Daily Rehearsal 프로젝트의 백엔드 API입니다.
     - **Presentation**: REST Controllers, 요청/응답 DTO
     - **Application**: UseCase 구현체를 통한 비즈니스 흐름 제어(Orchestration)
     - **Configuration**: Spring Boot 메인 애플리케이션, Security, Swagger, 공통 예외 처리
-- **의존성**: `:domain`, `:data-source` (구현체 주입을 위해 참조)
+- **의존성**: `:domain`, `:datasource` (구현체 주입을 위해 참조)
 
 ## 로컬 인프라 실행
 
@@ -71,10 +71,10 @@ spring:
     locations: classpath:db/migration
 ```
 
-마이그레이션 파일은 `data-source` 모듈의 아래 경로에 추가합니다.
+마이그레이션 파일은 `datasource` 모듈의 아래 경로에 추가합니다.
 
 ```text
-data-source/src/main/resources/db/migration
+datasource/src/main/resources/db/migration
 ```
 
 파일명 예시는 다음과 같습니다.

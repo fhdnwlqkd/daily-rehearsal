@@ -22,7 +22,7 @@ type ExperiencePhaseId =
   | "briefing"
   | "context"
   | "transformation"
-  | "condition"
+  | "gesture-fit"
   | "rehearsal"
   | "change-card"
 
@@ -36,7 +36,7 @@ export const experiencePhases = [
   { id: "briefing", label: "거울 속의 나", timeRange: "0-15s" },
   { id: "context", label: "데이터 스캐닝", timeRange: "15-25s" },
   { id: "transformation", label: "시공간의 전환", timeRange: "25-35s" },
-  { id: "condition", label: "컨디션 조정", timeRange: "35-45s" },
+  { id: "gesture-fit", label: "제스처 피팅", timeRange: "35-45s" },
   { id: "rehearsal", label: "결정적 순간", timeRange: "45-55s" },
   { id: "change-card", label: "변화 카드", timeRange: "55-60s" },
 ] as const satisfies readonly ExperiencePhase[]
@@ -61,7 +61,7 @@ const mockExperience = {
   scene: "성수 음식점에서 첫 만남",
   routeRisk: "비 옴 +12분",
   placeMood: "공간 소음도 중간",
-  conditionPrompt: "어깨를 펴고 정면을 3초 바라보세요",
+  gestureHint: "오른손을 넘기면 다음 스타일, 손바닥을 멈추면 선택",
   aiPrompt: "처음 뵙네요. 오는 길 괜찮으셨어요?",
   userReply: "네, 조금 일찍 나와서 여유 있게 도착했어요. 여기 분위기가 좋네요.",
   changeAction: "20분 일찍 출발하기",
@@ -85,7 +85,7 @@ export function P1ExperienceStage({ phase, phaseIndex, totalPhases }: P1Experien
       {phase.id === "briefing" && <BriefingStage />}
       {phase.id === "context" && <ContextStage />}
       {phase.id === "transformation" && <TransformationStage />}
-      {phase.id === "condition" && <ConditionStage />}
+      {phase.id === "gesture-fit" && <GestureFitStage />}
       {phase.id === "rehearsal" && <RehearsalStage />}
       {phase.id === "change-card" && <ChangeCardStage />}
 
@@ -99,7 +99,7 @@ function MirrorToneOverlay({ phase }: { phase: ExperiencePhaseId }) {
     briefing: "from-black/35 via-transparent to-black/55",
     context: "from-black/55 via-black/10 to-black/75",
     transformation: "from-black/45 via-black/10 to-black/75",
-    condition: "from-black/45 via-black/10 to-black/75",
+    "gesture-fit": "from-black/45 via-black/10 to-black/75",
     rehearsal: "from-black/45 via-black/20 to-black/80",
     "change-card": "from-black/70 via-black/55 to-black/90",
   }
@@ -148,7 +148,7 @@ function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
     briefing: "",
     context: "맥락을 정리합니다",
     transformation: "내일의 모습을 입혀봅니다",
-    condition: "몸의 상태를 맞춥니다",
+    "gesture-fit": "제스처로 모습을 고릅니다",
     rehearsal: "결정적 순간을 들어봅니다",
     "change-card": "내일의 변화 카드를 발급합니다",
   }
@@ -333,7 +333,7 @@ function TransformationStage() {
   )
 }
 
-function ConditionStage() {
+function GestureFitStage() {
   return (
     <div className="relative flex h-full items-center justify-center px-8 pt-20">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent_44%)]" />
@@ -344,12 +344,12 @@ function ConditionStage() {
         transition={{ duration: 0.65 }}
       >
         <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-white/75 backdrop-blur-xl">
-          <UserRound className="h-4 w-4" strokeWidth={1.5} />
-          <span className="text-xs font-light tracking-[0.22em]">BODY ALIGNMENT</span>
+          <Sparkles className="h-4 w-4" strokeWidth={1.5} />
+          <span className="text-xs font-light tracking-[0.22em]">GESTURE FITTING</span>
         </div>
-        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">첫인상은 자세에서 먼저 보입니다</h1>
+        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">손짓으로 내일의 모습을 골라보세요</h1>
         <p className="max-w-2xl text-base font-light text-white/65 md:text-lg">
-          {mockExperience.persona} 모드에 맞춰 거울을 보며 몸의 중심을 가볍게 맞춰볼게요.
+          거울이 사용자를 인식하는 동안 Decart preview를 준비하고, 제스처로 입어볼 옷을 바꿉니다.
         </p>
       </motion.div>
       <motion.div
@@ -362,6 +362,27 @@ function ConditionStage() {
         <div className="absolute inset-x-4 top-36 h-52 rounded-[42%] border border-white/25" />
         <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/25 to-transparent" />
         <motion.div
+          className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25"
+          animate={{ scale: [0.82, 1.18, 0.82], opacity: [0.25, 0.75, 0.25] }}
+          transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute -left-10 top-1/2 flex -translate-y-1/2 items-center gap-2 text-white/55"
+          animate={{ x: [-8, 0, -8], opacity: [0.45, 0.85, 0.45] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <ArrowLeft className="h-5 w-5" strokeWidth={1.4} />
+          <span className="text-xs font-light tracking-[0.18em]">PREV</span>
+        </motion.div>
+        <motion.div
+          className="absolute -right-10 top-1/2 flex -translate-y-1/2 items-center gap-2 text-white/55"
+          animate={{ x: [8, 0, 8], opacity: [0.45, 0.85, 0.45] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <span className="text-xs font-light tracking-[0.18em]">NEXT</span>
+          <ArrowRight className="h-5 w-5" strokeWidth={1.4} />
+        </motion.div>
+        <motion.div
           className="absolute inset-0 rounded-[2rem] border border-white/18"
           animate={{ boxShadow: ["0 0 0 rgba(255,255,255,0)", "0 0 60px rgba(255,255,255,0.16)", "0 0 0 rgba(255,255,255,0)"] }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -372,9 +393,9 @@ function ConditionStage() {
       </motion.div>
       <div className="absolute inset-x-0 bottom-12 flex justify-center px-6">
         <GlassPanel pulsing pulseColor="rgba(255, 255, 255, 0.32)" className="max-w-3xl text-center">
-          <p className="mb-2 text-xs font-light tracking-[0.26em] text-white/55">3초 안정화 중</p>
-          <p className="text-3xl font-extralight tracking-wide">거울을 보고 몸의 중심을 맞춰보세요</p>
-          <p className="mt-3 text-sm font-light text-white/55">{mockExperience.conditionPrompt}</p>
+          <p className="mb-2 text-xs font-light tracking-[0.26em] text-white/55">DECART PREVIEW 준비 중</p>
+          <p className="text-3xl font-extralight tracking-wide">손짓으로 옷을 넘겨보세요</p>
+          <p className="mt-3 text-sm font-light text-white/55">{mockExperience.gestureHint}</p>
         </GlassPanel>
       </div>
     </div>
