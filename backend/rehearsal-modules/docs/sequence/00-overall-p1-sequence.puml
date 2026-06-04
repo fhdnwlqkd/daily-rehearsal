@@ -1,0 +1,194 @@
+@startuml
+title Daily Rehearsal P1 - 음성 브리핑 기반 전체 체험 시퀀스
+
+skinparam responseMessageBelowArrow true
+skinparam sequence {
+    ArrowColor #2B2B2B
+    LifeLineBorderColor #777777
+    LifeLineBackgroundColor #F7F7F7
+    ParticipantBorderColor #555555
+    ParticipantBackgroundColor #FAFAFA
+    ActorBorderColor #555555
+    ActorBackgroundColor #FAFAFA
+}
+
+actor "사용자" as user
+participant "스마트 거울 웹\n(Next/React)" as web
+participant "브라우저 MediaDevices" as media
+participant "제스처/카메라 컨트롤러\n(MediaPipe 또는 fallback)" as vision
+participant "리허설 API\n(Spring Boot)" as api
+database "설정 DB\n(MySQL)" as mysql
+database "세션 저장소\n(Redis)" as redis
+database "옷 이미지/에셋 저장소" as outfitStore
+participant "프론트 STT\n(Browser/On-device)" as frontStt
+participant "프론트 TTS\n(SpeechSynthesis)" as frontTts
+participant "LLM API" as llm
+participant "Decart Realtime\n(WebRTC/SDK)" as decart
+
+note over web, api
+최신 P1 화면 흐름은 briefing -> context -> transformation -> gesture-fit -> rehearsal -> change-card다.
+STT/TTS는 프론트에서 처리한다.
+백엔드는 transcript text와 aiLine text만 다룬다.
+Decart VTON은 프론트가 WebRTC로 직접 연결한다.
+백엔드는 Decart client token, model, prompt, reference image URL 같은 요청 spec만 내려준다.
+gesture-fit은 실제 몸 상태 진단이 아니라 Decart 초기 연결 시간을 자연스럽게 덮는 인식 연출 + 옷 변경 UX다.
+context 추출, prompt 구성, rule 계산, result 생성은 별도 런타임이 아니라 rehearsal-api 내부 책임으로 표현한다.
+end note
+
+== 0. 체험 시작 및 권한 확인 ==
+
+user -> web: 스마트 거울 앞에 섬
+web -> media: getUserMedia(video=true, audio=true)
+alt 카메라/마이크 권한 허용
+    media --> web: stream 확인
+    web -> media: track stop
+    web --> user: Webcam background + briefing 화면 표시
+else 권한 거부 또는 장치 없음
+    media --> web: permission/device error
+    web --> user: PermissionGuide 표시\n카메라/마이크 허용 안내
+end
+
+web -> api: POST /sessions\nchannel=P1_OFFLINE
+api -> redis: 세션 생성\nstatus=BRIEFING\nfollowUpAttempt=0
+api --> web: sessionId
+
+== 1. briefing - 내일 하루 음성 브리핑 ==
+
+web --> user: "내일 하루를 짧게 말해주세요"\n일정/걱정/되고 싶은 모습 안내
+user -> web: 자유 발화\n예: 내일 소개팅, 어색함, 성수, 지각 우려
+web -> frontStt: 브리핑 음성 실시간 인식 시작
+frontStt --> web: partial transcript\n화면에 REAL-TIME STT 표시
+frontStt --> web: final transcript
+web -> api: POST /sessions/{sessionId}/briefing\ntranscript
+api -> redis: transcript 저장\nstatus=CONTEXT_EXTRACTING
+
+par 프론트는 브리핑/분석 상태 표시
+    loop contextStatus가 COMPLETED 또는 FOLLOW_UP_REQUIRED가 될 때까지
+        web -> api: GET /sessions/{sessionId}
+        api -> redis: status/contextStatus 조회
+        api --> web: transcript/progress/message
+    end
+else 백엔드는 전달받은 transcript로 slot을 한 번에 추출
+    api -> mysql: P1 active ContextSlot/ContextOption 조회
+    mysql --> api: slot 목록\nsituation_type/critical_moment 포함\nrequired/priority/followUpQuestion/defaultValue/options
+    api -> api: Structured Outputs schema 생성\nactive slot 기반
+    api -> api: context extraction 프롬프트 구성\ntranscript + slot 정의
+    api -> llm: slot 추출 + 부족 slot + follow-up 질문 생성
+    llm --> api: slots + missingRequiredSlotKeys\nfollowUpQuestion + readyForSimulation
+    api -> redis: slots/partialContext 저장\ncontextStatus 갱신
+end
+
+== 2. context - 부족한 맥락 보강 ==
+
+loop 필수 맥락 부족 + followUpAttempt < maxFollowUpAttempt
+    api -> api: 부족 slot 묶음 질문 확정\n우선순위 높은 slot 중심
+    api -> redis: partialContext 저장\ncontextStatus=FOLLOW_UP_REQUIRED\nfollowUpAttempt 증가
+    api --> web: 채워진 맥락 tags + 부족 맥락 + followUpQuestion
+    web --> user: "조금만 더 알려주세요"\n묶음 질문 표시/발화 요청
+    user -> web: 추가 답변 발화
+    web -> frontStt: 추가 답변 음성 인식
+    frontStt --> web: followUpTranscript
+    web -> api: POST /sessions/{sessionId}/follow-up\ntranscript=followUpTranscript
+    api -> redis: followUpTranscript 저장\ncontextStatus=CONTEXT_MERGING
+    api -> mysql: P1 active ContextSlot/ContextOption 조회
+    mysql --> api: slot 목록
+    api -> api: 기존 context + 추가 답변 기반 schema/prompt 구성
+    api -> llm: slot 재추출 + ready 여부 판단
+    llm --> api: mergedSlots + missingRequiredSlotKeys\nfollowUpQuestion + readyForSimulation
+end
+
+alt 필수 맥락 충분
+    api -> api: optional 빈 slot 기본값 적용
+else 질문 횟수 초과 또는 일부 slot 미확정
+    api -> api: 남은 빈 slot 기본값/fallback 적용
+end
+
+api -> api: finalUserContext 생성\n남은 빈 값은 defaultValue/fallback 적용
+api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED\nstatus=TRANSFORMATION_READY
+api --> web: finalUserContext + 화면용 tags/risk hints
+
+== 3. transformation - Decart WebRTC 기반 내일의 나 preview ==
+
+web --> user: "내일 입어볼 모습을 골라보세요"
+web -> vision: 카메라/제스처 컨트롤러 준비
+
+web -> api: POST /sessions/{sessionId}/transformation-ready
+api -> redis: status=TRANSFORMATION_PREPARING
+api -> outfitStore: finalUserContext 기반 outfit 후보 조회\npersona/style/situation_type
+outfitStore --> api: outfit candidates\noutfitId/displayName/imageUrl/referenceImageUrl
+api -> decart: client token 생성\nserver API key 사용
+decart --> api: short-lived client token
+api -> api: Decart prompt/spec 구성\nfinalUserContext + outfit candidates\nmodel=lucy-2.1-vton + prompt + enhance
+api --> web: outfit candidates + Decart token/spec\nreferenceImageUrl + 이동/장소 변수 요약
+web --> user: LOOK carousel + 이동 변수 + 장소 분위기 표시
+
+== 4. gesture-fit - 인식 연출과 제스처 기반 outfit switching ==
+
+web --> user: "거울이 내일의 모습을 맞추는 중입니다"\n인식 연출/스캔 UI 표시
+web -> media: getUserMedia video stream 유지
+media --> web: cameraStream
+web -> outfitStore: 첫 outfit referenceImageUrl fetch\nCORS/signed URL
+outfitStore --> web: reference image Blob/File\n10MB 이하
+web -> decart: connect(cameraStream, token, model)\ninitialState={prompt, image, enhance}
+decart --> web: remoteStream\nconnectionChange=connected/generating
+web --> user: Decart preview 표시\n연결 시간은 인식 연출로 덮음
+
+loop 사용자가 옷을 바꾸고 싶을 때
+    user -> web: 손 좌/우 swipe 또는 open-palm dwell
+    web -> vision: gesture 감지\nconfidence + direction + debounce
+    vision --> web: outfitChangeIntent\nNEXT/PREV/CONFIRM
+    alt NEXT/PREV
+        web -> outfitStore: 다음 outfit referenceImageUrl fetch\npreloaded면 생략
+        outfitStore --> web: reference image Blob/File
+        web -> decart: rt.set({ prompt, image, enhance })\n선택 outfit으로 상태 교체
+        decart --> web: remoteStream 업데이트
+        web --> user: 새 outfit preview 표시
+    else CONFIRM
+        web -> api: PATCH /sessions/{sessionId}/outfit\nselectedOutfitId + decartSessionId
+        api -> redis: selectedOutfitId 저장\nvtonPreviewStatus=CONNECTED\nstatus=REHEARSAL_READY
+    end
+end
+
+alt Decart preview 연결 성공
+    api --> web: outfit 확정 완료
+else Decart 연결/이미지 실패
+    web -> api: PATCH /sessions/{sessionId}/outfit-fallback\nselectedOutfitId + failureReason
+    api -> redis: selectedOutfitId 저장\nvtonPreviewStatus=FAILED\nstatus=REHEARSAL_READY
+end
+
+== 5. rehearsal - 결정적 순간 리허설 ==
+
+web -> api: POST /sessions/{sessionId}/simulation
+api -> redis: finalUserContext/selectedOutfitId 조회
+redis --> api: 시뮬레이션 입력 데이터
+api -> api: simulation-dialogue 프롬프트 구성\nsituation_type + critical_moment + persona
+api -> llm: 결정적 순간 대사/장면 생성
+llm --> api: sceneTitle/sceneDescription/aiLine/observationTargets
+api -> redis: simulation 저장\nstatus=REHEARSAL_PLAYING
+api --> web: 리허설 화면 데이터\nAI 한마디 text/관찰 항목
+
+web -> frontTts: SpeechSynthesisUtterance(aiLine)\nko-KR voice
+frontTts --> user: AI 상대의 첫 한마디 재생
+web --> user: 사용자 응답 음성 인식 시작
+user -> web: 첫 반응 발화
+web -> frontStt: 리허설 응답 음성 인식
+frontStt --> web: responseText
+web -> api: POST /sessions/{sessionId}/rehearsal-response\ntranscript=responseText + observationMetrics
+api -> redis: responseText 저장\nrehearsalStatus=FEEDBACK_GENERATING
+api -> api: rule 계산\nvoiceVolume/speechRate/silence/responseLength
+api -> llm: feedback-generation 실행\nresponseText + ruleResults + finalUserContext
+llm --> api: feedbackResult
+api -> redis: feedbackResult 저장\nstatus=RESULT_READY
+
+== 6. change-card - 변화 카드 발급 ==
+
+web -> api: POST /sessions/{sessionId}/result
+api -> redis: finalUserContext/feedbackResult/selectedOutfitId 조회
+redis --> api: 결과 입력 데이터
+api -> llm: result-card 생성\n오늘 바꿀 행동 + 내일 유지할 태도 + If-Then
+llm --> api: finalResult
+api -> redis: finalResult 저장\nstatus=COMPLETED
+api --> web: finalResult + QR payload
+web --> user: 변화 카드/QR 표시
+
+@enduml

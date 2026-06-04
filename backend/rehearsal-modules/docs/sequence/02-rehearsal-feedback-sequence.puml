@@ -1,0 +1,79 @@
+@startuml
+title Daily Rehearsal P1 - 제스처 outfit 확정 이후 리허설/피드백/변화 카드 시퀀스
+
+skinparam responseMessageBelowArrow true
+
+actor "사용자" as user
+participant "스마트 거울 웹\n(Next/React)" as web
+participant "제스처/카메라 컨트롤러\n(MediaPipe 또는 fallback)" as vision
+participant "리허설 API\n(Spring Boot)" as api
+database "세션 저장소\n(Redis)" as redis
+participant "프론트 STT\n(Browser/On-device)" as frontStt
+participant "프론트 TTS\n(SpeechSynthesis)" as frontTts
+participant "LLM API" as llm
+
+note over api, redis
+이 시퀀스는 프론트의 gesture-fit 이후 rehearsal, change-card에 해당한다.
+음성 인식과 음성 재생은 프론트에서 끝낸다.
+백엔드는 aiLine text와 responseText만 다룬다.
+리허설 장면 구성, rule 계산, 피드백/변화 카드 생성은 rehearsal-api 내부 흐름으로 표현한다.
+
+필수 입력:
+- finalUserContext
+- finalUserContext.situation_type
+- finalUserContext.critical_moment
+- selectedOutfitId
+end note
+
+== 1. 결정적 순간 생성 ==
+
+web -> api: POST /sessions/{sessionId}/simulation
+api -> redis: finalUserContext/selectedOutfitId 조회
+redis --> api: 시뮬레이션 입력 데이터
+api -> api: simulation-dialogue prompt 구성\nsituation_type + critical_moment + persona
+api -> llm: 결정적 순간 장면/대사 생성
+llm --> api: sceneTitle + sceneDescription + aiLine + observationTargets
+api -> redis: simulation 저장\nstatus=REHEARSAL_PLAYING
+api --> web: 리허설 화면 데이터\nAI 한마디 text/관찰 항목
+
+web -> frontTts: SpeechSynthesisUtterance(aiLine)\nko-KR voice
+frontTts --> user: AI 한마디 재생\n예: "처음 뵙네요. 오는 길 괜찮으셨어요?"
+
+== 2. 사용자 첫 반응 수집 ==
+
+user -> web: 첫 반응 발화
+web -> frontStt: 리허설 응답 음성 인식
+frontStt --> web: responseText
+web -> vision: 간단한 반응 지표 측정\noptional
+vision --> web: observationMetrics\n없으면 빈 object
+web -> api: POST /sessions/{sessionId}/rehearsal-response\ntranscript=responseText + observationMetrics
+api -> redis: responseText/observationMetrics 저장\nrehearsalStatus=FEEDBACK_GENERATING
+
+par 프론트는 피드백 상태 조회
+    loop status=RESULT_READY까지
+        web -> api: GET /sessions/{sessionId}
+        api -> redis: rehearsalStatus/status 조회
+        api --> web: 진행 상태\n응답 분석 중/변화 카드 준비 중
+    end
+else 백엔드는 전달받은 transcript로 피드백 생성
+    api -> redis: finalUserContext/observationMetrics 조회
+    redis --> api: 피드백 입력 데이터
+    api -> api: 정량 rule 계산\nvoiceVolume/speechRate/silence/responseLength
+    api -> llm: feedback-generation 실행\nresponseText + ruleResults + finalUserContext
+    llm --> api: feedbackResult
+    api -> redis: feedbackResult 저장\nstatus=RESULT_READY
+end
+
+== 3. 변화 카드 생성 ==
+
+web -> api: POST /sessions/{sessionId}/result
+api -> redis: finalUserContext/feedbackResult/selectedOutfitId 조회
+redis --> api: 결과 입력 데이터
+api -> llm: result-card 생성\nchangeAction/keepAttitude/ifThen
+llm --> api: finalResult
+api -> redis: finalResult 저장\nstatus=COMPLETED
+api --> web: finalResult + QR payload
+
+web --> user: 내일의 변화 카드 표시\n오늘 바꿀 행동/내일 유지할 태도/If-Then/QR
+
+@enduml
