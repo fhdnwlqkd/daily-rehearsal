@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-@WebMvcTest
+@WebMvcTest(controllers = GlobalExceptionHandlerTest.TestController.class)
 @Import({GlobalExceptionHandler.class, GlobalExceptionHandlerTest.TestController.class})
 class GlobalExceptionHandlerTest {
 
@@ -47,7 +47,7 @@ class GlobalExceptionHandlerTest {
   }
 
   @RestController
-  static class TestController {
+  public static class TestController {
 
     @GetMapping("/test/business")
     void businessException() {
