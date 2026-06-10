@@ -1,7 +1,7 @@
 package com.rehearsal.api.slot.application;
 
-import com.rehearsal.api.common.exception.BusinessException;
-import com.rehearsal.api.common.exception.ErrorCode;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.slot.model.ContextSlotSchema;
 import com.rehearsal.domain.slot.repository.ContextSlotSchemaRepository;
 import com.rehearsal.domain.slot.usecase.GetContextSlotSchemaUseCase;

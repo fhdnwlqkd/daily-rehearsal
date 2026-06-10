@@ -1,10 +1,10 @@
-package com.rehearsal.api.session.service;
+package com.rehearsal.api.session.application;
 
-import com.rehearsal.api.common.exception.BusinessException;
-import com.rehearsal.api.common.exception.ErrorCode;
 import com.rehearsal.api.session.contract.SessionContract.CreateSessionCommand;
 import com.rehearsal.api.session.contract.SessionContract.CreateSessionResult;
 import com.rehearsal.api.session.contract.SessionContract.GetSessionResult;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 
 @Service

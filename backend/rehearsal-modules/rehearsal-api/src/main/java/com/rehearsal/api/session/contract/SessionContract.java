@@ -1,6 +1,6 @@
 package com.rehearsal.api.session.contract;
 
-import com.rehearsal.api.session.service.SessionState;
+import com.rehearsal.api.session.application.SessionState;
 import java.util.List;
 import java.util.Map;
 

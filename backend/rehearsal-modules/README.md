@@ -4,22 +4,34 @@ Daily Rehearsal 프로젝트의 백엔드 API입니다.
 
 ## 프로젝트 구조 및 모듈 전략
 
-본 프로젝트는 레이어드 아키텍처와 클린 아키텍처의 개념을 차용한 멀티 모듈 구조로 구성되어 있습니다. 모든 패키지는 `com.rehearsal`로 시작합니다.
+본 프로젝트는 레이어드 아키텍처와 클린 아키텍처의 개념을 차용한 3개 모듈 구조로 구성되어 있습니다. 모든 패키지는 `com.rehearsal`로 시작합니다.
+
+```text
+rehearsal-modules
+├── domain
+├── datasource
+└── rehearsal-api
+```
 
 ### 1. `domain` (Core Business Logic)
-최상위 모듈로, 외부 라이브러리나 프레임워크에 의존하지 않는 순수한 도메인 영역입니다.
-- **역할**: 핵심 비즈니스 로직, 도메인 모델(Entity/VO), 비즈니스 규칙 정의
-- **포트(Interface)**: 
+핵심 도메인 모델과 도메인 경계를 정의하는 영역입니다. 세부 도메인은 하위 Gradle 모듈로 나누지 않고 `src` 내부 패키지로 구분합니다.
+- **역할**: 핵심 비즈니스 로직, 도메인 모델(Entity/VO), 비즈니스 규칙, 공통 예외 정의
+- **패키지 예시**:
+    - `com.rehearsal.domain.core`: 공통 예외, 에러 코드
+    - `com.rehearsal.domain.slot`: slot 도메인 모델, repository port, usecase interface
+- **포트(Interface)**:
     - `rehearsal-api`가 호출할 **UseCase** 인터페이스
     - `datasource`가 구현할 **Port**(Repository 인터페이스, 외부 API 인터페이스 등)
-- **의존성**: 없음
+- **의존성**: 현재 공통 `ErrorCode`에서 HTTP 상태를 함께 관리하기 위해 `spring-web`의 `HttpStatus`를 사용합니다.
 
 ### 2. `datasource` (Infrastructure & Adapters)
 `domain`에서 정의한 인터페이스를 실제로 구현하는 인프라스트럭처 영역입니다.
 - **역할**: 
     - **Persistence**: JPA Repository 구현, Redis 데이터 저장 및 조회
-    - **External API**: 외부 서비스(STT, 날씨, LLM, VTON 등) 호출 클라이언트 구현
-    - **Infrastructure**: Flyway 마이그레이션 관리, DB/Redis 관련 설정
+    - **External API**: `WebClient` 기반 외부 서비스(STT, 날씨, LLM, VTON 등) 호출 클라이언트 구현
+    - **Infrastructure Adapter**: DB/Redis 관련 adapter 구현
+- **패키지 예시**:
+    - `com.rehearsal.datasource.dbintegrated`: JPA 기반 DB adapter
 - **의존성**: `:domain`
 
 ### 3. `rehearsal-api` (Application & Presentation)
@@ -27,8 +39,10 @@ Daily Rehearsal 프로젝트의 백엔드 API입니다.
 - **역할**: 
     - **Presentation**: REST Controllers, 요청/응답 DTO
     - **Application**: UseCase 구현체를 통한 비즈니스 흐름 제어(Orchestration)
-    - **Configuration**: Spring Boot 메인 애플리케이션, Security, Swagger, 공통 예외 처리
-- **의존성**: `:domain`, `:datasource` (구현체 주입을 위해 참조)
+    - **Configuration**: Spring Boot 메인 애플리케이션, JPA 설정, Flyway migration, Swagger, 공통 예외/응답 처리
+- **의존성**: `:domain`, `:datasource`
+    - `:domain`은 컴파일 의존성으로 사용합니다.
+    - `:datasource`는 adapter bean 등록을 위해 런타임 의존성으로 사용합니다.
 
 ## 로컬 인프라 실행
 
@@ -71,16 +85,16 @@ spring:
     locations: classpath:db/migration
 ```
 
-마이그레이션 파일은 `datasource` 모듈의 아래 경로에 추가합니다.
+마이그레이션 파일은 Spring Boot 애플리케이션이 실행하는 `rehearsal-api` 모듈의 아래 경로에 추가합니다.
 
 ```text
-datasource/src/main/resources/db/migration
+rehearsal-api/src/main/resources/db/migration
 ```
 
 파일명 예시는 다음과 같습니다.
 
 ```text
-V1__init.sql
+V1__create_context_slot_tables.sql
 ```
 
 `local` profile에서는 Hibernate가 직접 테이블을 생성하지 않도록 `ddl-auto: validate`를 사용합니다. 실제 테이블 변경은 Flyway migration으로 처리합니다.

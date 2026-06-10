@@ -1,4 +1,4 @@
-package com.rehearsal.api.session.dto;
+package com.rehearsal.api.session.controller.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.rehearsal.api.session.contract.ContextStatus;

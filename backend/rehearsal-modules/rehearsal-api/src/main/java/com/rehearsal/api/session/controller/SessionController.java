@@ -1,13 +1,12 @@
-package com.rehearsal.api.session.api;
+package com.rehearsal.api.session.controller;
 
-import com.rehearsal.api.common.response.ApiResponse;
+import com.rehearsal.api.session.application.SessionService;
 import com.rehearsal.api.session.contract.SessionContract.CreateSessionCommand;
 import com.rehearsal.api.session.contract.SessionContract.CreateSessionResult;
 import com.rehearsal.api.session.contract.SessionContract.GetSessionResult;
-import com.rehearsal.api.session.dto.SessionDto.CreateSessionRequest;
-import com.rehearsal.api.session.dto.SessionDto.CreateSessionResponse;
-import com.rehearsal.api.session.dto.SessionDto.GetSessionResponse;
-import com.rehearsal.api.session.service.SessionService;
+import com.rehearsal.api.session.controller.dto.SessionDto.CreateSessionRequest;
+import com.rehearsal.api.session.controller.dto.SessionDto.CreateSessionResponse;
+import com.rehearsal.api.session.controller.dto.SessionDto.GetSessionResponse;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,17 +25,16 @@ public class SessionController {
   }
 
   @PostMapping
-  public ApiResponse<CreateSessionResponse> create(
-      @RequestBody(required = false) CreateSessionRequest request) {
+  public CreateSessionResponse create(@RequestBody(required = false) CreateSessionRequest request) {
     String channel = request == null ? null : request.channel();
     CreateSessionResult result = sessionService.create(new CreateSessionCommand(channel));
-    return ApiResponse.success(toCreateSessionResponse(result));
+    return toCreateSessionResponse(result);
   }
 
   @GetMapping("/{sessionId}")
-  public ApiResponse<GetSessionResponse> get(@PathVariable String sessionId) {
+  public GetSessionResponse get(@PathVariable String sessionId) {
     GetSessionResult result = sessionService.get(sessionId);
-    return ApiResponse.success(toGetSessionResponse(result));
+    return toGetSessionResponse(result);
   }
 
   private CreateSessionResponse toCreateSessionResponse(CreateSessionResult result) {

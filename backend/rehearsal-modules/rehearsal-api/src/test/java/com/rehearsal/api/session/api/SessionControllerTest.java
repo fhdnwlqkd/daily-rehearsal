@@ -5,9 +5,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.rehearsal.api.common.exception.GlobalExceptionHandler;
-import com.rehearsal.api.session.service.InMemorySessionStore;
-import com.rehearsal.api.session.service.SessionService;
+import com.rehearsal.api.config.exception.GlobalExceptionHandler;
+import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
+import com.rehearsal.api.session.application.InMemorySessionStore;
+import com.rehearsal.api.session.application.SessionService;
+import com.rehearsal.api.session.controller.SessionController;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -17,7 +19,12 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 @WebMvcTest(controllers = SessionController.class)
-@Import({SessionService.class, InMemorySessionStore.class, GlobalExceptionHandler.class})
+@Import({
+  SessionService.class,
+  InMemorySessionStore.class,
+  GlobalExceptionHandler.class,
+  ApiResponseBodyAdvice.class
+})
 class SessionControllerTest {
 
   @Autowired private MockMvc mockMvc;

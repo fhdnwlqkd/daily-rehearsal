@@ -1,4 +1,4 @@
-package com.rehearsal.api.session.service;
+package com.rehearsal.api.session.application;
 
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;

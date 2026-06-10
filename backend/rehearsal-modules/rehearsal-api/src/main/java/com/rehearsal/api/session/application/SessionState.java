@@ -1,4 +1,4 @@
-package com.rehearsal.api.session.service;
+package com.rehearsal.api.session.application;
 
 import com.rehearsal.api.session.contract.ContextStatus;
 import com.rehearsal.api.session.contract.SessionStatus;

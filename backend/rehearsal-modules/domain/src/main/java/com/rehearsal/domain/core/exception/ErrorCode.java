@@ -1,7 +1,9 @@
-package com.rehearsal.api.common.exception;
+package com.rehearsal.domain.core.exception;
 
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
+@Getter
 public enum ErrorCode {
   INVALID_REQUEST("C001", "Invalid request.", HttpStatus.BAD_REQUEST),
   INTERNAL_SERVER_ERROR("C002", "Internal server error.", HttpStatus.INTERNAL_SERVER_ERROR),
@@ -21,17 +23,5 @@ public enum ErrorCode {
     this.code = code;
     this.message = message;
     this.httpStatus = httpStatus;
-  }
-
-  public HttpStatus getHttpStatus() {
-    return httpStatus;
-  }
-
-  public String getCode() {
-    return code;
-  }
-
-  public String getMessage() {
-    return message;
   }
 }

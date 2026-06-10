@@ -1,4 +1,4 @@
-package com.rehearsal.api.common.response;
+package com.rehearsal.api.config.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 

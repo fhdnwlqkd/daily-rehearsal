@@ -1,8 +1,10 @@
-package com.rehearsal.api.common.exception;
+package com.rehearsal.api.config.exception;
 
-import com.rehearsal.api.common.response.ApiResponse;
-import com.rehearsal.api.common.response.ErrorResponse;
-import com.rehearsal.api.common.response.FieldErrorDetail;
+import com.rehearsal.api.config.response.ApiResponse;
+import com.rehearsal.api.config.response.ErrorResponse;
+import com.rehearsal.api.config.response.FieldErrorDetail;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
 import jakarta.validation.ConstraintViolationException;
 import java.util.List;
 import org.slf4j.Logger;

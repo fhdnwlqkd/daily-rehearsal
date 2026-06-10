@@ -1,7 +1,7 @@
-package com.rehearsal.api.common.response;
+package com.rehearsal.api.config.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.rehearsal.api.common.exception.ErrorCode;
+import com.rehearsal.domain.core.exception.ErrorCode;
 import java.util.List;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
