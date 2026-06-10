@@ -10,7 +10,8 @@ public enum ErrorCode {
   UNSUPPORTED_MEDIA_TYPE("C005", "Unsupported media type.", HttpStatus.UNSUPPORTED_MEDIA_TYPE),
   CONFLICT("C006", "Conflict occurred.", HttpStatus.CONFLICT),
   UNAUTHORIZED("A001", "Authentication is required.", HttpStatus.UNAUTHORIZED),
-  FORBIDDEN("A002", "Access is denied.", HttpStatus.FORBIDDEN);
+  FORBIDDEN("A002", "Access is denied.", HttpStatus.FORBIDDEN),
+  SESSION_NOT_FOUND("S001", "Session not found.", HttpStatus.NOT_FOUND);
 
   private final String code;
   private final String message;
