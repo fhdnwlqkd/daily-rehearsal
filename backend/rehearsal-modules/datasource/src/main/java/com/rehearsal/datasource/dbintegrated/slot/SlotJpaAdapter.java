@@ -30,6 +30,11 @@ public class SlotJpaAdapter implements ContextSlotSchemaRepository {
     return schemaRepository.findBySchemaKeyAndActiveTrue(schemaKey).map(this::assembleSchema);
   }
 
+  @Override
+  public List<String> findActiveSchemaKeys() {
+    return schemaRepository.findActiveSchemaKeys();
+  }
+
   private ContextSlotSchema assembleSchema(ContextSlotSchemaJpaEntity schema) {
     List<ContextSlotSchemaItemJpaEntity> items = findActiveItems(schema);
     Map<Long, List<ContextSlotOptionJpaEntity>> optionsBySlotId = findOptionsBySlotId(items);
