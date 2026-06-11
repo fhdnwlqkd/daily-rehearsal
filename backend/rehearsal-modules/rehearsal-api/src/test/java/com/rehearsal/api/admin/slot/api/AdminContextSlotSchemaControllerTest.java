@@ -6,9 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.rehearsal.api.slot.controller.AdminContextSlotSchemaController;
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
+import com.rehearsal.api.slot.controller.AdminContextSlotSchemaController;
 import com.rehearsal.domain.slot.model.ContextSlot;
 import com.rehearsal.domain.slot.model.ContextSlotOption;
 import com.rehearsal.domain.slot.model.ContextSlotSchema;
@@ -16,6 +16,7 @@ import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
 import com.rehearsal.domain.slot.model.RequiredLevel;
 import com.rehearsal.domain.slot.model.SlotType;
 import com.rehearsal.domain.slot.usecase.GetContextSlotSchemaUseCase;
+import com.rehearsal.domain.slot.usecase.AdminContextSlotSchemaUseCase;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,19 @@ class AdminContextSlotSchemaControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private GetContextSlotSchemaUseCase getContextSlotSchemaUseCase;
+  @MockitoBean private AdminContextSlotSchemaUseCase adminContextSlotSchemaUseCase;
+
+  @Test
+  void listContextSlotSchemaKeys() throws Exception {
+    when(adminContextSlotSchemaUseCase.listActiveContextSlotSchemaKeys())
+        .thenReturn(List.of("p1_offline_default"));
+
+    mockMvc
+        .perform(get("/api/v1/admin/context-slot-schemas"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.schemaKeys[0]").value("p1_offline_default"));
+  }
 
   @Test
   void getContextSlotSchema() throws Exception {

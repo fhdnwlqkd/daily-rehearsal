@@ -1,8 +1,10 @@
 package com.rehearsal.api.slot.controller;
 
+import com.rehearsal.api.slot.controller.dto.AdminContextSlotSchemaKeysResponse;
 import com.rehearsal.api.slot.controller.dto.AdminContextSlotSchemaResponse;
 import com.rehearsal.domain.slot.model.ContextSlotSchema;
 import com.rehearsal.domain.slot.usecase.GetContextSlotSchemaUseCase;
+import com.rehearsal.domain.slot.usecase.AdminContextSlotSchemaUseCase;
 import com.rehearsal.domain.slot.usecase.command.GetContextSlotSchemaCommand;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,13 @@ import org.springframework.web.bind.annotation.RestController;
 public class AdminContextSlotSchemaController {
 
   private final GetContextSlotSchemaUseCase getContextSlotSchemaUseCase;
+  private final AdminContextSlotSchemaUseCase adminContextSlotSchemaUseCase;
+
+  @GetMapping
+  public AdminContextSlotSchemaKeysResponse list() {
+    return AdminContextSlotSchemaKeysResponse.from(
+        adminContextSlotSchemaUseCase.listActiveContextSlotSchemaKeys());
+  }
 
   @GetMapping("/{schemaKey}")
   public AdminContextSlotSchemaResponse get(@PathVariable @NotBlank String schemaKey) {

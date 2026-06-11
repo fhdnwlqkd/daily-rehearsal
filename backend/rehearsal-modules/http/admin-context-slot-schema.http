@@ -1,6 +1,10 @@
 @host = http://localhost:8080
 @schemaKey = p1_offline_default
 
+### Admin - active context slot schema key 목록 조회
+GET {{host}}/api/v1/admin/context-slot-schemas
+Accept: application/json
+
 ### Admin - P1 context slot schema 조회
 GET {{host}}/api/v1/admin/context-slot-schemas/{{schemaKey}}
 Accept: application/json
