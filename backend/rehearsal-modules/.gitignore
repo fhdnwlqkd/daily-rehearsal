@@ -38,3 +38,7 @@ out/
 
 ### docker ###
 docker/mysql_data/
+
+### local env ###
+.env*
+!.env.example
