@@ -74,6 +74,123 @@ MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이
 
 기본 active profile은 `local`입니다.
 
+## AI Provider Routing
+
+AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의 `rehearsal.ai` 아래에서 관리합니다.
+
+AI provider는 작업 단위로 선택합니다. 전역 모드나 fallback용 `multi` 설정은 두지 않습니다.
+
+현재 실제 코드에 연결된 AI 작업은 `slot-extraction`입니다. 이후 `simulation-dialogue`, `feedback-generation`, `result-card` 같은 작업이 추가되면 `tasks` 아래에 같은 방식으로 route를 추가합니다. task의 `model`을 비워두면 해당 provider의 기본 model을 사용합니다.
+
+Spring bean wiring과 yml binding은 `rehearsal-api/src/main/java/com/rehearsal/api/config/ai`가 담당합니다. OpenAI/Gemini SDK 호출 구현은 각각 `datasource:client-openai`, `datasource:client-gemini`에 둡니다.
+
+현재 지원하는 provider는 다음과 같습니다.
+
+| provider | 용도 | API key 필요 여부 |
+| --- | --- | --- |
+| `none` | AI 호출을 비활성화합니다. 실제 호출 시 명확한 오류를 반환합니다. | 필요 없음 |
+| `fake` | 로컬/테스트용 deterministic extractor입니다. 외부 AI를 호출하지 않습니다. | 필요 없음 |
+| `gemini` | Gemini SDK를 사용해 slot을 추출합니다. | `GEMINI_API_KEY` 필요 |
+| `openai` | OpenAI SDK를 사용해 slot을 추출합니다. | `OPENAI_API_KEY` 필요 |
+
+```yaml
+rehearsal:
+  ai:
+    defaults:
+      provider: none
+    tasks:
+      slot-extraction:
+        provider: fake
+        model: ""
+      simulation-dialogue:
+        provider: openai
+        model: gpt-5.4-mini
+      feedback-generation:
+        provider: gemini
+        model: gemini-2.5-flash
+    openai:
+      api-key: ${OPENAI_API_KEY:}
+      model: ${OPENAI_MODEL:gpt-5.4-nano}
+      max-output-tokens: ${OPENAI_MAX_OUTPUT_TOKENS:512}
+      temperature: ${OPENAI_TEMPERATURE:0.0}
+      store: ${OPENAI_STORE:false}
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+      temperature: ${GEMINI_TEMPERATURE:0.0}
+      thinking-budget: ${GEMINI_THINKING_BUDGET:0}
+```
+
+`fake` provider는 `slot-extraction` 개발 흐름을 API key 없이 확인하기 위한 local provider입니다. `SINGLE_SELECT` slot은 transcript에 option key 또는 label이 포함되어 있으면 해당 option key를 반환하고, `TEXT` slot은 transcript 전체를 값으로 사용합니다. 실제 LLM 품질을 검증하는 용도는 아니며, session/application flow 개발과 테스트를 빠르게 하기 위한 용도입니다.
+
+모든 AI 작업을 같은 provider로 우선 처리하고 싶으면 `defaults.provider`를 지정하고, task별 설정은 필요한 작업만 override합니다.
+
+```yaml
+rehearsal:
+  ai:
+    defaults:
+      provider: openai
+    tasks:
+      slot-extraction:
+        provider: gemini
+        model: ""
+    openai:
+      model: gpt-5.4-nano
+    gemini:
+      model: gemini-2.5-flash-lite
+```
+
+환경변수로 실행할 때는 다음처럼 지정할 수 있습니다.
+
+```bash
+SLOT_EXTRACTION_AI_PROVIDER=fake \
+./gradlew :rehearsal-api:bootRun
+```
+
+실제 Gemini 호출을 확인할 때는 다음처럼 provider와 API key를 바꿉니다.
+
+```bash
+SLOT_EXTRACTION_AI_PROVIDER=gemini \
+GEMINI_API_KEY=... \
+./gradlew :rehearsal-api:bootRun
+```
+
+## Secret Management
+
+API key와 password 같은 secret은 git에 커밋하지 않습니다. 애플리케이션은 secret 저장소를 직접 알지 않고, `application.yml`에 선언된 환경변수만 읽습니다.
+
+로컬 개발에서는 backend 모듈의 `.env.example`을 참고해 개인별 `.env.local`을 만듭니다. `.env.local`과 `.env*` 파일은 gitignore 대상이고, 실제 값은 팀 password manager나 AWS Secrets Manager에서 공유합니다.
+
+```bash
+cp .env.example .env.local
+```
+
+터미널에서 실행할 때는 필요한 값을 export하거나 dotenv를 로드한 뒤 실행합니다.
+
+```bash
+export SLOT_EXTRACTION_AI_PROVIDER=gemini
+export GEMINI_API_KEY=...
+./gradlew :rehearsal-api:bootRun
+```
+
+AWS 배포에서는 secret과 일반 설정을 나눕니다.
+
+| 구분 | 저장 위치 | 예시 |
+| --- | --- | --- |
+| Secret | AWS Secrets Manager | `OPENAI_API_KEY`, `GEMINI_API_KEY`, DB password |
+| 일반 설정 | SSM Parameter Store 또는 배포 환경변수 | `SLOT_EXTRACTION_AI_PROVIDER`, `SLOT_EXTRACTION_AI_MODEL`, `OPENAI_MODEL` |
+
+권장 secret 이름은 환경을 포함한 계층형 이름을 사용합니다.
+
+```text
+/daily-rehearsal/local/openai/api-key
+/daily-rehearsal/local/gemini/api-key
+/daily-rehearsal/prod/openai/api-key
+/daily-rehearsal/prod/gemini/api-key
+```
+
+ECS/Fargate로 배포할 경우 task definition에서 Secrets Manager 값을 환경변수로 주입합니다. Spring Boot 앱은 AWS SDK로 secret을 직접 조회하지 않고, 주입된 `OPENAI_API_KEY`, `GEMINI_API_KEY`만 사용합니다.
+
 ## Database Migration
 
 로컬 환경에서는 Flyway로 DB 형상을 관리합니다.
