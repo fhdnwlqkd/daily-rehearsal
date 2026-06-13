@@ -84,6 +84,10 @@ Daily Rehearsal에서 기술은 각각 따로 보이는 기능이 아니라, 하
 
 이 조합의 목적은 “말을 잘했는지 평가”하는 것이 아니라, 사용자가 내일의 장면 속 자기 모습을 한 번 경험하도록 만드는 것입니다.
 
+백엔드의 LLM provider는 AI 작업 단위로 선택합니다. 예를 들어 `slot-extraction`은 Gemini를 쓰고, 이후 `simulation-dialogue`나 `feedback-generation`은 OpenAI를 쓰도록 분리할 수 있습니다. 전역 `multi` 모드나 fallback 순차 실행은 두지 않고, `rehearsal.ai.tasks.<task>` 설정으로 provider와 model을 지정합니다. 로컬 개발에서는 API key 없이 흐름을 확인할 수 있는 `fake` provider를 사용할 수 있습니다. 자세한 설정 방식은 [Rehearsal Modules README](./backend/rehearsal-modules/README.md#ai-provider-routing)에 정리합니다.
+
+API key와 password 같은 secret은 git에 커밋하지 않고 환경변수로 주입합니다. 로컬에서는 backend 모듈의 `.env.example`을 복사해 개인별 `.env.local`을 만들고, AWS 배포에서는 Secrets Manager 값을 환경변수로 연결합니다. 자세한 기준은 [Secret Management](./backend/rehearsal-modules/README.md#secret-management)에 정리합니다.
+
 ## 8. P2와의 관계
 
 P2 모바일은 같은 Daily Simulator를 더 개인화된 방식으로 확장하는 계열입니다.
@@ -104,6 +108,8 @@ Daily Rehearsal
 - P1은 사용자의 음성 브리핑을 기반으로 active context slot을 채워 시뮬레이션합니다.
 - P1의 STT/TTS는 프론트에서 처리하고, 백엔드는 transcript text와 aiLine text를 다룹니다.
 - P1의 VTON preview는 프론트가 Decart WebRTC에 직접 연결하고, 백엔드는 client token/spec/reference image URL을 내려줍니다.
+- 백엔드 LLM provider는 작업별 route로 선택하며, 현재 연결된 작업은 `slot-extraction`입니다. 로컬에서는 `fake` provider로 API key 없이 개발할 수 있습니다.
+- API key와 password는 환경변수로 주입하고, 실제 secret 값은 git에 저장하지 않습니다.
 - P1은 중요한 일이 없는 사람도 체험할 수 있어야 합니다.
 - P1은 개인 일정 연동 없이도 자기 상황처럼 느껴지는 브리핑 기반 구조를 사용합니다.
 - P2 모바일은 후속 확장으로 분리합니다.

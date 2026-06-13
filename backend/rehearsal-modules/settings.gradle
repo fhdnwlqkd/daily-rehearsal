@@ -2,4 +2,6 @@ rootProject.name = 'rehearsal-modules'
 
 include 'rehearsal-api'
 include 'datasource'
+include 'datasource:client-openai'
+include 'datasource:client-gemini'
 include 'domain'
