@@ -40,6 +40,24 @@ public class ContextSlotOptionJpaEntity extends BaseJpaEntity {
   @Column(name = "label", nullable = false, length = 100)
   private String label;
 
+  public static ContextSlotOptionJpaEntity create(
+      ContextSlotJpaEntity slot, String optionKey, String label) {
+    ContextSlotOptionJpaEntity entity = new ContextSlotOptionJpaEntity();
+    entity.slot = slot;
+    entity.optionKey = optionKey;
+    entity.label = label;
+    return entity;
+  }
+
+  public static ContextSlotOptionJpaEntity from(
+      ContextSlotJpaEntity slot, ContextSlotOption option) {
+    return create(slot, option.optionKey(), option.label());
+  }
+
+  public void update(String label) {
+    this.label = label;
+  }
+
   public ContextSlotOption toDomain() {
     return new ContextSlotOption(id, optionKey, label);
   }
