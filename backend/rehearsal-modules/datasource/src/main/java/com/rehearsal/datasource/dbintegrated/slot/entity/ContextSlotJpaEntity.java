@@ -56,6 +56,46 @@ public class ContextSlotJpaEntity extends BaseJpaEntity {
   @JoinColumn(name = "default_context_slot_option_id")
   private ContextSlotOptionJpaEntity defaultContextSlotOption;
 
+  public static ContextSlotJpaEntity create(
+      String slotKey,
+      String label,
+      SlotType slotType,
+      String extractionHint,
+      String followUpHint,
+      String defaultLiteralValue) {
+    ContextSlotJpaEntity entity = new ContextSlotJpaEntity();
+    entity.slotKey = slotKey;
+    entity.label = label;
+    entity.slotType = slotType;
+    entity.extractionHint = extractionHint;
+    entity.followUpHint = followUpHint;
+    entity.defaultLiteralValue = defaultLiteralValue;
+    return entity;
+  }
+
+  public static ContextSlotJpaEntity from(ContextSlot slot) {
+    return create(
+        slot.slotKey(),
+        slot.label(),
+        slot.slotType(),
+        slot.extractionHint(),
+        slot.followUpHint(),
+        slot.defaultLiteralValue());
+  }
+
+  public void update(
+      String label,
+      String extractionHint,
+      String followUpHint,
+      String defaultLiteralValue,
+      ContextSlotOptionJpaEntity defaultContextSlotOption) {
+    this.label = label;
+    this.extractionHint = extractionHint;
+    this.followUpHint = followUpHint;
+    this.defaultLiteralValue = defaultLiteralValue;
+    this.defaultContextSlotOption = defaultContextSlotOption;
+  }
+
   public ContextSlot toDomain(List<ContextSlotOptionJpaEntity> optionEntities) {
     List<ContextSlotOption> options =
         optionEntities == null
