@@ -1,76 +1,80 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { WebcamBackground } from "./webcam-background"
-import { PermissionGuide } from "./permission-guide"
-import { P1ExperienceStage, experiencePhases } from "./p1-experience"
+import { useState, useEffect, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { WebcamBackground } from "./webcam-background";
+import { PermissionGuide } from "./permission-guide";
+import { P1ExperienceStage, experiencePhases } from "./p1-experience";
 
-export type MirrorState = (typeof experiencePhases)[number]["id"]
+export type MirrorState = (typeof experiencePhases)[number]["id"];
 
 export function SmartMirror() {
-  const [phaseIndex, setPhaseIndex] = useState(0)
-  const [showDebug, setShowDebug] = useState(false)
+  const [phaseIndex, setPhaseIndex] = useState(0);
+  const [showDebug, setShowDebug] = useState(false);
   const [permissions, setPermissions] = useState<{
-    camera: boolean | null
-    audio: boolean | null
-  }>({ camera: null, audio: null })
+    camera: boolean | null;
+    audio: boolean | null;
+  }>({ camera: null, audio: null });
 
   const checkPermissions = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: true,
         audio: true,
-      })
+      });
       // If successful, stop the tracks and set permissions to true
-      stream.getTracks().forEach((track) => track.stop())
-      setPermissions({ camera: true, audio: true })
+      stream.getTracks().forEach((track) => track.stop());
+      setPermissions({ camera: true, audio: true });
     } catch (error: any) {
-      console.error("Permission check failed:", error)
-      const isCameraError = error.name === "NotAllowedError" || error.name === "NotFoundError"
+      console.error("Permission check failed:", error);
+      const isCameraError =
+        error.name === "NotAllowedError" || error.name === "NotFoundError";
       // Since getUserMedia for both fails if either is denied, we handle it conservatively
       setPermissions({
         camera: error.message?.includes("video") ? false : null,
         audio: error.message?.includes("audio") ? false : null,
-      })
-      
+      });
+
       // Fallback: If we can't distinguish, assume both are needed/failed for now
       if (error.name === "NotAllowedError") {
-        setPermissions({ camera: false, audio: false })
+        setPermissions({ camera: false, audio: false });
       }
     }
-  }, [])
+  }, []);
 
   useEffect(() => {
-    checkPermissions()
-  }, [checkPermissions])
+    checkPermissions();
+  }, [checkPermissions]);
 
-  const showPermissionGuide = permissions.camera === false || permissions.audio === false
-  const currentPhase = experiencePhases[phaseIndex]
+  const showPermissionGuide =
+    permissions.camera === false || permissions.audio === false;
+  const currentPhase = experiencePhases[phaseIndex];
 
   const goToNextPhase = useCallback(() => {
-    setPhaseIndex((current) => (current + 1) % experiencePhases.length)
-  }, [])
+    setPhaseIndex((current) => (current + 1) % experiencePhases.length);
+  }, []);
 
   const goToPhase = useCallback((index: number) => {
-    setPhaseIndex(index)
-  }, [])
+    setPhaseIndex(index);
+  }, []);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === " " || event.key === "Enter") {
-        event.preventDefault()
-        goToNextPhase()
+        event.preventDefault();
+        goToNextPhase();
       }
 
       if (event.key.toLowerCase() === "d") {
-        setShowDebug((visible) => !visible)
+        setShowDebug((visible) => !visible);
       }
     }
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [goToNextPhase])
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [goToNextPhase]);
+
+  if (!currentPhase) return null;
 
   return (
     <div
@@ -116,8 +120,8 @@ export function SmartMirror() {
             <motion.button
               key={phase.id}
               onClick={(event) => {
-                event.stopPropagation()
-                goToPhase(index)
+                event.stopPropagation();
+                goToPhase(index);
               }}
               className={`flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-xs backdrop-blur-xl transition-all ${
                 phaseIndex === index
@@ -133,5 +137,5 @@ export function SmartMirror() {
         </div>
       )}
     </div>
-  )
+  );
 }
