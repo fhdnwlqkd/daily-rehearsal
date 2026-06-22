@@ -104,7 +104,7 @@ export function SmartMirror() {
       </AnimatePresence>
 
       {showDebug && (
-        <div className="absolute right-6 top-6 z-50 flex gap-2">
+        <div className="absolute top-6 right-6 z-50 flex gap-2">
           {experiencePhases.map((phase, index) => (
             <motion.button
               key={phase.id}

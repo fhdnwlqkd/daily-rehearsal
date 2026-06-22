@@ -1,9 +1,9 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { Mic } from "lucide-react"
-import { GlassPanel } from "../glass-panel"
-import { AudioWave } from "../audio-wave"
+import { motion } from "framer-motion";
+import { Mic } from "lucide-react";
+import { GlassPanel } from "../glass-panel";
+import { AudioWave } from "../audio-wave";
 
 export function ListeningState() {
   return (
@@ -43,5 +43,5 @@ export function ListeningState() {
         </GlassPanel>
       </div>
     </div>
-  )
+  );
 }

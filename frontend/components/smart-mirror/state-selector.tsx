@@ -1,15 +1,18 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import type { MirrorState } from "./smart-mirror"
-import { experiencePhases } from "./p1-experience"
+import { motion } from "framer-motion";
+import type { MirrorState } from "./smart-mirror";
+import { experiencePhases } from "./p1-experience";
 
 interface StateSelectorProps {
-  currentState: MirrorState
-  onStateChange: (state: MirrorState) => void
+  currentState: MirrorState;
+  onStateChange: (state: MirrorState) => void;
 }
 
-export function StateSelector({ currentState, onStateChange }: StateSelectorProps) {
+export function StateSelector({
+  currentState,
+  onStateChange,
+}: StateSelectorProps) {
   return (
     <div className="absolute top-6 right-6 z-50 flex gap-2">
       {experiencePhases.map((phase, index) => (
@@ -24,9 +27,11 @@ export function StateSelector({ currentState, onStateChange }: StateSelectorProp
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <span className="text-sm font-extralight tracking-wide">{index + 1}</span>
+          <span className="text-sm font-extralight tracking-wide">
+            {index + 1}
+          </span>
         </motion.button>
       ))}
     </div>
-  )
+  );
 }

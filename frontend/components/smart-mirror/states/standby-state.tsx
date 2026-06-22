@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { GlassPanel } from "../glass-panel"
-import { SkeletonOverlay } from "../skeleton-overlay"
+import { GlassPanel } from "../glass-panel";
+import { SkeletonOverlay } from "../skeleton-overlay";
 
 export function StandbyState() {
   return (
@@ -20,5 +20,5 @@ export function StandbyState() {
         </GlassPanel>
       </div>
     </div>
-  )
+  );
 }

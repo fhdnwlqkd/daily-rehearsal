@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import { ChevronLeft, ChevronRight, CloudRain } from "lucide-react"
-import { GlassPanel } from "../glass-panel"
+import { motion } from "framer-motion";
+import { ChevronLeft, ChevronRight, CloudRain } from "lucide-react";
+import { GlassPanel } from "../glass-panel";
 
 export function ResultState() {
   return (
@@ -44,7 +44,7 @@ export function ResultState() {
 
       {/* Virtual Fitting Overlay Indicator */}
       <motion.div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8, ease: "easeOut" }}
@@ -54,7 +54,11 @@ export function ResultState() {
           <motion.div
             className="absolute inset-0 rounded-3xl border border-white/10"
             animate={{
-              borderColor: ["rgba(255,255,255,0.1)", "rgba(255,255,255,0.2)", "rgba(255,255,255,0.1)"],
+              borderColor: [
+                "rgba(255,255,255,0.1)",
+                "rgba(255,255,255,0.2)",
+                "rgba(255,255,255,0.1)",
+              ],
             }}
             transition={{
               duration: 3,
@@ -64,13 +68,23 @@ export function ResultState() {
           />
           {/* Success indicator */}
           <motion.div
-            className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/80 backdrop-blur-sm"
+            className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/80 backdrop-blur-sm"
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.5, type: "spring" }}
           >
-            <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+            <svg
+              className="h-3 w-3 text-white"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M5 13l4 4L19 7"
+              />
             </svg>
           </motion.div>
         </div>
@@ -82,7 +96,9 @@ export function ResultState() {
           <div className="flex flex-col items-center gap-3">
             <div className="flex items-center gap-2 text-white/60">
               <CloudRain className="h-4 w-4" strokeWidth={1.5} />
-              <span className="text-xs font-extralight tracking-wider">오후 3시 강수확률 70%</span>
+              <span className="text-xs font-extralight tracking-wider">
+                오후 3시 강수확률 70%
+              </span>
             </div>
             <p className="max-w-md text-center font-extralight tracking-wide text-white/90">
               발수 소재의 비즈니스 캐주얼로 매치했습니다.
@@ -99,5 +115,5 @@ export function ResultState() {
         </GlassPanel>
       </div>
     </div>
-  )
+  );
 }

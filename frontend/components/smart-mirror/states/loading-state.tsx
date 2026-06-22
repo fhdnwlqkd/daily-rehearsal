@@ -1,26 +1,26 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { GlassPanel } from "../glass-panel"
-import { ScanningEffect } from "../scanning-effect"
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { GlassPanel } from "../glass-panel";
+import { ScanningEffect } from "../scanning-effect";
 
 const loadingMessages = [
   "기상 및 환경 데이터 동기화 중...",
   "일정 리스크 분석 및 스타일 도출 중...",
   "최적의 라이프스타일 렌더링 중...",
-]
+];
 
 export function LoadingState() {
-  const [messageIndex, setMessageIndex] = useState(0)
+  const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % loadingMessages.length)
-    }, 1500)
+      setMessageIndex((prev) => (prev + 1) % loadingMessages.length);
+    }, 1500);
 
-    return () => clearInterval(interval)
-  }, [])
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="relative flex h-full w-full flex-col">
@@ -47,5 +47,5 @@ export function LoadingState() {
         </GlassPanel>
       </div>
     </div>
-  )
+  );
 }

@@ -273,7 +273,7 @@ function SchemaSummary({
     <section className="grid gap-px overflow-hidden rounded-md border border-zinc-200 bg-zinc-200 md:grid-cols-4">
       {values.map(([label, value]) => (
         <div key={label} className="bg-white px-4 py-3">
-          <p className="mb-1 text-xs font-medium uppercase tracking-normal text-zinc-500">
+          <p className="mb-1 text-xs font-medium tracking-normal text-zinc-500 uppercase">
             {label}
           </p>
           <p className="min-h-6 truncate text-sm font-semibold text-zinc-950">
@@ -321,7 +321,7 @@ function SlotTable({
             <TableCell>
               <RequiredBadge requiredLevel={item.requiredLevel} />
             </TableCell>
-            <TableCell className="min-w-96 whitespace-normal py-4">
+            <TableCell className="min-w-96 py-4 whitespace-normal">
               <div className="mb-1 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-sm font-semibold text-zinc-950">
                   {item.slot.slotKey}
@@ -355,7 +355,7 @@ function SlotTable({
                 {item.slot.slotType}
               </Badge>
             </TableCell>
-            <TableCell className="max-w-72 whitespace-normal text-sm text-zinc-700">
+            <TableCell className="max-w-72 text-sm whitespace-normal text-zinc-700">
               {formatDefaultValue(item.slot)}
             </TableCell>
             <TableCell>

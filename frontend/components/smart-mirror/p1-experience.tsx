@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
-import type { ReactNode } from "react"
+import { motion } from "framer-motion";
+import type { ReactNode } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -13,10 +13,10 @@ import {
   Sparkles,
   UserRound,
   Volume2,
-} from "lucide-react"
-import { AudioWave } from "./audio-wave"
-import { GlassPanel } from "./glass-panel"
-import { ScanningEffect } from "./scanning-effect"
+} from "lucide-react";
+import { AudioWave } from "./audio-wave";
+import { GlassPanel } from "./glass-panel";
+import { ScanningEffect } from "./scanning-effect";
 
 type ExperiencePhaseId =
   | "briefing"
@@ -24,12 +24,12 @@ type ExperiencePhaseId =
   | "transformation"
   | "gesture-fit"
   | "rehearsal"
-  | "change-card"
+  | "change-card";
 
 interface ExperiencePhase {
-  id: ExperiencePhaseId
-  label: string
-  timeRange: string
+  id: ExperiencePhaseId;
+  label: string;
+  timeRange: string;
 }
 
 export const experiencePhases = [
@@ -39,7 +39,7 @@ export const experiencePhases = [
   { id: "gesture-fit", label: "제스처 피팅", timeRange: "35-45s" },
   { id: "rehearsal", label: "결정적 순간", timeRange: "45-55s" },
   { id: "change-card", label: "변화 카드", timeRange: "55-60s" },
-] as const satisfies readonly ExperiencePhase[]
+] as const satisfies readonly ExperiencePhase[];
 
 const mockExperience = {
   transcript:
@@ -50,7 +50,11 @@ const mockExperience = {
     "내일의 장면이 거의 완성됐어요. 어떤 모습으로 보이고 싶은지, 가장 걱정되는 순간은 언제인지, 상대는 어떤 분위기일 것 같은지 알려주세요.",
   tags: ["소개팅", "어색함", "과하지 않은 단정함", "성수 음식점", "지각 우려"],
   missing: ["페르소나", "걱정 순간", "상대 분위기"],
-  followUpQuestions: ["어떤 모습으로 보이고 싶나요?", "가장 걱정되는 순간은 언제인가요?", "상대는 어떤 분위기일 것 같나요?"],
+  followUpQuestions: [
+    "어떤 모습으로 보이고 싶나요?",
+    "가장 걱정되는 순간은 언제인가요?",
+    "상대는 어떤 분위기일 것 같나요?",
+  ],
   outfits: [
     { name: "단정한 캐주얼", tone: "과하지 않은 첫인상", active: false },
     { name: "부드러운 뉴트럴", tone: "편안한 대화 분위기", active: true },
@@ -67,19 +71,27 @@ const mockExperience = {
   changeAction: "20분 일찍 출발하기",
   changeAttitude: "천천히 말하고 먼저 웃기",
   ifThen: "어색한 침묵이 생기면 장소에 대한 질문으로 다시 시작하기",
-}
+};
 
 interface P1ExperienceStageProps {
-  phase: ExperiencePhase
-  phaseIndex: number
-  totalPhases: number
+  phase: ExperiencePhase;
+  phaseIndex: number;
+  totalPhases: number;
 }
 
-export function P1ExperienceStage({ phase, phaseIndex, totalPhases }: P1ExperienceStageProps) {
+export function P1ExperienceStage({
+  phase,
+  phaseIndex,
+  totalPhases,
+}: P1ExperienceStageProps) {
   return (
     <div className="relative h-full w-full overflow-hidden text-white">
       <MirrorToneOverlay phase={phase.id} />
-      <StageHeader phase={phase} phaseIndex={phaseIndex} totalPhases={totalPhases} />
+      <StageHeader
+        phase={phase}
+        phaseIndex={phaseIndex}
+        totalPhases={totalPhases}
+      />
       {phase.id !== "briefing" && <TransitionCue phase={phase.id} />}
 
       {phase.id === "briefing" && <BriefingStage />}
@@ -91,7 +103,7 @@ export function P1ExperienceStage({ phase, phaseIndex, totalPhases }: P1Experien
 
       <TapHint isLast={phaseIndex === totalPhases - 1} />
     </div>
-  )
+  );
 }
 
 function MirrorToneOverlay({ phase }: { phase: ExperiencePhaseId }) {
@@ -102,14 +114,14 @@ function MirrorToneOverlay({ phase }: { phase: ExperiencePhaseId }) {
     "gesture-fit": "from-black/45 via-black/10 to-black/75",
     rehearsal: "from-black/45 via-black/20 to-black/80",
     "change-card": "from-black/70 via-black/55 to-black/90",
-  }
+  };
 
   return (
     <>
       <div className={`absolute inset-0 bg-gradient-to-b ${overlays[phase]}`} />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_0%,rgba(0,0,0,0.18)_54%,rgba(0,0,0,0.7)_100%)]" />
     </>
-  )
+  );
 }
 
 function StageHeader({
@@ -117,19 +129,25 @@ function StageHeader({
   phaseIndex,
   totalPhases,
 }: {
-  phase: ExperiencePhase
-  phaseIndex: number
-  totalPhases: number
+  phase: ExperiencePhase;
+  phaseIndex: number;
+  totalPhases: number;
 }) {
   return (
-    <div className="absolute left-8 right-8 top-6 z-20 flex items-center justify-between">
+    <div className="absolute top-6 right-8 left-8 z-20 flex items-center justify-between">
       <div className="flex items-center gap-3 text-white/70">
-        <span className="text-xs font-light tracking-[0.32em]">DAILY REHEARSAL</span>
+        <span className="text-xs font-light tracking-[0.32em]">
+          DAILY REHEARSAL
+        </span>
         <span className="h-px w-10 bg-white/20" />
-        <span className="text-xs font-light tracking-[0.18em]">{phase.timeRange}</span>
+        <span className="text-xs font-light tracking-[0.18em]">
+          {phase.timeRange}
+        </span>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-xs font-light tracking-[0.16em] text-white/60">{phase.label}</span>
+        <span className="text-xs font-light tracking-[0.16em] text-white/60">
+          {phase.label}
+        </span>
         <div className="flex gap-1.5">
           {Array.from({ length: totalPhases }).map((_, index) => (
             <div
@@ -140,7 +158,7 @@ function StageHeader({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
@@ -151,26 +169,38 @@ function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
     "gesture-fit": "제스처로 모습을 고릅니다",
     rehearsal: "결정적 순간을 들어봅니다",
     "change-card": "내일의 변화 카드를 발급합니다",
-  }
+  };
 
   return (
     <motion.div
       className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/35 backdrop-blur-[2px]"
       initial={{ opacity: 0 }}
       animate={{ opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 2.4, times: [0, 0.16, 0.72, 1], ease: "easeInOut" }}
+      transition={{
+        duration: 2.4,
+        times: [0, 0.16, 0.72, 1],
+        ease: "easeInOut",
+      }}
     >
       <motion.div
         className="border-y border-white/20 px-10 py-8 text-center"
         initial={{ y: 18, scale: 0.98 }}
         animate={{ y: [18, 0, 0, -10], scale: [0.98, 1, 1, 0.99] }}
-        transition={{ duration: 2.4, times: [0, 0.16, 0.72, 1], ease: "easeInOut" }}
+        transition={{
+          duration: 2.4,
+          times: [0, 0.16, 0.72, 1],
+          ease: "easeInOut",
+        }}
       >
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/55">NEXT SEQUENCE</p>
-        <p className="text-5xl font-extralight tracking-wide text-white md:text-7xl">{copy[phase]}</p>
+        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/55">
+          NEXT SEQUENCE
+        </p>
+        <p className="text-5xl font-extralight tracking-wide text-white md:text-7xl">
+          {copy[phase]}
+        </p>
       </motion.div>
     </motion.div>
-  )
+  );
 }
 
 function BriefingStage() {
@@ -187,9 +217,12 @@ function BriefingStage() {
           <Mic className="h-4 w-4" strokeWidth={1.5} />
           <span className="text-xs font-light tracking-[0.2em]">LISTENING</span>
         </div>
-        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">내일 하루를 짧게 말해주세요</h1>
+        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">
+          내일 하루를 짧게 말해주세요
+        </h1>
         <p className="max-w-2xl text-base font-light text-white/65 md:text-lg">
-          일정, 걱정, 되고 싶은 모습까지 한 번에 말하면 거울이 내일의 장면을 구성합니다.
+          일정, 걱정, 되고 싶은 모습까지 한 번에 말하면 거울이 내일의 장면을
+          구성합니다.
         </p>
       </motion.div>
 
@@ -202,7 +235,7 @@ function BriefingStage() {
         <SttPanel text={mockExperience.transcript} />
       </motion.div>
     </div>
-  )
+  );
 }
 
 function SttPanel({
@@ -210,21 +243,25 @@ function SttPanel({
   label = "REAL-TIME STT",
   compact = false,
 }: {
-  text: string
-  label?: string
-  compact?: boolean
+  text: string;
+  label?: string;
+  compact?: boolean;
 }) {
   return (
-    <GlassPanel className={`w-full ${compact ? "max-w-3xl px-6 py-4" : "max-w-4xl px-7 py-5"}`}>
+    <GlassPanel
+      className={`w-full ${compact ? "max-w-3xl px-6 py-4" : "max-w-4xl px-7 py-5"}`}
+    >
       <div className="flex items-start gap-5">
         <AudioWave />
         <div className="flex-1">
-          <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/50">{label}</p>
+          <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/50">
+            {label}
+          </p>
           <RevealText text={text} compact={compact} />
         </div>
       </div>
     </GlassPanel>
-  )
+  );
 }
 
 function ContextStage() {
@@ -234,7 +271,7 @@ function ContextStage() {
         <ScanningEffect />
       </div>
       <motion.div
-        className="absolute left-10 top-32 z-20 flex max-w-xs flex-col gap-3"
+        className="absolute top-32 left-10 z-20 flex max-w-xs flex-col gap-3"
         initial="hidden"
         animate="visible"
         variants={{
@@ -250,12 +287,14 @@ function ContextStage() {
         </div>
       </motion.div>
       <motion.div
-        className="absolute right-10 top-32 z-20 flex max-w-xs flex-col gap-3"
+        className="absolute top-32 right-10 z-20 flex max-w-xs flex-col gap-3"
         initial="hidden"
         animate="visible"
         variants={{
           hidden: {},
-          visible: { transition: { staggerChildren: 0.18, delayChildren: 0.3 } },
+          visible: {
+            transition: { staggerChildren: 0.18, delayChildren: 0.3 },
+          },
         }}
       >
         <FloatingLabel>더 필요한 맥락</FloatingLabel>
@@ -265,7 +304,7 @@ function ContextStage() {
           ))}
         </div>
       </motion.div>
-      <div className="relative z-10 flex h-full flex-col items-center justify-center px-8 pb-28 pt-32">
+      <div className="relative z-10 flex h-full flex-col items-center justify-center px-8 pt-32 pb-28">
         <motion.div
           className="flex max-w-4xl flex-col items-center gap-5 text-center"
           initial={{ opacity: 0, y: -14 }}
@@ -274,11 +313,16 @@ function ContextStage() {
         >
           <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-white/75 backdrop-blur-xl">
             <Mic className="h-4 w-4" strokeWidth={1.5} />
-            <span className="text-xs font-light tracking-[0.22em]">ANSWER OUT LOUD</span>
+            <span className="text-xs font-light tracking-[0.22em]">
+              ANSWER OUT LOUD
+            </span>
           </div>
-          <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">조금만 더 알려주세요</h1>
+          <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">
+            조금만 더 알려주세요
+          </h1>
           <p className="max-w-2xl text-base font-light text-white/65 md:text-lg">
-            내일의 장면을 완성하려면 세 가지가 더 필요해요. 아래 질문에 이어서 말해주세요.
+            내일의 장면을 완성하려면 세 가지가 더 필요해요. 아래 질문에 이어서
+            말해주세요.
           </p>
           <div className="mt-4 grid w-full grid-cols-3 gap-3">
             {mockExperience.followUpQuestions.map((question, index) => (
@@ -289,18 +333,26 @@ function ContextStage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.18 + index * 0.1, duration: 0.45 }}
               >
-                <p className="mb-2 text-xs font-light tracking-[0.2em] text-white/45">QUESTION {index + 1}</p>
-                <p className="text-lg font-light leading-snug text-white/85">{question}</p>
+                <p className="mb-2 text-xs font-light tracking-[0.2em] text-white/45">
+                  QUESTION {index + 1}
+                </p>
+                <p className="text-lg leading-snug font-light text-white/85">
+                  {question}
+                </p>
               </motion.div>
             ))}
           </div>
         </motion.div>
       </div>
       <div className="absolute inset-x-0 bottom-12 z-20 flex justify-center px-6">
-        <SttPanel text={mockExperience.contextReply} label="FOLLOW-UP STT" compact />
+        <SttPanel
+          text={mockExperience.contextReply}
+          label="FOLLOW-UP STT"
+          compact
+        />
       </div>
     </div>
-  )
+  );
 }
 
 function TransformationStage() {
@@ -311,26 +363,50 @@ function TransformationStage() {
       <div className="absolute inset-x-0 top-[16%] z-20 flex flex-col items-center gap-4 text-center">
         <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-white/75 backdrop-blur-xl">
           <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-          <span className="text-xs font-light tracking-[0.22em]">VTON PREVIEW</span>
+          <span className="text-xs font-light tracking-[0.22em]">
+            VTON PREVIEW
+          </span>
         </div>
-        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">내일 입어볼 모습을 골라보세요</h1>
+        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">
+          내일 입어볼 모습을 골라보세요
+        </h1>
         <p className="max-w-2xl text-base font-light text-white/65 md:text-lg">
           거울 속 현재 모습 위에 내일의 페르소나 스타일을 겹쳐봅니다.
         </p>
       </div>
-      <div className="absolute left-8 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-3">
-        <RiskWidget icon={<CloudRain className="h-4 w-4" />} label="이동 변수" value={mockExperience.routeRisk} compact />
-        <RiskWidget icon={<MapPin className="h-4 w-4" />} label="장소" value="성수 음식점" compact />
+      <div className="absolute top-1/2 left-8 z-20 flex -translate-y-1/2 flex-col gap-3">
+        <RiskWidget
+          icon={<CloudRain className="h-4 w-4" />}
+          label="이동 변수"
+          value={mockExperience.routeRisk}
+          compact
+        />
+        <RiskWidget
+          icon={<MapPin className="h-4 w-4" />}
+          label="장소"
+          value="성수 음식점"
+          compact
+        />
       </div>
-      <div className="absolute right-8 top-1/2 z-20 flex -translate-y-1/2 flex-col gap-3">
-        <RiskWidget icon={<UserRound className="h-4 w-4" />} label="페르소나" value={mockExperience.persona} compact />
-        <RiskWidget icon={<MapPin className="h-4 w-4" />} label="공간" value={mockExperience.placeMood} compact />
+      <div className="absolute top-1/2 right-8 z-20 flex -translate-y-1/2 flex-col gap-3">
+        <RiskWidget
+          icon={<UserRound className="h-4 w-4" />}
+          label="페르소나"
+          value={mockExperience.persona}
+          compact
+        />
+        <RiskWidget
+          icon={<MapPin className="h-4 w-4" />}
+          label="공간"
+          value={mockExperience.placeMood}
+          compact
+        />
       </div>
       <div className="absolute inset-x-0 bottom-14 z-20 flex justify-center px-8">
         <OutfitCarouselMock />
       </div>
     </div>
-  )
+  );
 }
 
 function GestureFitStage() {
@@ -345,11 +421,16 @@ function GestureFitStage() {
       >
         <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/8 px-4 py-2 text-white/75 backdrop-blur-xl">
           <Sparkles className="h-4 w-4" strokeWidth={1.5} />
-          <span className="text-xs font-light tracking-[0.22em]">GESTURE FITTING</span>
+          <span className="text-xs font-light tracking-[0.22em]">
+            GESTURE FITTING
+          </span>
         </div>
-        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">손짓으로 내일의 모습을 골라보세요</h1>
+        <h1 className="text-4xl font-extralight tracking-wide md:text-6xl">
+          손짓으로 내일의 모습을 골라보세요
+        </h1>
         <p className="max-w-2xl text-base font-light text-white/65 md:text-lg">
-          거울이 사용자를 인식하는 동안 Decart preview를 준비하고, 제스처로 입어볼 옷을 바꿉니다.
+          거울이 사용자를 인식하는 동안 Decart preview를 준비하고, 제스처로
+          입어볼 옷을 바꿉니다.
         </p>
       </motion.div>
       <motion.div
@@ -360,14 +441,14 @@ function GestureFitStage() {
       >
         <div className="absolute inset-x-12 top-10 h-24 rounded-full border border-white/35" />
         <div className="absolute inset-x-4 top-36 h-52 rounded-[42%] border border-white/25" />
-        <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/25 to-transparent" />
+        <div className="absolute top-0 left-1/2 h-full w-px -translate-x-1/2 bg-gradient-to-b from-transparent via-white/25 to-transparent" />
         <motion.div
-          className="absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25"
+          className="absolute top-1/2 left-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white/25"
           animate={{ scale: [0.82, 1.18, 0.82], opacity: [0.25, 0.75, 0.25] }}
           transition={{ duration: 2.1, repeat: Infinity, ease: "easeInOut" }}
         />
         <motion.div
-          className="absolute -left-10 top-1/2 flex -translate-y-1/2 items-center gap-2 text-white/55"
+          className="absolute top-1/2 -left-10 flex -translate-y-1/2 items-center gap-2 text-white/55"
           animate={{ x: [-8, 0, -8], opacity: [0.45, 0.85, 0.45] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -375,7 +456,7 @@ function GestureFitStage() {
           <span className="text-xs font-light tracking-[0.18em]">PREV</span>
         </motion.div>
         <motion.div
-          className="absolute -right-10 top-1/2 flex -translate-y-1/2 items-center gap-2 text-white/55"
+          className="absolute top-1/2 -right-10 flex -translate-y-1/2 items-center gap-2 text-white/55"
           animate={{ x: [8, 0, 8], opacity: [0.45, 0.85, 0.45] }}
           transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
         >
@@ -384,7 +465,13 @@ function GestureFitStage() {
         </motion.div>
         <motion.div
           className="absolute inset-0 rounded-[2rem] border border-white/18"
-          animate={{ boxShadow: ["0 0 0 rgba(255,255,255,0)", "0 0 60px rgba(255,255,255,0.16)", "0 0 0 rgba(255,255,255,0)"] }}
+          animate={{
+            boxShadow: [
+              "0 0 0 rgba(255,255,255,0)",
+              "0 0 60px rgba(255,255,255,0.16)",
+              "0 0 0 rgba(255,255,255,0)",
+            ],
+          }}
           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
         />
         <div className="absolute inset-x-0 bottom-14 px-8">
@@ -392,14 +479,24 @@ function GestureFitStage() {
         </div>
       </motion.div>
       <div className="absolute inset-x-0 bottom-12 flex justify-center px-6">
-        <GlassPanel pulsing pulseColor="rgba(255, 255, 255, 0.32)" className="max-w-3xl text-center">
-          <p className="mb-2 text-xs font-light tracking-[0.26em] text-white/55">DECART PREVIEW 준비 중</p>
-          <p className="text-3xl font-extralight tracking-wide">손짓으로 옷을 넘겨보세요</p>
-          <p className="mt-3 text-sm font-light text-white/55">{mockExperience.gestureHint}</p>
+        <GlassPanel
+          pulsing
+          pulseColor="rgba(255, 255, 255, 0.32)"
+          className="max-w-3xl text-center"
+        >
+          <p className="mb-2 text-xs font-light tracking-[0.26em] text-white/55">
+            DECART PREVIEW 준비 중
+          </p>
+          <p className="text-3xl font-extralight tracking-wide">
+            손짓으로 옷을 넘겨보세요
+          </p>
+          <p className="mt-3 text-sm font-light text-white/55">
+            {mockExperience.gestureHint}
+          </p>
         </GlassPanel>
       </div>
     </div>
-  )
+  );
 }
 
 function RehearsalStage() {
@@ -419,11 +516,17 @@ function RehearsalStage() {
                 <Volume2 className="h-7 w-7 text-white/70" strokeWidth={1.3} />
               </div>
               <div>
-                <p className="text-xs font-light tracking-[0.22em] text-white/45">AI COUNTERPART</p>
-                <p className="mt-1 text-lg font-light text-white/80">상대의 첫 한마디</p>
+                <p className="text-xs font-light tracking-[0.22em] text-white/45">
+                  AI COUNTERPART
+                </p>
+                <p className="mt-1 text-lg font-light text-white/80">
+                  상대의 첫 한마디
+                </p>
               </div>
             </div>
-            <p className="text-4xl font-extralight leading-snug tracking-wide">“{mockExperience.aiPrompt}”</p>
+            <p className="text-4xl leading-snug font-extralight tracking-wide">
+              “{mockExperience.aiPrompt}”
+            </p>
             <div className="mt-8">
               <AudioWave />
             </div>
@@ -442,15 +545,23 @@ function RehearsalStage() {
                   animate={{ opacity: [0.4, 1, 0.4] }}
                   transition={{ duration: 1.2, repeat: Infinity }}
                 />
-                <span className="text-xs font-light tracking-[0.22em]">REC</span>
+                <span className="text-xs font-light tracking-[0.22em]">
+                  REC
+                </span>
               </div>
               <div className="flex items-center gap-2 text-white/45">
                 <Mic className="h-4 w-4" strokeWidth={1.5} />
-                <span className="text-xs font-light tracking-[0.18em]">YOUR TURN</span>
+                <span className="text-xs font-light tracking-[0.18em]">
+                  YOUR TURN
+                </span>
               </div>
             </div>
-            <p className="text-lg font-light leading-relaxed text-white/60">추천 응답</p>
-            <p className="mt-3 text-3xl font-extralight leading-snug tracking-wide">“{mockExperience.userReply}”</p>
+            <p className="text-lg leading-relaxed font-light text-white/60">
+              추천 응답
+            </p>
+            <p className="mt-3 text-3xl leading-snug font-extralight tracking-wide">
+              “{mockExperience.userReply}”
+            </p>
             <div className="mt-8 grid grid-cols-3 gap-3">
               <MiniScore label="길이" value="적절" />
               <MiniScore label="톤" value="차분" />
@@ -460,7 +571,7 @@ function RehearsalStage() {
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function ChangeCardStage() {
@@ -476,32 +587,48 @@ function ChangeCardStage() {
         <div className="p-10">
           <div className="mb-10 flex items-center justify-between border-b border-neutral-300 pb-5">
             <div>
-              <p className="text-xs font-medium tracking-[0.28em] text-neutral-500">CHANGE CARD</p>
-              <h2 className="mt-2 text-4xl font-light tracking-tight">내일의 변화 카드</h2>
+              <p className="text-xs font-medium tracking-[0.28em] text-neutral-500">
+                CHANGE CARD
+              </p>
+              <h2 className="mt-2 text-4xl font-light tracking-tight">
+                내일의 변화 카드
+              </h2>
             </div>
-            <span className="rounded-full border border-neutral-300 px-4 py-2 text-sm text-neutral-600">P1-DAILY</span>
+            <span className="rounded-full border border-neutral-300 px-4 py-2 text-sm text-neutral-600">
+              P1-DAILY
+            </span>
           </div>
-          <ChangeRow label="오늘 바꿀 행동" value={mockExperience.changeAction} />
-          <ChangeRow label="내일 유지할 태도" value={mockExperience.changeAttitude} />
+          <ChangeRow
+            label="오늘 바꿀 행동"
+            value={mockExperience.changeAction}
+          />
+          <ChangeRow
+            label="내일 유지할 태도"
+            value={mockExperience.changeAttitude}
+          />
           <ChangeRow label="If-Then" value={mockExperience.ifThen} />
           <div className="mt-10 flex items-center gap-3 text-neutral-500">
             <Check className="h-5 w-5" strokeWidth={1.6} />
-            <span className="text-sm">내일의 리스크를 줄이는 행동 변화가 저장되었습니다.</span>
+            <span className="text-sm">
+              내일의 리스크를 줄이는 행동 변화가 저장되었습니다.
+            </span>
           </div>
         </div>
         <div className="flex flex-col items-center justify-center border-l border-dashed border-neutral-300 bg-neutral-950 p-8 text-white">
           <MockQr />
           <div className="mt-6 flex items-center gap-2 text-white/65">
             <QrCode className="h-4 w-4" strokeWidth={1.4} />
-            <span className="text-xs font-light tracking-[0.2em]">SCAN TO SAVE</span>
+            <span className="text-xs font-light tracking-[0.2em]">
+              SCAN TO SAVE
+            </span>
           </div>
-          <p className="mt-3 text-center text-sm font-light leading-relaxed text-white/55">
+          <p className="mt-3 text-center text-sm leading-relaxed font-light text-white/55">
             개인 폰으로 스캔해 오늘의 변화 카드를 가져갑니다.
           </p>
         </div>
       </motion.div>
     </div>
-  )
+  );
 }
 
 function EdgeWave() {
@@ -509,23 +636,37 @@ function EdgeWave() {
     <div className="pointer-events-none absolute inset-0">
       <motion.div
         className="absolute inset-4 rounded-[2rem] border border-white/20"
-        animate={{ boxShadow: ["0 0 20px rgba(255,255,255,0.06)", "0 0 60px rgba(255,255,255,0.16)", "0 0 20px rgba(255,255,255,0.06)"] }}
+        animate={{
+          boxShadow: [
+            "0 0 20px rgba(255,255,255,0.06)",
+            "0 0 60px rgba(255,255,255,0.16)",
+            "0 0 20px rgba(255,255,255,0.06)",
+          ],
+        }}
         transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/55 to-transparent"
+        className="absolute right-0 bottom-0 left-0 h-1 bg-gradient-to-r from-transparent via-white/55 to-transparent"
         animate={{ opacity: [0.25, 0.9, 0.25], scaleX: [0.65, 1, 0.65] }}
         transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
       />
     </div>
-  )
+  );
 }
 
-function RevealText({ text, compact = false }: { text: string; compact?: boolean }) {
-  const words = text.split(" ")
+function RevealText({
+  text,
+  compact = false,
+}: {
+  text: string;
+  compact?: boolean;
+}) {
+  const words = text.split(" ");
 
   return (
-    <p className={`${compact ? "text-lg" : "text-2xl"} font-extralight leading-relaxed tracking-wide text-white/90`}>
+    <p
+      className={`${compact ? "text-lg" : "text-2xl"} leading-relaxed font-extralight tracking-wide text-white/90`}
+    >
       {words.map((word, index) => (
         <motion.span
           key={`${word}-${index}`}
@@ -538,11 +679,15 @@ function RevealText({ text, compact = false }: { text: string; compact?: boolean
         </motion.span>
       ))}
     </p>
-  )
+  );
 }
 
 function FloatingLabel({ children }: { children: ReactNode }) {
-  return <p className="text-xs font-light tracking-[0.22em] text-white/45">{children}</p>
+  return (
+    <p className="text-xs font-light tracking-[0.22em] text-white/45">
+      {children}
+    </p>
+  );
 }
 
 function Tag({ label }: { label: string }) {
@@ -556,7 +701,7 @@ function Tag({ label }: { label: string }) {
     >
       {label}
     </motion.div>
-  )
+  );
 }
 
 function MissingTag({ label }: { label: string }) {
@@ -570,7 +715,7 @@ function MissingTag({ label }: { label: string }) {
     >
       {label} 필요
     </motion.div>
-  )
+  );
 }
 
 function GlitchFlash() {
@@ -581,30 +726,36 @@ function GlitchFlash() {
       animate={{ opacity: 0 }}
       transition={{ duration: 0.35, ease: "easeOut" }}
     />
-  )
+  );
 }
 
 function StyleProjectionOverlay() {
   return (
     <div className="pointer-events-none absolute inset-0">
       <motion.div
-        className="absolute left-1/2 top-[52%] h-[48vh] w-[min(32vw,340px)] min-w-[250px] -translate-x-1/2 -translate-y-1/2 rounded-[40%_40%_18%_18%] border border-white/25 bg-gradient-to-b from-white/16 via-white/8 to-white/5 shadow-[0_0_90px_rgba(255,255,255,0.12)] backdrop-blur-[1px]"
+        className="absolute top-[52%] left-1/2 h-[48vh] w-[min(32vw,340px)] min-w-[250px] -translate-x-1/2 -translate-y-1/2 rounded-[40%_40%_18%_18%] border border-white/25 bg-gradient-to-b from-white/16 via-white/8 to-white/5 shadow-[0_0_90px_rgba(255,255,255,0.12)] backdrop-blur-[1px]"
         initial={{ opacity: 0, scale: 0.9, filter: "blur(12px)" }}
         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
         transition={{ duration: 0.75, ease: "easeOut" }}
       />
       <motion.div
-        className="absolute left-1/2 top-[42%] h-[18vh] w-[min(18vw,190px)] min-w-[140px] -translate-x-1/2 -translate-y-1/2 rounded-[45%] border border-white/25"
-        animate={{ borderColor: ["rgba(255,255,255,0.18)", "rgba(255,255,255,0.52)", "rgba(255,255,255,0.18)"] }}
+        className="absolute top-[42%] left-1/2 h-[18vh] w-[min(18vw,190px)] min-w-[140px] -translate-x-1/2 -translate-y-1/2 rounded-[45%] border border-white/25"
+        animate={{
+          borderColor: [
+            "rgba(255,255,255,0.18)",
+            "rgba(255,255,255,0.52)",
+            "rgba(255,255,255,0.18)",
+          ],
+        }}
         transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
-        className="absolute left-1/2 top-[62%] h-px w-[min(48vw,520px)] -translate-x-1/2 bg-gradient-to-r from-transparent via-white/45 to-transparent"
+        className="absolute top-[62%] left-1/2 h-px w-[min(48vw,520px)] -translate-x-1/2 bg-gradient-to-r from-transparent via-white/45 to-transparent"
         animate={{ opacity: [0.25, 0.8, 0.25], scaleX: [0.7, 1, 0.7] }}
         transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
       />
     </div>
-  )
+  );
 }
 
 function OutfitCarouselMock() {
@@ -612,7 +763,9 @@ function OutfitCarouselMock() {
     <div className="w-full max-w-5xl">
       <div className="mb-4 flex items-center justify-center gap-5 text-white/55">
         <ArrowLeft className="h-5 w-5" strokeWidth={1.4} />
-        <span className="text-xs font-light tracking-[0.24em]">SWIPE TO TRY TOMORROW'S LOOK</span>
+        <span className="text-xs font-light tracking-[0.24em]">
+          SWIPE TO TRY TOMORROW'S LOOK
+        </span>
         <ArrowRight className="h-5 w-5" strokeWidth={1.4} />
       </div>
       <div className="grid grid-cols-3 gap-4">
@@ -637,14 +790,20 @@ function OutfitCarouselMock() {
               ease: "easeInOut",
             }}
           >
-            <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/45">LOOK {index + 1}</p>
-            <p className="text-2xl font-extralight tracking-wide text-white">{outfit.name}</p>
-            <p className="mt-2 text-sm font-light text-white/55">{outfit.tone}</p>
+            <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/45">
+              LOOK {index + 1}
+            </p>
+            <p className="text-2xl font-extralight tracking-wide text-white">
+              {outfit.name}
+            </p>
+            <p className="mt-2 text-sm font-light text-white/55">
+              {outfit.tone}
+            </p>
           </motion.div>
         ))}
       </div>
     </div>
-  )
+  );
 }
 
 function RiskWidget({
@@ -653,10 +812,10 @@ function RiskWidget({
   value,
   compact = false,
 }: {
-  icon: ReactNode
-  label: string
-  value: string
-  compact?: boolean
+  icon: ReactNode;
+  label: string;
+  value: string;
+  compact?: boolean;
 }) {
   return (
     <motion.div
@@ -669,9 +828,13 @@ function RiskWidget({
         {icon}
         <span className="text-xs font-light tracking-[0.18em]">{label}</span>
       </div>
-      <p className={`${compact ? "text-lg" : "text-2xl"} font-extralight tracking-wide`}>{value}</p>
+      <p
+        className={`${compact ? "text-lg" : "text-2xl"} font-extralight tracking-wide`}
+      >
+        {value}
+      </p>
     </motion.div>
-  )
+  );
 }
 
 function ProgressCharge() {
@@ -681,40 +844,58 @@ function ProgressCharge() {
         className="h-3 rounded-full bg-gradient-to-r from-white/45 via-white/75 to-white"
         initial={{ width: "8%" }}
         animate={{ width: ["8%", "42%", "72%", "100%"] }}
-        transition={{ duration: 3, repeat: Infinity, repeatDelay: 0.6, ease: "easeInOut" }}
+        transition={{
+          duration: 3,
+          repeat: Infinity,
+          repeatDelay: 0.6,
+          ease: "easeInOut",
+        }}
       />
     </div>
-  )
+  );
 }
 
 function MiniScore({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center">
-      <p className="text-xs font-light tracking-[0.18em] text-white/40">{label}</p>
+      <p className="text-xs font-light tracking-[0.18em] text-white/40">
+        {label}
+      </p>
       <p className="mt-1 text-lg font-light text-white/80">{value}</p>
     </div>
-  )
+  );
 }
 
 function ChangeRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="border-b border-neutral-200 py-5">
-      <p className="text-xs font-medium tracking-[0.22em] text-neutral-500">{label}</p>
-      <p className="mt-2 text-3xl font-light tracking-tight text-neutral-950">{value}</p>
+      <p className="text-xs font-medium tracking-[0.22em] text-neutral-500">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-light tracking-tight text-neutral-950">
+        {value}
+      </p>
     </div>
-  )
+  );
 }
 
 function MockQr() {
-  const filled = new Set([0, 1, 2, 4, 6, 8, 10, 14, 16, 18, 20, 21, 22, 25, 27, 30, 32, 34, 36, 38, 40, 42, 45, 48, 50, 52, 54, 56, 58, 60, 62, 64, 65, 66, 70, 72, 74, 76, 78, 80])
+  const filled = new Set([
+    0, 1, 2, 4, 6, 8, 10, 14, 16, 18, 20, 21, 22, 25, 27, 30, 32, 34, 36, 38,
+    40, 42, 45, 48, 50, 52, 54, 56, 58, 60, 62, 64, 65, 66, 70, 72, 74, 76, 78,
+    80,
+  ]);
 
   return (
     <div className="grid h-48 w-48 grid-cols-9 gap-1 rounded-2xl bg-white p-4">
       {Array.from({ length: 81 }).map((_, index) => (
-        <div key={index} className={`rounded-[2px] ${filled.has(index) ? "bg-neutral-950" : "bg-transparent"}`} />
+        <div
+          key={index}
+          className={`rounded-[2px] ${filled.has(index) ? "bg-neutral-950" : "bg-transparent"}`}
+        />
       ))}
     </div>
-  )
+  );
 }
 
 function TapHint({ isLast }: { isLast: boolean }) {
@@ -724,7 +905,9 @@ function TapHint({ isLast }: { isLast: boolean }) {
       animate={{ opacity: [0.25, 0.75, 0.25] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
-      {isLast ? "탭하거나 Enter를 눌러 다시 시작" : "탭하거나 Enter를 눌러 계속"}
+      {isLast
+        ? "탭하거나 Enter를 눌러 다시 시작"
+        : "탭하거나 Enter를 눌러 계속"}
     </motion.div>
-  )
+  );
 }

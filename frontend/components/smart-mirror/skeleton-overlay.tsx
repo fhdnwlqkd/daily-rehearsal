@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
 
 export function SkeletonOverlay() {
   const jointPositions = {
@@ -20,7 +20,7 @@ export function SkeletonOverlay() {
     rightKnee: { x: 240, y: 360 },
     leftAnkle: { x: 155, y: 460 },
     rightAnkle: { x: 245, y: 460 },
-  }
+  };
 
   const bones = [
     ["head", "neck"],
@@ -38,7 +38,7 @@ export function SkeletonOverlay() {
     ["rightHip", "rightKnee"],
     ["leftKnee", "leftAnkle"],
     ["rightKnee", "rightAnkle"],
-  ]
+  ];
 
   return (
     <motion.svg
@@ -52,8 +52,8 @@ export function SkeletonOverlay() {
     >
       {/* Bones */}
       {bones.map(([start, end], index) => {
-        const startPos = jointPositions[start as keyof typeof jointPositions]
-        const endPos = jointPositions[end as keyof typeof jointPositions]
+        const startPos = jointPositions[start as keyof typeof jointPositions];
+        const endPos = jointPositions[end as keyof typeof jointPositions];
         return (
           <motion.line
             key={`bone-${index}`}
@@ -68,7 +68,7 @@ export function SkeletonOverlay() {
             animate={{ pathLength: 1 }}
             transition={{ duration: 1, delay: index * 0.05 }}
           />
-        )
+        );
       })}
 
       {/* Joints */}
@@ -100,5 +100,5 @@ export function SkeletonOverlay() {
         transition={{ duration: 1.5, delay: 1 }}
       />
     </motion.svg>
-  )
+  );
 }

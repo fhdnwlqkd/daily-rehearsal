@@ -1,17 +1,17 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
 
 export function AudioWave() {
-  const bars = 24
-  
+  const bars = 24;
+
   return (
     <div className="flex h-16 items-center justify-center gap-1">
       {Array.from({ length: bars }).map((_, i) => {
-        const delay = i * 0.05
-        const centerDistance = Math.abs(i - bars / 2)
-        const baseHeight = Math.max(8, 40 - centerDistance * 3)
-        
+        const delay = i * 0.05;
+        const centerDistance = Math.abs(i - bars / 2);
+        const baseHeight = Math.max(8, 40 - centerDistance * 3);
+
         return (
           <motion.div
             key={i}
@@ -32,8 +32,8 @@ export function AudioWave() {
               ease: "easeInOut",
             }}
           />
-        )
+        );
       })}
     </div>
-  )
+  );
 }
