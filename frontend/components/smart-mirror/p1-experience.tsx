@@ -674,41 +674,6 @@ function RiskWidget({
   )
 }
 
-function TomorrowSilhouette() {
-  return (
-    <svg className="absolute inset-x-0 bottom-20 mx-auto h-[58%] w-[78%] text-white/70" viewBox="0 0 260 360" fill="none">
-      <motion.circle
-        cx="130"
-        cy="54"
-        r="38"
-        stroke="currentColor"
-        strokeWidth="1"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-      />
-      <motion.path
-        d="M72 132C84 105 103 94 130 94C157 94 176 105 188 132L210 306H50L72 132Z"
-        stroke="currentColor"
-        strokeWidth="1"
-        fill="rgba(255,255,255,0.04)"
-        initial={{ pathLength: 0, opacity: 0 }}
-        animate={{ pathLength: 1, opacity: 1 }}
-        transition={{ duration: 1, delay: 0.35 }}
-      />
-      <motion.path
-        d="M78 132H182M92 166H168M104 204H156"
-        stroke="rgba(125,211,252,0.7)"
-        strokeWidth="1"
-        strokeDasharray="4 6"
-        initial={{ pathLength: 0 }}
-        animate={{ pathLength: 1 }}
-        transition={{ duration: 1.1, delay: 0.55 }}
-      />
-    </svg>
-  )
-}
-
 function ProgressCharge() {
   return (
     <div className="rounded-full border border-white/10 bg-black/40 p-2 backdrop-blur-xl">

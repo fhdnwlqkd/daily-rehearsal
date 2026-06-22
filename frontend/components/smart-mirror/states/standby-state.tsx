@@ -1,6 +1,5 @@
 "use client"
 
-import { motion } from "framer-motion"
 import { GlassPanel } from "../glass-panel"
 import { SkeletonOverlay } from "../skeleton-overlay"
 

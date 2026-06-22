@@ -5,12 +5,10 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 
 interface PermissionGuideProps {
-  cameraError: boolean
-  audioError: boolean
   onRetry: () => void
 }
 
-export function PermissionGuide({ cameraError, audioError, onRetry }: PermissionGuideProps) {
+export function PermissionGuide({ onRetry }: PermissionGuideProps) {
   return (
     <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md">
       <motion.div
@@ -19,11 +17,11 @@ export function PermissionGuide({ cameraError, audioError, onRetry }: Permission
         className="max-w-md space-y-8 p-8 text-center text-white"
       >
         <div className="flex justify-center space-x-4">
-          <div className={`rounded-full p-4 ${cameraError ? "bg-red-500/20" : "bg-green-500/20"}`}>
-            <Camera className={`h-8 w-8 ${cameraError ? "text-red-500" : "text-green-500"}`} />
+          <div className="rounded-full p-4 bg-red-500/20">
+            <Camera className="h-8 w-8 text-red-500" />
           </div>
-          <div className={`rounded-full p-4 ${audioError ? "bg-red-500/20" : "bg-green-500/20"}`}>
-            <Mic className={`h-8 w-8 ${audioError ? "text-red-500" : "text-green-500"}`} />
+          <div className="rounded-full p-4 bg-red-500/20">
+            <Mic className="h-8 w-8 text-red-500" />
           </div>
         </div>
 

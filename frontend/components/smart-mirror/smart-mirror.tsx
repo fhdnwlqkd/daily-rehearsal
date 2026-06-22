@@ -11,10 +11,10 @@ export type MirrorState = (typeof experiencePhases)[number]["id"];
 export function SmartMirror() {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
-  const [permissions, setPermissions] = useState<{
-    camera: boolean | null;
-    audio: boolean | null;
-  }>({ camera: null, audio: null });
+  // null = 확인 중, true = 허용됨, false = 거부/사용 불가
+  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(
+    null,
+  );
 
   const checkPermissions = useCallback(async () => {
     try {
@@ -22,32 +22,21 @@ export function SmartMirror() {
         video: true,
         audio: true,
       });
-      // If successful, stop the tracks and set permissions to true
+      // 성공 시 트랙을 즉시 정리하고 허용 상태로
       stream.getTracks().forEach((track) => track.stop());
-      setPermissions({ camera: true, audio: true });
-    } catch (error: any) {
+      setPermissionGranted(true);
+    } catch (error) {
+      // 카메라/마이크 구분 없이, 어떤 실패든 "권한 필요"로 처리
       console.error("Permission check failed:", error);
-      const isCameraError =
-        error.name === "NotAllowedError" || error.name === "NotFoundError";
-      // Since getUserMedia for both fails if either is denied, we handle it conservatively
-      setPermissions({
-        camera: error.message?.includes("video") ? false : null,
-        audio: error.message?.includes("audio") ? false : null,
-      });
-
-      // Fallback: If we can't distinguish, assume both are needed/failed for now
-      if (error.name === "NotAllowedError") {
-        setPermissions({ camera: false, audio: false });
-      }
+      setPermissionGranted(false);
     }
   }, []);
 
   useEffect(() => {
-    checkPermissions();
+    void checkPermissions();
   }, [checkPermissions]);
 
-  const showPermissionGuide =
-    permissions.camera === false || permissions.audio === false;
+  const showPermissionGuide = permissionGranted === false;
   const currentPhase = experiencePhases[phaseIndex];
 
   const goToNextPhase = useCallback(() => {
@@ -86,9 +75,9 @@ export function SmartMirror() {
       <AnimatePresence>
         {showPermissionGuide && (
           <PermissionGuide
-            cameraError={permissions.camera === false}
-            audioError={permissions.audio === false}
-            onRetry={checkPermissions}
+            onRetry={() => {
+              void checkPermissions();
+            }}
           />
         )}
       </AnimatePresence>
