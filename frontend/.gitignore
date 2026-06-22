@@ -19,6 +19,9 @@ next-env.d.ts
 # vercel
 .vercel
 
+# editor
+.vscode/
+
 # debug
 npm-debug.log*
 yarn-debug.log*
