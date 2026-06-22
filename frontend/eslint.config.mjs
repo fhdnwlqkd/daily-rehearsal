@@ -2,6 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 import reactHooks from "eslint-plugin-react-hooks";
 import globals from "globals";
+import eslintConfigPrettier from "eslint-config-prettier";
 
 export default tseslint.config(
   {
@@ -64,4 +65,6 @@ export default tseslint.config(
     files: ["**/*.{js,mjs,cjs}"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  // Prettier와 충돌하는 포맷 관련 룰 비활성화 (반드시 마지막)
+  eslintConfigPrettier,
 );
