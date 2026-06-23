@@ -5,37 +5,16 @@ import { motion, AnimatePresence } from "framer-motion";
 import { WebcamBackground } from "./components/webcam-background";
 import { PermissionGuide } from "./components/permission-guide";
 import { ExperienceStage } from "./components/stage-router";
+import { useCamera } from "./hooks/use-camera";
 import { experiencePhases } from "./data/phases";
 
 export function SmartMirror() {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [showDebug, setShowDebug] = useState(false);
-  // null = 확인 중, true = 허용됨, false = 거부/사용 불가
-  const [permissionGranted, setPermissionGranted] = useState<boolean | null>(
-    null,
-  );
+  // 카메라/마이크 단일 소유권. stream은 WebcamBackground로 내려준다.
+  const { stream, status, retry } = useCamera();
 
-  const checkPermissions = useCallback(async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-      // 성공 시 트랙을 즉시 정리하고 허용 상태로
-      stream.getTracks().forEach((track) => track.stop());
-      setPermissionGranted(true);
-    } catch (error) {
-      // 카메라/마이크 구분 없이, 어떤 실패든 "권한 필요"로 처리
-      console.error("Permission check failed:", error);
-      setPermissionGranted(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void checkPermissions();
-  }, [checkPermissions]);
-
-  const showPermissionGuide = permissionGranted === false;
+  const showPermissionGuide = status === "denied";
   const currentPhase = experiencePhases[phaseIndex];
 
   const goToNextPhase = useCallback(() => {
@@ -72,17 +51,11 @@ export function SmartMirror() {
     >
       {/* Permission Guide Overlay */}
       <AnimatePresence>
-        {showPermissionGuide && (
-          <PermissionGuide
-            onRetry={() => {
-              void checkPermissions();
-            }}
-          />
-        )}
+        {showPermissionGuide && <PermissionGuide onRetry={retry} />}
       </AnimatePresence>
 
       {/* Webcam Background Layer (z-0) */}
-      <WebcamBackground />
+      <WebcamBackground stream={stream} />
 
       {/* State Content Layer */}
       <AnimatePresence mode="wait">
