@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { WebcamBackground } from "./webcam-background";
-import { PermissionGuide } from "./permission-guide";
-import { P1ExperienceStage, experiencePhases } from "./p1-experience";
+import { WebcamBackground } from "./components/webcam-background";
+import { PermissionGuide } from "./components/permission-guide";
+import {
+  P1ExperienceStage,
+  experiencePhases,
+} from "./components/p1-experience";
 
 export type MirrorState = (typeof experiencePhases)[number]["id"];
 
