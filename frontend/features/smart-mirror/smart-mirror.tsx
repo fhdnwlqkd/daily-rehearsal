@@ -4,12 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { WebcamBackground } from "./components/webcam-background";
 import { PermissionGuide } from "./components/permission-guide";
-import {
-  P1ExperienceStage,
-  experiencePhases,
-} from "./components/p1-experience";
-
-export type MirrorState = (typeof experiencePhases)[number]["id"];
+import { ExperienceStage } from "./components/stage-router";
+import { experiencePhases } from "./data/phases";
 
 export function SmartMirror() {
   const [phaseIndex, setPhaseIndex] = useState(0);
@@ -98,7 +94,7 @@ export function SmartMirror() {
           transition={{ duration: 0.65, ease: "easeInOut" }}
           className="absolute inset-0 z-10"
         >
-          <P1ExperienceStage
+          <ExperienceStage
             phase={currentPhase}
             phaseIndex={phaseIndex}
             totalPhases={experiencePhases.length}
