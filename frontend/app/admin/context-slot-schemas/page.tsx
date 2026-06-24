@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CheckCircle2, Database, RefreshCw } from 'lucide-react'
+import { useEffect, useMemo, useState } from "react";
+import { AlertCircle, CheckCircle2, Database, RefreshCw } from "lucide-react";
 
-import { Badge } from '@/components/ui/badge'
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -18,154 +18,154 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '@/components/ui/table'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8080'
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 type ApiResponse<T> = {
-  success: boolean
-  data: T | null
+  success: boolean;
+  data: T | null;
   error: {
-    code: string
-    name: string
-    message: string
-  } | null
-}
+    code: string;
+    name: string;
+    message: string;
+  } | null;
+};
 
 type SchemaKeysResponse = {
-  schemaKeys: string[]
-}
+  schemaKeys: string[];
+};
 
-type RequiredLevel = 'REQUIRED' | 'SOFT_REQUIRED' | 'OPTIONAL'
-type SlotType = 'TEXT' | 'SINGLE_SELECT'
+type RequiredLevel = "REQUIRED" | "SOFT_REQUIRED" | "OPTIONAL";
+type SlotType = "TEXT" | "SINGLE_SELECT";
 
 type ContextSlotOption = {
-  id: number
-  optionKey: string
-  label: string
-}
+  id: number;
+  optionKey: string;
+  label: string;
+};
 
 type ContextSlot = {
-  id: number
-  slotKey: string
-  label: string
-  slotType: SlotType
-  extractionHint?: string
-  followUpHint?: string
-  defaultLiteralValue?: string
-  defaultOption?: ContextSlotOption
-  options: ContextSlotOption[]
-}
+  id: number;
+  slotKey: string;
+  label: string;
+  slotType: SlotType;
+  extractionHint?: string;
+  followUpHint?: string;
+  defaultLiteralValue?: string;
+  defaultOption?: ContextSlotOption;
+  options: ContextSlotOption[];
+};
 
 type ContextSlotSchemaItem = {
-  id: number
-  requiredLevel: RequiredLevel
-  priority: number
-  active: boolean
-  slot: ContextSlot
-}
+  id: number;
+  requiredLevel: RequiredLevel;
+  priority: number;
+  active: boolean;
+  slot: ContextSlot;
+};
 
 type ContextSlotSchemaResponse = {
-  id: number
-  schemaKey: string
-  name: string
-  maxFollowUpAttempt: number
-  active: boolean
-  items: ContextSlotSchemaItem[]
-}
+  id: number;
+  schemaKey: string;
+  name: string;
+  maxFollowUpAttempt: number;
+  active: boolean;
+  items: ContextSlotSchemaItem[];
+};
 
 async function getApiData<T>(path: string): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: { Accept: 'application/json' },
-    cache: 'no-store',
-  })
+    headers: { Accept: "application/json" },
+    cache: "no-store",
+  });
 
   if (!response.ok) {
-    throw new Error(`Request failed with ${response.status}`)
+    throw new Error(`Request failed with ${response.status}`);
   }
 
-  const body = (await response.json()) as ApiResponse<T>
+  const body = (await response.json()) as ApiResponse<T>;
   if (!body.success || body.data === null) {
-    throw new Error(body.error?.message ?? 'Request failed')
+    throw new Error(body.error?.message ?? "Request failed");
   }
 
-  return body.data
+  return body.data;
 }
 
 export default function ContextSlotSchemasAdminPage() {
-  const [schemaKeys, setSchemaKeys] = useState<string[]>([])
-  const [selectedSchemaKey, setSelectedSchemaKey] = useState<string>('')
-  const [schema, setSchema] = useState<ContextSlotSchemaResponse | null>(null)
-  const [isLoadingKeys, setIsLoadingKeys] = useState(true)
-  const [isLoadingSchema, setIsLoadingSchema] = useState(false)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [schemaKeys, setSchemaKeys] = useState<string[]>([]);
+  const [selectedSchemaKey, setSelectedSchemaKey] = useState<string>("");
+  const [schema, setSchema] = useState<ContextSlotSchemaResponse | null>(null);
+  const [isLoadingKeys, setIsLoadingKeys] = useState(true);
+  const [isLoadingSchema, setIsLoadingSchema] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function loadSchemaKeys() {
-    setIsLoadingKeys(true)
-    setErrorMessage(null)
+    setIsLoadingKeys(true);
+    setErrorMessage(null);
 
     try {
       const data = await getApiData<SchemaKeysResponse>(
-        '/api/v1/admin/context-slot-schemas',
-      )
-      setSchemaKeys(data.schemaKeys)
-      setSelectedSchemaKey((current) => current || data.schemaKeys[0] || '')
+        "/api/v1/admin/context-slot-schemas",
+      );
+      setSchemaKeys(data.schemaKeys);
+      setSelectedSchemaKey((current) => current || data.schemaKeys[0] || "");
     } catch (error) {
-      setErrorMessage(toErrorMessage(error))
+      setErrorMessage(toErrorMessage(error));
     } finally {
-      setIsLoadingKeys(false)
+      setIsLoadingKeys(false);
     }
   }
 
   useEffect(() => {
-    loadSchemaKeys()
-  }, [])
+    void loadSchemaKeys();
+  }, []);
 
   useEffect(() => {
     if (!selectedSchemaKey) {
-      setSchema(null)
-      return
+      setSchema(null);
+      return;
     }
 
-    let ignore = false
+    let ignore = false;
 
     async function loadSchema() {
-      setIsLoadingSchema(true)
-      setErrorMessage(null)
+      setIsLoadingSchema(true);
+      setErrorMessage(null);
 
       try {
         const data = await getApiData<ContextSlotSchemaResponse>(
           `/api/v1/admin/context-slot-schemas/${selectedSchemaKey}`,
-        )
+        );
 
         if (!ignore) {
-          setSchema(data)
+          setSchema(data);
         }
       } catch (error) {
         if (!ignore) {
-          setSchema(null)
-          setErrorMessage(toErrorMessage(error))
+          setSchema(null);
+          setErrorMessage(toErrorMessage(error));
         }
       } finally {
         if (!ignore) {
-          setIsLoadingSchema(false)
+          setIsLoadingSchema(false);
         }
       }
     }
 
-    loadSchema()
+    void loadSchema();
 
     return () => {
-      ignore = true
-    }
-  }, [selectedSchemaKey])
+      ignore = true;
+    };
+  }, [selectedSchemaKey]);
 
   const sortedItems = useMemo(
     () => [...(schema?.items ?? [])].sort((a, b) => a.priority - b.priority),
     [schema],
-  )
+  );
 
   return (
     <main className="h-screen overflow-y-auto bg-zinc-50 text-zinc-950">
@@ -193,7 +193,7 @@ export default function ContextSlotSchemasAdminPage() {
               >
                 <SelectTrigger className="h-10 w-full bg-white">
                   <SelectValue
-                    placeholder={isLoadingKeys ? 'Loading...' : 'No schema'}
+                    placeholder={isLoadingKeys ? "Loading..." : "No schema"}
                   />
                 </SelectTrigger>
                 <SelectContent>
@@ -206,13 +206,15 @@ export default function ContextSlotSchemasAdminPage() {
               </Select>
               <button
                 type="button"
-                onClick={loadSchemaKeys}
+                onClick={() => {
+                  void loadSchemaKeys();
+                }}
                 className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
                 disabled={isLoadingKeys}
                 aria-label="Refresh schema keys"
               >
                 <RefreshCw
-                  className={cn('h-4 w-4', isLoadingKeys && 'animate-spin')}
+                  className={cn("h-4 w-4", isLoadingKeys && "animate-spin")}
                 />
               </button>
             </div>
@@ -250,52 +252,52 @@ export default function ContextSlotSchemasAdminPage() {
         )}
       </div>
     </main>
-  )
+  );
 }
 
 function SchemaSummary({
   schema,
   isLoading,
 }: {
-  schema: ContextSlotSchemaResponse | null
-  isLoading: boolean
+  schema: ContextSlotSchemaResponse | null;
+  isLoading: boolean;
 }) {
   const values = [
-    ['Schema key', schema?.schemaKey ?? '-'],
-    ['Name', schema?.name ?? '-'],
-    ['Max follow-up', schema ? String(schema.maxFollowUpAttempt) : '-'],
-    ['Active', schema ? String(schema.active) : '-'],
-  ]
+    ["Schema key", schema?.schemaKey ?? "-"],
+    ["Name", schema?.name ?? "-"],
+    ["Max follow-up", schema ? String(schema.maxFollowUpAttempt) : "-"],
+    ["Active", schema ? String(schema.active) : "-"],
+  ];
 
   return (
     <section className="grid gap-px overflow-hidden rounded-md border border-zinc-200 bg-zinc-200 md:grid-cols-4">
       {values.map(([label, value]) => (
         <div key={label} className="bg-white px-4 py-3">
-          <p className="mb-1 text-xs font-medium uppercase tracking-normal text-zinc-500">
+          <p className="mb-1 text-xs font-medium tracking-normal text-zinc-500 uppercase">
             {label}
           </p>
           <p className="min-h-6 truncate text-sm font-semibold text-zinc-950">
-            {isLoading ? 'Loading...' : value}
+            {isLoading ? "Loading..." : value}
           </p>
         </div>
       ))}
     </section>
-  )
+  );
 }
 
 function SlotTable({
   items,
   isLoading,
 }: {
-  items: ContextSlotSchemaItem[]
-  isLoading: boolean
+  items: ContextSlotSchemaItem[];
+  isLoading: boolean;
 }) {
   if (isLoading) {
-    return <div className="p-6 text-sm text-zinc-500">Loading slots...</div>
+    return <div className="p-6 text-sm text-zinc-500">Loading slots...</div>;
   }
 
   if (items.length === 0) {
-    return <div className="p-6 text-sm text-zinc-500">No slots found.</div>
+    return <div className="p-6 text-sm text-zinc-500">No slots found.</div>;
   }
 
   return (
@@ -319,7 +321,7 @@ function SlotTable({
             <TableCell>
               <RequiredBadge requiredLevel={item.requiredLevel} />
             </TableCell>
-            <TableCell className="min-w-96 whitespace-normal py-4">
+            <TableCell className="min-w-96 py-4 whitespace-normal">
               <div className="mb-1 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-sm font-semibold text-zinc-950">
                   {item.slot.slotKey}
@@ -327,7 +329,7 @@ function SlotTable({
                 <span className="text-sm text-zinc-500">{item.slot.label}</span>
               </div>
               <p className="mb-2 text-sm leading-5 text-zinc-700">
-                {item.slot.extractionHint || '-'}
+                {item.slot.extractionHint || "-"}
               </p>
               {item.slot.followUpHint && (
                 <p className="text-xs leading-5 text-zinc-500">
@@ -353,7 +355,7 @@ function SlotTable({
                 {item.slot.slotType}
               </Badge>
             </TableCell>
-            <TableCell className="max-w-72 whitespace-normal text-sm text-zinc-700">
+            <TableCell className="max-w-72 text-sm whitespace-normal text-zinc-700">
               {formatDefaultValue(item.slot)}
             </TableCell>
             <TableCell>
@@ -367,53 +369,53 @@ function SlotTable({
         ))}
       </TableBody>
     </Table>
-  )
+  );
 }
 
 function RequiredBadge({ requiredLevel }: { requiredLevel: RequiredLevel }) {
   const className = {
-    REQUIRED: 'border-rose-200 bg-rose-50 text-rose-700',
-    SOFT_REQUIRED: 'border-amber-200 bg-amber-50 text-amber-700',
-    OPTIONAL: 'border-zinc-200 bg-zinc-50 text-zinc-600',
-  }[requiredLevel]
+    REQUIRED: "border-rose-200 bg-rose-50 text-rose-700",
+    SOFT_REQUIRED: "border-amber-200 bg-amber-50 text-amber-700",
+    OPTIONAL: "border-zinc-200 bg-zinc-50 text-zinc-600",
+  }[requiredLevel];
 
   return (
-    <Badge variant="outline" className={cn('font-mono text-[11px]', className)}>
+    <Badge variant="outline" className={cn("font-mono text-[11px]", className)}>
       {requiredLevel}
     </Badge>
-  )
+  );
 }
 
 function StatusMessage({
   kind,
   message,
 }: {
-  kind: 'error' | 'empty'
-  message: string
+  kind: "error" | "empty";
+  message: string;
 }) {
   return (
     <div
       className={cn(
-        'flex items-center gap-2 rounded-md border px-4 py-3 text-sm',
-        kind === 'error'
-          ? 'border-rose-200 bg-rose-50 text-rose-800'
-          : 'border-zinc-200 bg-white text-zinc-600',
+        "flex items-center gap-2 rounded-md border px-4 py-3 text-sm",
+        kind === "error"
+          ? "border-rose-200 bg-rose-50 text-rose-800"
+          : "border-zinc-200 bg-white text-zinc-600",
       )}
     >
       <AlertCircle className="h-4 w-4 shrink-0" />
       {message}
     </div>
-  )
+  );
 }
 
 function formatDefaultValue(slot: ContextSlot) {
   if (slot.defaultOption) {
-    return `${slot.defaultOption.optionKey} (${slot.defaultOption.label})`
+    return `${slot.defaultOption.optionKey} (${slot.defaultOption.label})`;
   }
 
-  return slot.defaultLiteralValue || '-'
+  return slot.defaultLiteralValue || "-";
 }
 
 function toErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : 'Unexpected error'
+  return error instanceof Error ? error.message : "Unexpected error";
 }

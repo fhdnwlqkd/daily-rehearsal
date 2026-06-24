@@ -1,16 +1,18 @@
-"use client"
+"use client";
 
-import { motion } from "framer-motion"
+import { motion } from "framer-motion";
 
 export function ScanningEffect() {
   return (
     <div className="relative h-[500px] w-[300px] overflow-hidden">
       {/* Scanning Line */}
       <motion.div
-        className="absolute left-0 right-0 h-[2px]"
+        className="absolute right-0 left-0 h-[2px]"
         style={{
-          background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
-          boxShadow: "0 0 20px rgba(255,255,255,0.3), 0 0 40px rgba(255,255,255,0.1)",
+          background:
+            "linear-gradient(90deg, transparent, rgba(255,255,255,0.6), transparent)",
+          boxShadow:
+            "0 0 20px rgba(255,255,255,0.3), 0 0 40px rgba(255,255,255,0.1)",
         }}
         animate={{
           top: ["0%", "100%", "0%"],
@@ -44,17 +46,17 @@ export function ScanningEffect() {
 
       {/* Face Detection Frame */}
       <motion.div
-        className="absolute left-1/2 top-[15%] h-28 w-24 -translate-x-1/2"
+        className="absolute top-[15%] left-1/2 h-28 w-24 -translate-x-1/2"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
       >
         {/* Corner brackets */}
-        <div className="absolute left-0 top-0 h-4 w-4 border-l border-t border-white/30" />
-        <div className="absolute right-0 top-0 h-4 w-4 border-r border-t border-white/30" />
+        <div className="absolute top-0 left-0 h-4 w-4 border-t border-l border-white/30" />
+        <div className="absolute top-0 right-0 h-4 w-4 border-t border-r border-white/30" />
         <div className="absolute bottom-0 left-0 h-4 w-4 border-b border-l border-white/30" />
-        <div className="absolute bottom-0 right-0 h-4 w-4 border-b border-r border-white/30" />
+        <div className="absolute right-0 bottom-0 h-4 w-4 border-r border-b border-white/30" />
       </motion.div>
     </div>
-  )
+  );
 }
