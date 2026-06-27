@@ -16,8 +16,6 @@ import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.session.usecase.command.CompleteSessionContextCommand;
-import com.rehearsal.domain.session.usecase.command.CreateSessionCommand;
-import com.rehearsal.domain.session.usecase.command.GetSessionCommand;
 import com.rehearsal.domain.session.usecase.command.UpdateBriefingTranscriptCommand;
 import com.rehearsal.domain.session.usecase.command.UpdateFeedbackResultCommand;
 import com.rehearsal.domain.session.usecase.command.UpdateFinalResultCommand;
@@ -212,15 +210,15 @@ class SessionControllerTest {
     private final Map<String, ClientSession> sessions = new ConcurrentHashMap<>();
 
     @Override
-    public ClientSession createSession(CreateSessionCommand command) {
-      ClientSession session = ClientSession.create(command.channel());
+    public ClientSession createSession(String channel) {
+      ClientSession session = ClientSession.create(channel);
       sessions.put(session.getSessionId(), session);
       return session;
     }
 
     @Override
-    public ClientSession getSession(GetSessionCommand command) {
-      ClientSession session = sessions.get(command.sessionId());
+    public ClientSession getSession(String sessionId) {
+      ClientSession session = sessions.get(sessionId);
       if (session == null) {
         throw new BusinessException(ErrorCode.SESSION_NOT_FOUND);
       }
@@ -229,7 +227,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession updateBriefingTranscript(UpdateBriefingTranscriptCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateBriefingTranscript(command.briefingTranscript());
       session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
       session.updateContextStatus(ContextStatus.EXTRACTING);
@@ -239,7 +237,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession updateContext(UpdateSessionContextCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateContext(
           command.partialContext(), command.missingRequiredSlotKeys(), command.followUpQuestion());
       if (command.missingRequiredSlotKeys() != null
@@ -256,7 +254,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession completeContext(CompleteSessionContextCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateFinalUserContext(command.finalUserContext());
       session.updateStatus(SessionStatus.TRANSFORMATION_READY);
       session.updateContextStatus(ContextStatus.COMPLETED);
@@ -266,7 +264,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession updateSelectedOutfit(UpdateSelectedOutfitCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateSelectedOutfitId(command.selectedOutfitId());
       session.updateStatus(SessionStatus.REHEARSAL_READY);
       sessions.put(session.getSessionId(), session);
@@ -275,7 +273,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession updateSimulationDraft(UpdateSimulationDraftCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateSimulationDraft(command.simulationDraft());
       session.updateStatus(SessionStatus.REHEARSAL_READY);
       sessions.put(session.getSessionId(), session);
@@ -284,7 +282,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession updateFeedbackResult(UpdateFeedbackResultCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateFeedbackResult(command.feedbackResult());
       session.updateStatus(SessionStatus.RESULT_READY);
       sessions.put(session.getSessionId(), session);
@@ -293,7 +291,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession updateFinalResult(UpdateFinalResultCommand command) {
-      ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+      ClientSession session = getSession(command.sessionId());
       session.updateFinalResult(command.finalResult());
       session.updateStatus(SessionStatus.COMPLETED);
       sessions.put(session.getSessionId(), session);

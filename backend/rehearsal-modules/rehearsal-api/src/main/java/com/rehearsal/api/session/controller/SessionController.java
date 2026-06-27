@@ -13,8 +13,6 @@ import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
-import com.rehearsal.domain.session.usecase.command.CreateSessionCommand;
-import com.rehearsal.domain.session.usecase.command.GetSessionCommand;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -40,13 +38,13 @@ public class SessionController {
   @PostMapping
   public SessionResponse create(@RequestBody(required = false) CreateSessionRequest request) {
     String channel = request == null ? null : request.channel();
-    ClientSession session = createSessionUseCase.createSession(new CreateSessionCommand(channel));
+    ClientSession session = createSessionUseCase.createSession(channel);
     return SessionResponse.from(session);
   }
 
   @GetMapping("/{sessionId}")
   public SessionResponse get(@PathVariable @NotBlank String sessionId) {
-    ClientSession session = getSessionUseCase.getSession(new GetSessionCommand(sessionId));
+    ClientSession session = getSessionUseCase.getSession(sessionId);
     return SessionResponse.from(session);
   }
 

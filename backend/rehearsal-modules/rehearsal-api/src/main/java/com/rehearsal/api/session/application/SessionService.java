@@ -10,8 +10,6 @@ import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.session.usecase.command.CompleteSessionContextCommand;
-import com.rehearsal.domain.session.usecase.command.CreateSessionCommand;
-import com.rehearsal.domain.session.usecase.command.GetSessionCommand;
 import com.rehearsal.domain.session.usecase.command.UpdateBriefingTranscriptCommand;
 import com.rehearsal.domain.session.usecase.command.UpdateFeedbackResultCommand;
 import com.rehearsal.domain.session.usecase.command.UpdateFinalResultCommand;
@@ -30,21 +28,21 @@ public class SessionService
   private final SessionCache sessionCache;
 
   @Override
-  public ClientSession createSession(CreateSessionCommand command) {
-    ClientSession session = ClientSession.create(command.channel());
+  public ClientSession createSession(String channel) {
+    ClientSession session = ClientSession.create(channel);
     return sessionCache.save(session);
   }
 
   @Override
-  public ClientSession getSession(GetSessionCommand command) {
+  public ClientSession getSession(String sessionId) {
     return sessionCache
-        .findById(command.sessionId())
+        .findById(sessionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
   }
 
   @Override
   public ClientSession updateBriefingTranscript(UpdateBriefingTranscriptCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateBriefingTranscript(command.briefingTranscript());
     session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
     session.updateContextStatus(ContextStatus.EXTRACTING);
@@ -53,7 +51,7 @@ public class SessionService
 
   @Override
   public ClientSession updateContext(UpdateSessionContextCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateContext(
         command.partialContext(), command.missingRequiredSlotKeys(), command.followUpQuestion());
     if (hasMissingRequiredSlots(command.missingRequiredSlotKeys())) {
@@ -68,7 +66,7 @@ public class SessionService
 
   @Override
   public ClientSession completeContext(CompleteSessionContextCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateFinalUserContext(command.finalUserContext());
     session.updateStatus(SessionStatus.TRANSFORMATION_READY);
     session.updateContextStatus(ContextStatus.COMPLETED);
@@ -77,7 +75,7 @@ public class SessionService
 
   @Override
   public ClientSession updateSelectedOutfit(UpdateSelectedOutfitCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateSelectedOutfitId(command.selectedOutfitId());
     session.updateStatus(SessionStatus.REHEARSAL_READY);
     return sessionCache.save(session);
@@ -85,7 +83,7 @@ public class SessionService
 
   @Override
   public ClientSession updateSimulationDraft(UpdateSimulationDraftCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateSimulationDraft(command.simulationDraft());
     session.updateStatus(SessionStatus.REHEARSAL_READY);
     return sessionCache.save(session);
@@ -93,7 +91,7 @@ public class SessionService
 
   @Override
   public ClientSession updateFeedbackResult(UpdateFeedbackResultCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateFeedbackResult(command.feedbackResult());
     session.updateStatus(SessionStatus.RESULT_READY);
     return sessionCache.save(session);
@@ -101,7 +99,7 @@ public class SessionService
 
   @Override
   public ClientSession updateFinalResult(UpdateFinalResultCommand command) {
-    ClientSession session = getSession(new GetSessionCommand(command.sessionId()));
+    ClientSession session = getSession(command.sessionId());
     session.updateFinalResult(command.finalResult());
     session.updateStatus(SessionStatus.COMPLETED);
     return sessionCache.save(session);
