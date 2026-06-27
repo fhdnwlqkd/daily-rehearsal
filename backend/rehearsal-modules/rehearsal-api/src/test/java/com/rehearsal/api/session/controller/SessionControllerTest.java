@@ -15,13 +15,6 @@ import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
-import com.rehearsal.domain.session.usecase.command.CompleteSessionContextCommand;
-import com.rehearsal.domain.session.usecase.command.UpdateBriefingTranscriptCommand;
-import com.rehearsal.domain.session.usecase.command.UpdateFeedbackResultCommand;
-import com.rehearsal.domain.session.usecase.command.UpdateFinalResultCommand;
-import com.rehearsal.domain.session.usecase.command.UpdateSelectedOutfitCommand;
-import com.rehearsal.domain.session.usecase.command.UpdateSessionContextCommand;
-import com.rehearsal.domain.session.usecase.command.UpdateSimulationDraftCommand;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
@@ -99,15 +92,14 @@ class SessionControllerTest {
   }
 
   @Test
-  void updateBriefingTranscript() throws Exception {
+  void submitBriefing() throws Exception {
     String sessionId = createSessionId();
 
     mockMvc
         .perform(
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
-                    "/api/v1/sessions/{sessionId}/briefing-transcript", sessionId)
+            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"briefingTranscript\":\"tomorrow interview rehearsal\"}"))
+                .content("{\"transcript\":\"tomorrow interview rehearsal\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
         .andExpect(jsonPath("$.data.status").value("CONTEXT_EXTRACTING"))
@@ -116,61 +108,26 @@ class SessionControllerTest {
   }
 
   @Test
-  void updateContextWhenFollowUpRequired() throws Exception {
+  void submitBriefingWhenInvalidSessionState() throws Exception {
     String sessionId = createSessionId();
 
     mockMvc
         .perform(
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
-                    "/api/v1/sessions/{sessionId}/context", sessionId)
+            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(
-                    """
-                    {
-                      "partialContext": {"situation_type": "interview"},
-                      "missingRequiredSlotKeys": ["desired_persona"],
-                      "followUpQuestion": "What impression do you want to give?"
-                    }
-                    """))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("FOLLOW_UP_REQUIRED"))
-        .andExpect(jsonPath("$.data.contextStatus").value("FOLLOW_UP_REQUIRED"))
-        .andExpect(jsonPath("$.data.followUpAttempt").value(1))
-        .andExpect(jsonPath("$.data.partialContext.situation_type").value("interview"))
-        .andExpect(jsonPath("$.data.missingRequiredSlotKeys[0]").value("desired_persona"))
-        .andExpect(
-            jsonPath("$.data.followUpQuestion").value("What impression do you want to give?"));
-  }
-
-  @Test
-  void completeContext() throws Exception {
-    String sessionId = createSessionId();
+                .content("{\"transcript\":\"first briefing\"}"))
+        .andExpect(status().isOk());
 
     mockMvc
         .perform(
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
-                    "/api/v1/sessions/{sessionId}/context/complete", sessionId)
+            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"finalUserContext\":{\"situation_type\":\"interview\"}}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("TRANSFORMATION_READY"))
-        .andExpect(jsonPath("$.data.contextStatus").value("COMPLETED"))
-        .andExpect(jsonPath("$.data.finalUserContext.situation_type").value("interview"));
-  }
-
-  @Test
-  void updateSelectedOutfit() throws Exception {
-    String sessionId = createSessionId();
-
-    mockMvc
-        .perform(
-            org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch(
-                    "/api/v1/sessions/{sessionId}/selected-outfit", sessionId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"selectedOutfitId\":\"outfit-1\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("REHEARSAL_READY"))
-        .andExpect(jsonPath("$.data.selectedOutfitId").value("outfit-1"));
+                .content("{\"transcript\":\"second briefing\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S002"))
+        .andExpect(jsonPath("$.error.name").value("INVALID_SESSION_STATE"))
+        .andExpect(jsonPath("$.error.message").value("Invalid session state."));
   }
 
   private String createSessionId() throws Exception {
@@ -226,74 +183,15 @@ class SessionControllerTest {
     }
 
     @Override
-    public ClientSession updateBriefingTranscript(UpdateBriefingTranscriptCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateBriefingTranscript(command.briefingTranscript());
+    public ClientSession submitBriefing(String sessionId, String transcript) {
+      ClientSession session = getSession(sessionId);
+      if (session.getStatus() != SessionStatus.BRIEFING) {
+        throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+      }
+
+      session.updateBriefingTranscript(transcript);
       session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
       session.updateContextStatus(ContextStatus.EXTRACTING);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession updateContext(UpdateSessionContextCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateContext(
-          command.partialContext(), command.missingRequiredSlotKeys(), command.followUpQuestion());
-      if (command.missingRequiredSlotKeys() != null
-          && !command.missingRequiredSlotKeys().isEmpty()) {
-        session.updateStatus(SessionStatus.FOLLOW_UP_REQUIRED);
-        session.updateContextStatus(ContextStatus.FOLLOW_UP_REQUIRED);
-        session.increaseFollowUpAttempt();
-      } else {
-        session.updateContextStatus(ContextStatus.EXTRACTING);
-      }
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession completeContext(CompleteSessionContextCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateFinalUserContext(command.finalUserContext());
-      session.updateStatus(SessionStatus.TRANSFORMATION_READY);
-      session.updateContextStatus(ContextStatus.COMPLETED);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession updateSelectedOutfit(UpdateSelectedOutfitCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateSelectedOutfitId(command.selectedOutfitId());
-      session.updateStatus(SessionStatus.REHEARSAL_READY);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession updateSimulationDraft(UpdateSimulationDraftCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateSimulationDraft(command.simulationDraft());
-      session.updateStatus(SessionStatus.REHEARSAL_READY);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession updateFeedbackResult(UpdateFeedbackResultCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateFeedbackResult(command.feedbackResult());
-      session.updateStatus(SessionStatus.RESULT_READY);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession updateFinalResult(UpdateFinalResultCommand command) {
-      ClientSession session = getSession(command.sessionId());
-      session.updateFinalResult(command.finalResult());
-      session.updateStatus(SessionStatus.COMPLETED);
       sessions.put(session.getSessionId(), session);
       return session;
     }
