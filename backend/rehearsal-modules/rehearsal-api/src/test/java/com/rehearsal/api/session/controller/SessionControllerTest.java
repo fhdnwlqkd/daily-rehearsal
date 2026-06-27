@@ -51,17 +51,6 @@ class SessionControllerTest {
   }
 
   @Test
-  void createSessionWithChannel() throws Exception {
-    mockMvc
-        .perform(
-            post("/api/v1/sessions")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"channel\":\"P1_TEST\"}"))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.channel").value("P1_TEST"));
-  }
-
-  @Test
   void getSession() throws Exception {
     MvcResult createResult =
         mockMvc.perform(post("/api/v1/sessions")).andExpect(status().isOk()).andReturn();
@@ -167,8 +156,8 @@ class SessionControllerTest {
     private final Map<String, ClientSession> sessions = new ConcurrentHashMap<>();
 
     @Override
-    public ClientSession createSession(String channel) {
-      ClientSession session = ClientSession.create(channel);
+    public ClientSession createSession() {
+      ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
       sessions.put(session.getSessionId(), session);
       return session;
     }

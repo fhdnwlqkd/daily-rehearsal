@@ -22,8 +22,8 @@ public class SessionService
   private final SessionCache sessionCache;
 
   @Override
-  public ClientSession createSession(String channel) {
-    ClientSession session = ClientSession.create(channel);
+  public ClientSession createSession() {
+    ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
     return sessionCache.save(session);
   }
 

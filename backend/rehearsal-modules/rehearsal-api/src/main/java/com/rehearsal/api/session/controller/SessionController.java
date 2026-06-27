@@ -1,6 +1,5 @@
 package com.rehearsal.api.session.controller;
 
-import com.rehearsal.api.session.controller.dto.CreateSessionRequest;
 import com.rehearsal.api.session.controller.dto.SessionResponse;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
 import com.rehearsal.domain.session.model.ClientSession;
@@ -29,9 +28,8 @@ public class SessionController {
   private final UpdateClientSessionUseCase updateClientSessionUseCase;
 
   @PostMapping
-  public SessionResponse create(@RequestBody(required = false) CreateSessionRequest request) {
-    String channel = request == null ? null : request.channel();
-    ClientSession session = createSessionUseCase.createSession(channel);
+  public SessionResponse create() {
+    ClientSession session = createSessionUseCase.createSession();
     return SessionResponse.from(session);
   }
 
