@@ -3,7 +3,9 @@ package com.rehearsal.domain.session.model;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.Getter;
 
+@Getter
 public class ClientSession {
 
   public static final String DEFAULT_CHANNEL = "P1_OFFLINE";
@@ -219,62 +221,6 @@ public class ClientSession {
         simulationDraft,
         feedbackResult,
         finalResult);
-  }
-
-  public String getSessionId() {
-    return sessionId;
-  }
-
-  public String getChannel() {
-    return channel;
-  }
-
-  public SessionStatus getStatus() {
-    return status;
-  }
-
-  public ContextStatus getContextStatus() {
-    return contextStatus;
-  }
-
-  public int getFollowUpAttempt() {
-    return followUpAttempt;
-  }
-
-  public String getBriefingTranscript() {
-    return briefingTranscript;
-  }
-
-  public Map<String, Object> getPartialContext() {
-    return partialContext;
-  }
-
-  public Map<String, Object> getFinalUserContext() {
-    return finalUserContext;
-  }
-
-  public List<String> getMissingRequiredSlotKeys() {
-    return missingRequiredSlotKeys;
-  }
-
-  public String getFollowUpQuestion() {
-    return followUpQuestion;
-  }
-
-  public String getSelectedOutfitId() {
-    return selectedOutfitId;
-  }
-
-  public Map<String, Object> getSimulationDraft() {
-    return simulationDraft;
-  }
-
-  public Map<String, Object> getFeedbackResult() {
-    return feedbackResult;
-  }
-
-  public Map<String, Object> getFinalResult() {
-    return finalResult;
   }
 
   private static String normalizeChannel(String channel) {
