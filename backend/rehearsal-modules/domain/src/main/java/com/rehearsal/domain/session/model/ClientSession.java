@@ -10,20 +10,20 @@ public class ClientSession {
 
   public static final String DEFAULT_CHANNEL = "P1_OFFLINE";
 
-  private final String sessionId;
-  private final String channel;
-  private final SessionStatus status;
-  private final ContextStatus contextStatus;
-  private final int followUpAttempt;
-  private final String briefingTranscript;
-  private final Map<String, Object> partialContext;
-  private final Map<String, Object> finalUserContext;
-  private final List<String> missingRequiredSlotKeys;
-  private final String followUpQuestion;
-  private final String selectedOutfitId;
-  private final Map<String, Object> simulationDraft;
-  private final Map<String, Object> feedbackResult;
-  private final Map<String, Object> finalResult;
+  private String sessionId;
+  private String channel;
+  private SessionStatus status;
+  private ContextStatus contextStatus;
+  private int followUpAttempt;
+  private String briefingTranscript;
+  private Map<String, Object> partialContext;
+  private Map<String, Object> finalUserContext;
+  private List<String> missingRequiredSlotKeys;
+  private String followUpQuestion;
+  private String selectedOutfitId;
+  private Map<String, Object> simulationDraft;
+  private Map<String, Object> feedbackResult;
+  private Map<String, Object> finalResult;
 
   private ClientSession(
       String sessionId,
@@ -106,121 +106,51 @@ public class ClientSession {
         finalResult);
   }
 
-  public ClientSession updateBriefingTranscript(String briefingTranscript) {
-    return copy(
-        SessionStatus.CONTEXT_EXTRACTING,
-        ContextStatus.EXTRACTING,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void updateStatus(SessionStatus status) {
+    this.status = status;
   }
 
-  public ClientSession updateContext(
+  public void updateContextStatus(ContextStatus contextStatus) {
+    this.contextStatus = contextStatus;
+  }
+
+  public void updateBriefingTranscript(String briefingTranscript) {
+    this.briefingTranscript = briefingTranscript;
+  }
+
+  public void updateContext(
       Map<String, Object> partialContext,
       List<String> missingRequiredSlotKeys,
       String followUpQuestion) {
-    boolean followUpRequired =
-        missingRequiredSlotKeys != null && !missingRequiredSlotKeys.isEmpty();
-    return copy(
-        followUpRequired ? SessionStatus.FOLLOW_UP_REQUIRED : status,
-        followUpRequired ? ContextStatus.FOLLOW_UP_REQUIRED : ContextStatus.EXTRACTING,
-        followUpRequired ? followUpAttempt + 1 : followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+    this.partialContext = partialContext;
+    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
+    this.followUpQuestion = followUpQuestion;
   }
 
-  public ClientSession completeContext(Map<String, Object> finalUserContext) {
-    return copy(
-        SessionStatus.TRANSFORMATION_READY,
-        ContextStatus.COMPLETED,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        List.of(),
-        null,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void updateFinalUserContext(Map<String, Object> finalUserContext) {
+    this.finalUserContext = finalUserContext;
+    this.missingRequiredSlotKeys = List.of();
+    this.followUpQuestion = null;
   }
 
-  public ClientSession updateSelectedOutfit(String selectedOutfitId) {
-    return copy(
-        SessionStatus.REHEARSAL_READY,
-        contextStatus,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void updateSelectedOutfitId(String selectedOutfitId) {
+    this.selectedOutfitId = selectedOutfitId;
   }
 
-  public ClientSession updateSimulationDraft(Map<String, Object> simulationDraft) {
-    return copy(
-        SessionStatus.REHEARSAL_READY,
-        contextStatus,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void updateSimulationDraft(Map<String, Object> simulationDraft) {
+    this.simulationDraft = simulationDraft;
   }
 
-  public ClientSession updateFeedbackResult(Map<String, Object> feedbackResult) {
-    return copy(
-        SessionStatus.RESULT_READY,
-        contextStatus,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void updateFeedbackResult(Map<String, Object> feedbackResult) {
+    this.feedbackResult = feedbackResult;
   }
 
-  public ClientSession updateFinalResult(Map<String, Object> finalResult) {
-    return copy(
-        SessionStatus.COMPLETED,
-        contextStatus,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void updateFinalResult(Map<String, Object> finalResult) {
+    this.finalResult = finalResult;
+  }
+
+  public void increaseFollowUpAttempt() {
+    this.followUpAttempt++;
   }
 
   private static String normalizeChannel(String channel) {
@@ -228,35 +158,5 @@ public class ClientSession {
       return DEFAULT_CHANNEL;
     }
     return channel;
-  }
-
-  private ClientSession copy(
-      SessionStatus status,
-      ContextStatus contextStatus,
-      int followUpAttempt,
-      String briefingTranscript,
-      Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
-      String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
-    return new ClientSession(
-        sessionId,
-        channel,
-        status,
-        contextStatus,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
   }
 }
