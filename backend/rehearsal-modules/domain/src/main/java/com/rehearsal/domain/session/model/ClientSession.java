@@ -1,11 +1,13 @@
 package com.rehearsal.domain.session.model;
 
+import com.rehearsal.domain.core.annotation.Description;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import lombok.Getter;
 
 @Getter
+@Description("P1 client rehearsal session state stored in Redis")
 public class ClientSession {
 
   public static final String DEFAULT_CHANNEL = "P1_OFFLINE";
