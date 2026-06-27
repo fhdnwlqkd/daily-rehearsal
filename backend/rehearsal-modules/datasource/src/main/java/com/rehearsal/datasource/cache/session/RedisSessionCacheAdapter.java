@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @RequiredArgsConstructor
-public class RedisSessionCache implements SessionCache {
+public class RedisSessionCacheAdapter implements SessionCache {
 
   private static final String KEY_PREFIX = "client-session:";
   private static final Duration SESSION_TTL = Duration.ofHours(24);
