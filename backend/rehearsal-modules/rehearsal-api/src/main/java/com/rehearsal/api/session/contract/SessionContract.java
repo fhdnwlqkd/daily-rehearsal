@@ -10,6 +10,10 @@ public final class SessionContract {
 
   public record CreateSessionCommand(String channel) {}
 
+  public record SubmitBriefingCommand(String sessionId, String transcript) {}
+
+  public record SubmitFollowUpCommand(String sessionId, String transcript) {}
+
   public record CreateSessionResult(
       String sessionId,
       String channel,

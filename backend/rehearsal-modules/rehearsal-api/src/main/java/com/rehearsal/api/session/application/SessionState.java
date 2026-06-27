@@ -2,6 +2,8 @@ package com.rehearsal.api.session.application;
 
 import com.rehearsal.api.session.contract.ContextStatus;
 import com.rehearsal.api.session.contract.SessionStatus;
+import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -91,6 +93,39 @@ public class SessionState {
 
   public Map<String, Object> getFinalResult() {
     return finalResult;
+  }
+
+  public void applyInitialBriefing(String transcript, ExtractContextSlotsResult result) {
+    this.briefingTranscript = transcript;
+    this.partialContext = new LinkedHashMap<>(result.context());
+    this.missingRequiredSlotKeys = result.missingRequiredSlotKeys();
+    this.followUpQuestion = result.followUpQuestion();
+
+    if (result.readyForSimulation()) {
+      this.finalUserContext = new LinkedHashMap<>(result.context());
+      this.contextStatus = ContextStatus.COMPLETED;
+      this.status = SessionStatus.TRANSFORMATION_READY;
+    } else {
+      this.followUpAttempt = 1;
+      this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
+      this.status = SessionStatus.FOLLOW_UP_REQUIRED;
+    }
+  }
+
+  public void applyFollowUpBriefing(String transcript, ExtractContextSlotsResult result) {
+    this.partialContext = new LinkedHashMap<>(result.context());
+    this.missingRequiredSlotKeys = result.missingRequiredSlotKeys();
+    this.followUpQuestion = result.followUpQuestion();
+    this.followUpAttempt++;
+
+    if (result.readyForSimulation()) {
+      this.finalUserContext = new LinkedHashMap<>(result.context());
+      this.contextStatus = ContextStatus.COMPLETED;
+      this.status = SessionStatus.TRANSFORMATION_READY;
+    } else {
+      this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
+      this.status = SessionStatus.FOLLOW_UP_REQUIRED;
+    }
   }
 
   private static String normalizeChannel(String channel) {
