@@ -1,4 +1,4 @@
-package com.rehearsal.api.session.contract;
+package com.rehearsal.domain.session.model;
 
 public enum ContextStatus {
   NOT_STARTED,
