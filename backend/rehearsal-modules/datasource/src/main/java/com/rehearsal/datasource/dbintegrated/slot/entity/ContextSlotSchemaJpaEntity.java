@@ -40,6 +40,26 @@ public class ContextSlotSchemaJpaEntity extends BaseJpaEntity {
   @Column(name = "active", nullable = false)
   private boolean active;
 
+  public static ContextSlotSchemaJpaEntity create(
+      String schemaKey, String name, int maxFollowUpAttempt, boolean active) {
+    ContextSlotSchemaJpaEntity entity = new ContextSlotSchemaJpaEntity();
+    entity.schemaKey = schemaKey;
+    entity.name = name;
+    entity.maxFollowUpAttempt = maxFollowUpAttempt;
+    entity.active = active;
+    return entity;
+  }
+
+  public static ContextSlotSchemaJpaEntity from(ContextSlotSchema schema) {
+    return create(schema.schemaKey(), schema.name(), schema.maxFollowUpAttempt(), schema.active());
+  }
+
+  public void update(String name, int maxFollowUpAttempt, boolean active) {
+    this.name = name;
+    this.maxFollowUpAttempt = maxFollowUpAttempt;
+    this.active = active;
+  }
+
   public ContextSlotSchema toDomain(
       List<ContextSlotSchemaItemJpaEntity> itemEntities,
       Map<Long, List<ContextSlotOptionJpaEntity>> optionsBySlotId) {

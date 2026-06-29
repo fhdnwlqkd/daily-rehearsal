@@ -1,91 +1,130 @@
 @startuml
-title Daily Rehearsal P1 - 브리핑 기반 ContextSlot 수집/재질문 시퀀스
+title Daily Rehearsal - 타입 선택/브리핑/컨텍스트 수집 시퀀스
 
 skinparam responseMessageBelowArrow true
 
 actor "사용자" as user
 participant "스마트 거울 웹\n(Next/React)" as web
+participant "공통 제스처 컴포넌트\n(MediaPipe)" as gesture
+participant "프론트 STT\n(Web Speech API)" as stt
 participant "리허설 API\n(Spring Boot)" as api
-database "설정 DB\n(MySQL)" as mysql
-database "세션 저장소\n(Redis)" as redis
-participant "프론트 STT\n(Browser/On-device)" as frontStt
+database "세션/컨텍스트 저장소" as sessionStore
+participant "정적 설정\n(Enum/Mapping)" as staticConfig
 participant "LLM API" as llm
 
-note over web, api
-이 시퀀스는 프론트의 briefing(0-15s)과 context(15-25s)에 해당한다.
-사용자는 상황 카드를 먼저 고르지 않고 내일의 상황을 자유롭게 말한다.
-프론트가 음성을 transcript로 확정하고 API는 text만 받는다.
-API는 P1 active ContextSlot schema로 필요한 맥락을 한 번에 채운다.
-내일의 상황 맥락은 별도 분류 호출이 아니라 `situation_type` slot으로 추출한다.
-결정적 순간 리허설은 별도 플로우가 아니라 critical_moment slot 값에서 출발한다.
-재질문은 maxFollowUpAttempt=2까지 가능하지만, 매번 부족한 slot을 한 화면에 묶는다.
-slot schema 생성, prompt 구성, 기본값 적용은 rehearsal-api 내부 처리다.
+note over api, staticConfig
+질문 문구와 default는 정적 설정에 고정한다.
+AI는 답변 해석과 slot 값 정규화만 담당한다.
+AI 실패 시 해당 slot은 default로 채우고 화면을 멈추지 않는다.
+max_attempt는 개별 slot이 아니라 재질문 라운드 전체 횟수다.
 end note
 
-== 1. 최초 브리핑 수집 ==
+== 1. 타입 선택 ==
 
-web -> api: POST /sessions\nchannel=P1_OFFLINE
-api -> redis: 세션 생성\nstatus=BRIEFING\nfollowUpAttempt=0
+web -> api: GET /api/v1/situation-types
+api -> staticConfig: situation type enum 조회
+staticConfig --> api: type list\nkey/label/gestureOrder
+api --> web: situation type list
+
+web --> user: 타입 선택 화면 표시
+loop 타입 확정 전
+    user -> web: 손 좌/우 이동 또는 확정 제스처
+    web -> gesture: gesture frame 처리
+    gesture --> web: NEXT/PREV/CONFIRM
+    web --> user: highlighted type 갱신
+end
+
+web -> api: POST /api/v1/sessions\nsituationType
+api -> sessionStore: session 생성\ncontext.situation_type 저장\nattempt=0
 api --> web: sessionId
 
-web --> user: "내일 하루를 짧게 말해주세요"
-user -> web: 일정/걱정/되고 싶은 모습 자유 발화
-web -> frontStt: 브리핑 음성 실시간 인식 시작
-frontStt --> web: partial transcript\n화면에 REAL-TIME STT 표시
-frontStt --> web: final transcript
-web -> api: POST /sessions/{sessionId}/briefing\ntranscript
-api -> redis: transcript 저장\ncontextStatus=CONTEXT_EXTRACTING
+== 2. 타입별 브리핑 ==
 
-par 프론트 상태 조회
-    loop contextStatus가 COMPLETED 또는 FOLLOW_UP_REQUIRED가 될 때까지
-        web -> api: GET /sessions/{sessionId}
-        api -> redis: contextStatus/transcript/partialContext 조회
-        api --> web: 진행 상태 + 화면용 메시지
-    end
-else 백엔드는 전달받은 transcript로 slot 추출
-    api -> mysql: P1 active ContextSlot/ContextOption 조회
-    mysql --> api: slot 목록\nsituation_type/critical_moment 포함
-    api -> api: Structured Outputs schema 생성\nactive slot 기반
+web -> api: GET /api/v1/situation-types/{situationType}/briefing
+api -> staticConfig: briefing mapping 조회
+staticConfig --> api: briefingTitle/exampleAnswers
+api --> web: briefing content
+web --> user: 타입별 고정 브리핑과 예시 표시
+
+== 3. 최초 답변 정규화 ==
+
+user -> web: 자신의 브리핑 발화
+web -> stt: 음성 인식
+stt --> web: transcript
+web -> api: POST /api/v1/sessions/{sessionId}/briefing\ntranscript
+api -> staticConfig: 타입별 slot definition 조회\nquestion/default/type
+staticConfig --> api: target slots
+api -> llm: slot normalize 요청\ntranscript + target slots + current context
+
+alt AI 성공
+    llm --> api: normalizedSlots JSON
+    api -> sessionStore: context 병합
+else AI 실패
+    llm --> api: error/timeout
+    api -> api: target slot default 적용
+    api -> sessionStore: default context 저장
 end
 
-== 2. P1 active ContextSlot 추출 ==
+api -> api: 빈 slot 판단
 
-api -> api: context-extraction prompt 생성\ntranscript + slot 정의
-api -> llm: slot 추출 + 부족 slot + follow-up 질문 생성
-llm --> api: slots + missingRequiredSlotKeys\nfollowUpQuestion + readyForSimulation
-api -> redis: partialContext 저장\ncontextStatus 갱신
+alt 빈 slot 없음
+    api -> sessionStore: contextStatus=COMPLETED
+    api --> web: finalContext
+else 빈 slot 있음 + attempt < max_attempt
+    api -> staticConfig: 빈 slot 질문 문구 조회
+    staticConfig --> api: followUpQuestions[]
+    api -> sessionStore: missingSlots 저장\nattempt 증가
+    api --> web: followUpQuestions[] + partialContext
+else 빈 slot 있음 + attempt >= max_attempt
+    api -> api: 남은 slot default 적용
+    api -> sessionStore: finalContext 저장\ncontextStatus=COMPLETED
+    api --> web: finalContext + defaultedSlots
+end
 
-== 3. 부족한 맥락 재질문 ==
+== 4. 재질문 루프 ==
 
-loop 필수 slot 부족 + followUpAttempt < maxFollowUpAttempt
-    api -> api: 부족 slot 묶음 질문 확정\nfollowUpQuestion 우선 사용
-    api -> redis: partialContext 저장\nmissingRequiredSlots 저장\ncontextStatus=FOLLOW_UP_REQUIRED\nfollowUpAttempt 증가
-    api --> web: 채워진 tags + 부족 맥락 + followUpQuestion
-
-    web --> user: "조금만 더 알려주세요"\n부족한 질문을 한 화면에 묶어서 표시
+loop followUpQuestions가 내려온 동안
+    web --> user: 빈 slot 재질문 리스트를 한 번에 표시
     user -> web: 추가 답변 발화
-    web -> frontStt: 추가 답변 음성 인식
-    frontStt --> web: followUpTranscript
-    web -> api: POST /sessions/{sessionId}/follow-up\ntranscript=followUpTranscript
-    api -> redis: followUpTranscript 저장\ncontextStatus=CONTEXT_MERGING
-    api -> mysql: P1 active ContextSlot/ContextOption 조회
-    mysql --> api: slot 목록
-    api -> api: 기존 partialContext와 추가 답변 병합 prompt/schema 생성
-    api -> llm: slot 재추출 + ready 여부 판단
-    llm --> api: mergedSlots + missingRequiredSlotKeys\nfollowUpQuestion + readyForSimulation
+    web -> stt: 음성 인식
+    stt --> web: followUpTranscript
+
+    web -> api: POST /api/v1/sessions/{sessionId}/follow-up\ntranscript
+    api -> sessionStore: currentContext + missingSlots + attempt 조회
+    sessionStore --> api: context state
+    api -> staticConfig: missing slot definition 조회
+    staticConfig --> api: target slots
+    api -> llm: target slot normalize 요청\nfollowUpTranscript + currentContext
+
+    alt AI 성공
+        llm --> api: normalizedSlots JSON
+        api -> sessionStore: context 병합
+    else AI 실패
+        llm --> api: error/timeout
+        api -> api: target slot default 적용
+        api -> sessionStore: default context 저장
+    end
+
+    api -> api: 빈 slot 재판단
+
+    alt 빈 slot 없음
+        api -> sessionStore: contextStatus=COMPLETED
+        api --> web: finalContext
+    else 빈 slot 있음 + attempt < max_attempt
+        api -> staticConfig: 다음 빈 slot 질문 문구 조회
+        staticConfig --> api: followUpQuestions[]
+        api -> sessionStore: missingSlots 저장\nattempt 증가
+        api --> web: followUpQuestions[] + partialContext
+    else 빈 slot 있음 + attempt >= max_attempt
+        api -> api: 남은 slot default 적용
+        api -> sessionStore: finalContext 저장\ncontextStatus=COMPLETED
+        api --> web: finalContext + defaultedSlots
+    end
 end
 
-alt 필수 slot 충분
-    api -> api: optional 빈 값 기본값 적용
-else 질문 횟수 초과 또는 일부 slot 미확정
-    api -> api: 남은 빈 값 defaultValue/fallback 적용
-end
+== 5. 옷 입히기 진입 ==
 
-== 4. 최종 맥락 확정 ==
-
-api -> api: finalUserContext 확정
-api -> redis: finalUserContext 저장\ncontextStatus=COMPLETED\nstatus=TRANSFORMATION_READY
-api --> web: finalUserContext\n파악한 맥락 tags/이동 변수/장소 분위기 hint
-web --> user: 데이터 스캐닝 완료\n다음 단계 전환
+web -> api: GET /api/v1/sessions/{sessionId}/outfits
+api --> web: outfit selection data
 
 @enduml

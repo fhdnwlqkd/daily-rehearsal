@@ -11,6 +11,8 @@ public interface ContextSlotSchemaJpaRepository
 
   Optional<ContextSlotSchemaJpaEntity> findBySchemaKeyAndActiveTrue(String schemaKey);
 
+  boolean existsBySchemaKey(String schemaKey);
+
   @Query(
       """
       select schema.schemaKey

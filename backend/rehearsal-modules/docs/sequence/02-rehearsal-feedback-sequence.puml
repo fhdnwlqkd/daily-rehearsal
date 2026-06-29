@@ -1,87 +1,150 @@
 @startuml
-title Daily Rehearsal P1 - 제스처 outfit 확정 이후 리허설/피드백/변화 카드 시퀀스
+title Daily Rehearsal - 옷 입히기/시뮬레이션/티켓 발급 시퀀스
 
 skinparam responseMessageBelowArrow true
 
 actor "사용자" as user
 participant "스마트 거울 웹\n(Next/React)" as web
-participant "제스처/카메라 컨트롤러\n(MediaPipe 또는 fallback)" as vision
+participant "공통 제스처 컴포넌트\n(MediaPipe)" as gesture
+participant "프론트 STT/TTS" as speech
+participant "MediaRecorder" as recorder
 participant "리허설 API\n(Spring Boot)" as api
-database "세션 저장소\n(Redis)" as redis
-participant "프론트 STT\n(Browser/On-device)" as frontStt
-participant "프론트 TTS\n(SpeechSynthesis)" as frontTts
+database "세션/컨텍스트 저장소" as sessionStore
+participant "정적 설정\n(Enum/Mapping)" as staticConfig
+participant "Decart WebRTC" as decart
 participant "LLM API" as llm
+database "영상/티켓 저장소" as storage
 
-note over api, redis
-이 시퀀스는 프론트의 gesture-fit 이후 rehearsal, change-card에 해당한다.
-음성 인식과 음성 재생은 프론트에서 끝낸다.
-백엔드는 aiLine text와 responseText만 다룬다.
-리허설 장면은 gesture-fit 동안 simulationDraft로 미리 생성될 수 있다.
-rehearsal 진입 시 draft가 없으면 즉시 생성한다.
-rule 계산, 피드백/변화 카드 생성은 rehearsal-api 내부 흐름으로 표현한다.
-
-필수 입력:
-- finalUserContext
-- finalUserContext.situation_type
-- finalUserContext.critical_moment
-- selectedOutfitId
+note over web, api
+옷 입히기부터 시뮬레이션 종료까지 프론트에서 한 번에 녹화한다.
+Decart WebRTC track이 MediaRecorder로 녹화 가능한지 최우선 검증이 필요하다.
+시뮬레이션은 턴마다 1차 JSON 판정/피드백, 2차 SSE 상대 발화로 분리한다.
 end note
 
-== 1. 결정적 순간 조회 ==
+== 1. 옷 목록과 Decart URI 준비 ==
 
-web -> api: GET /sessions/{sessionId}/simulation
-api -> redis: simulationDraft 조회
-alt simulationDraft 준비됨
-    redis --> api: sceneTitle + sceneDescription + aiLine + observationTargets
-    api -> redis: status=REHEARSAL_PLAYING
-    api --> web: 리허설 화면 데이터\nAI 한마디 text/관찰 항목
-else simulationDraft 없음
-    api -> redis: finalUserContext/selectedOutfitId 조회
-    redis --> api: 시뮬레이션 입력 데이터
-    api -> llm: 결정적 순간 장면/대사 생성
-    llm --> api: sceneTitle + sceneDescription + aiLine + observationTargets
-    api -> redis: simulationDraft 저장\nstatus=REHEARSAL_PLAYING
-    api --> web: 리허설 화면 데이터\nAI 한마디 text/관찰 항목
-end
+web -> api: GET /api/v1/sessions/{sessionId}/outfits
+api -> sessionStore: finalContext 조회
+sessionStore --> api: situationType + context
+api -> staticConfig: 타입/context 기반 outfit enum 조회
+staticConfig --> api: outfitId/thumbnail/decartParams
+api --> web: outfit list\n첫 번째 옷 default
 
-web -> frontTts: SpeechSynthesisUtterance(aiLine)\nko-KR voice
-frontTts --> user: AI 한마디 재생\n예: "처음 뵙네요. 오는 길 괜찮으셨어요?"
+web -> api: POST /api/v1/sessions/{sessionId}/decart-uri\noutfitId=default
+api -> staticConfig: outfit decart parameter 조회
+staticConfig --> api: prompt/reference/style params
+api -> api: Decart URI 빌드
+api --> web: decartUri
 
-== 2. 사용자 첫 반응 수집 ==
+web -> decart: WebRTC 직접 연결\ndecartUri
+decart --> web: default outfit video track
+web --> user: 첫 번째 옷을 입은 모습 표시
+web -> recorder: 녹화 시작\nDecart/camera/audio capture
 
-user -> web: 첫 반응 발화
-web -> frontStt: 리허설 응답 음성 인식
-frontStt --> web: responseText
-web -> vision: 간단한 반응 지표 측정\noptional
-vision --> web: observationMetrics\n없으면 빈 object
-web -> api: POST /sessions/{sessionId}/rehearsal-response\ntranscript=responseText + observationMetrics
-api -> redis: responseText/observationMetrics 저장\nrehearsalStatus=FEEDBACK_GENERATING
+== 2. 제스처로 옷 교체/확정 ==
 
-par 프론트는 피드백 상태 조회
-    loop status=RESULT_READY까지
-        web -> api: GET /sessions/{sessionId}
-        api -> redis: rehearsalStatus/status 조회
-        api --> web: 진행 상태\n응답 분석 중/변화 카드 준비 중
+loop 의상 확정 전
+    user -> web: 손 좌/우 또는 확정 제스처
+    web -> gesture: gesture frame 처리
+    gesture --> web: NEXT/PREV/CONFIRM
+
+    alt NEXT/PREV
+        web -> api: POST /api/v1/sessions/{sessionId}/decart-uri\noutfitId
+        api -> api: 새 Decart URI 빌드
+        api --> web: decartUri
+        web -> decart: URI 또는 track 갱신
+        decart --> web: updated outfit track
+        web --> user: 변경된 모습 표시
+    else CONFIRM
+        web -> api: PATCH /api/v1/sessions/{sessionId}/outfit\nselectedOutfitId
+        api -> sessionStore: selectedOutfitId 저장
+        api --> web: outfit confirmed
     end
-else 백엔드는 전달받은 transcript로 피드백 생성
-    api -> redis: finalUserContext/observationMetrics 조회
-    redis --> api: 피드백 입력 데이터
-    api -> api: 정량 rule 계산\nvoiceVolume/speechRate/silence/responseLength
-    api -> llm: feedback-generation 실행\nresponseText + ruleResults + finalUserContext
-    llm --> api: feedbackResult
-    api -> redis: feedbackResult 저장\nstatus=RESULT_READY
 end
 
-== 3. 변화 카드 생성 ==
+== 3. 시뮬레이션 시작 ==
 
-web -> api: POST /sessions/{sessionId}/result
-api -> redis: finalUserContext/feedbackResult/selectedOutfitId 조회
-redis --> api: 결과 입력 데이터
-api -> llm: result-card 생성\nchangeAction/keepAttitude/ifThen
-llm --> api: finalResult
-api -> redis: finalResult 저장\nstatus=COMPLETED
-api --> web: finalResult + QR payload
+web -> api: POST /api/v1/sessions/{sessionId}/simulation/start
+api -> sessionStore: context + selectedOutfitId 조회
+sessionStore --> api: simulation state
+api -> staticConfig: 타입별 N턴/첫 상대 발화 fallback 조회
+staticConfig --> api: turn config
+api --> web: currentTurn=1 + firstOpponentLine
+web -> speech: TTS 또는 화면 출력
+speech --> user: AI 상대 첫 발화
 
-web --> user: 내일의 변화 카드 표시\n오늘 바꿀 행동/내일 유지할 태도/If-Then/QR
+== 4. 턴 진행 - 1차 판정/피드백 ==
+
+loop currentTurn <= N
+    user -> web: 응답 발화
+    web -> speech: STT 처리
+    speech --> web: userTranscript
+    web -> web: optional metrics 계산\nresponseDelay/speechRate/volume
+
+    web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation\ntranscript + metrics
+    api -> sessionStore: 전체 context + 대화 history 조회
+    sessionStore --> api: stateless LLM input
+    api -> llm: 성공/실패 판정 + 피드백 JSON 요청
+
+    alt AI 성공
+        llm --> api: {success, feedback, retryReason}
+        api -> sessionStore: turn evaluation 저장
+        api --> web: evaluation JSON
+    else AI 실패
+        llm --> api: error/timeout
+        api -> sessionStore: 실패 evaluation 저장\nfallback=true
+        api --> web: {success:false, feedback:"다시 시도해보세요"}
+    end
+
+    web --> user: 피드백 영역에 결과 표시
+
+    alt success=false
+        web --> user: 같은 turn 재시도 안내
+    else success=true
+        web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line/stream
+        api -> sessionStore: 전체 context + history 조회
+        sessionStore --> api: next line input
+        api -> llm: 다음 상대 발화 생성\nSSE token stream
+
+        alt AI streaming 성공
+            llm --> api: streamed tokens
+            api --> web: text/event-stream tokens
+            web --> user: 다음 발화 영역에 토큰 스트리밍 표시
+            api -> sessionStore: nextOpponentLine 저장\ncurrentTurn 증가
+        else AI streaming 실패
+            llm --> api: error/timeout
+            api -> staticConfig: 타입별 고정 발화 fallback 조회
+            staticConfig --> api: fallbackOpponentLine
+            api --> web: fallback line event
+            web --> user: 고정 상대 발화 표시
+            api -> sessionStore: fallback line 저장\ncurrentTurn 증가
+        end
+    end
+end
+
+== 5. 영상 업로드 ==
+
+web -> recorder: 녹화 종료
+recorder --> web: recorded video blob
+web -> api: POST /api/v1/sessions/{sessionId}/video\nmultipart video
+api -> storage: 외부 접근 가능한 위치에 저장
+storage --> api: publicVideoUrl
+api -> sessionStore: videoUrl 저장
+api --> web: video upload completed
+
+== 6. 티켓 발급 ==
+
+web -> api: POST /api/v1/sessions/{sessionId}/ticket
+api -> sessionStore: context + selectedOutfit + history + feedback + videoUrl 조회
+sessionStore --> api: ticket input
+api -> api: ticket payload 생성
+api -> storage: 다운로드 페이지 저장\nvideo + ticket
+storage --> api: downloadUrl
+api -> sessionStore: ticket + downloadUrl 저장\nstatus=COMPLETED
+api --> web: ticket + qrPayload(downloadUrl)
+
+web --> user: 티켓과 QR 표시
+user -> web: QR 스캔
+web --> user: 다운로드 페이지\n영상 + 티켓 다운로드
 
 @enduml

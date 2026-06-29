@@ -6,7 +6,20 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "cd .. && husky frontend/.husky"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --max-warnings=0"
+    ],
+    "*.{js,mjs,cjs,json,css,md}": [
+      "prettier --write"
+    ]
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
@@ -67,7 +80,14 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^10.4.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.6.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
     "postcss": "^8.5",
+    "prettier": "^3.8.4",
+    "prettier-plugin-tailwindcss": "^0.8.0",
     "tailwindcss": "^4.2.0",
     "tw-animate-css": "1.3.3",
     "typescript": "5.7.3",

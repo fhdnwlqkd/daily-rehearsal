@@ -1,137 +1,64 @@
 @startuml
-title Daily Rehearsal - Context Slot ERD
+title Daily Rehearsal - State and Static Config Concept
 
-hide circle
-skinparam linetype ortho
-skinparam entity {
-    BackgroundColor #FAFAFA
-    BorderColor #555555
-    FontColor #222222
+entity "StaticConfig\n(Enum/Mapping)" as StaticConfig {
+  * situationTypes
+  * briefingByType
+  * slotsByType
+  * outfitsByType
+  * simulationConfigByType
+  * fallbackLinesByType
 }
 
-entity "context_slot" as context_slot {
-    * id : BIGINT <<PK>>
-    --
-    * slot_key : VARCHAR(64) <<UQ>>
-    * label : VARCHAR(100)
-    * slot_type : VARCHAR(30)
-    --
-    extraction_hint : VARCHAR(1000)
-    follow_up_hint : VARCHAR(300)
-    default_literal_value : VARCHAR(500)
-    default_context_slot_option_id : BIGINT <<FK>>
-    --
-    * created_at : DATETIME
-    * updated_at : DATETIME
+entity "Session" as Session {
+  * sessionId
+  --
+  * status
+  * situationType
+  * attempt
+  * partialContext
+  * finalContext
+  * missingSlotKeys
+  * selectedOutfitId
+  * currentTurn
+  * conversationHistory
+  * turnEvaluations
+  * videoUrl
+  * ticketId
 }
 
-entity "context_slot_schema" as context_slot_schema {
-    * id : BIGINT <<PK>>
-    --
-    * schema_key : VARCHAR(64) <<UQ>>
-    * name : VARCHAR(100)
-    * max_follow_up_attempt : INT
-    --
-    * active : BOOLEAN
-    * created_at : DATETIME
-    * updated_at : DATETIME
+entity "VideoAsset" as VideoAsset {
+  * videoAssetId
+  --
+  * sessionId
+  * publicUrl
+  * contentType
+  * durationMs
 }
 
-entity "context_slot_schema_item" as context_slot_schema_item {
-    * id : BIGINT <<PK>>
-    --
-    * context_slot_schema_id : BIGINT <<FK>>
-    * context_slot_id : BIGINT <<FK>>
-    --
-    * required_level : VARCHAR(30)
-    * priority : INT
-    --
-    * active : BOOLEAN
-    * created_at : DATETIME
-    * updated_at : DATETIME
+entity "Ticket" as Ticket {
+  * ticketId
+  --
+  * sessionId
+  * ticketPayload
+  * downloadUrl
+  * qrPayload
 }
 
-entity "context_slot_option" as context_slot_option {
-    * id : BIGINT <<PK>>
-    --
-    * context_slot_id : BIGINT <<FK>>
-    * option_key : VARCHAR(64)
-    * label : VARCHAR(100)
-    --
-    * created_at : DATETIME
-    * updated_at : DATETIME
-}
+StaticConfig ||..o{ Session : initializes / validates
+Session ||--o| VideoAsset : records
+Session ||--o| Ticket : issues
+Ticket ||--o| VideoAsset : links
 
-context_slot_schema ||--o{ context_slot_schema_item : includes
-context_slot ||--o{ context_slot_schema_item : reused_as
-context_slot ||--o{ context_slot_option : allows
-context_slot_option ||--o{ context_slot : default_for
-
-note right of context_slot
-  재사용 가능한 맥락 slot 사전.
-
-  slot_key는 LLM Structured Outputs의
-  slots object key와 동일하게 사용한다.
-
-  slot_type:
-  - TEXT
-  - SINGLE_SELECT
-
-  follow_up_hint는 그대로 노출할 질문 문장이 아니라
-  여러 부족 slot을 묶어 질문할 때 쓰는 재료다.
-
-  default_literal_value:
-  - TEXT
-
-  default_context_slot_option_id:
-  - SINGLE_SELECT
-  - context_slot_option.id를 참조한다.
+note right of StaticConfig
+상황 타입, slot 질문/default, outfit,
+simulation 턴 수와 fallback 발화는
+DB가 아니라 enum/정적 매핑으로 관리한다.
 end note
 
-note right of context_slot_schema
-  특정 체험/채널/버전에서 사용할
-  slot 묶음을 정의한다.
-
-  예:
-  schema_key=p1_offline_default
-end note
-
-note bottom of context_slot_schema_item
-  schema 안에서 slot을 어떤 규칙으로
-  사용할지 정의한다.
-
-  required_level:
-  - REQUIRED
-  - SOFT_REQUIRED
-  - OPTIONAL
-
-  REQUIRED가 null/empty이면 follow-up 후보가 된다.
-
-  SOFT_REQUIRED는 follow-up 후보가 될 수 있지만,
-  비어 있어도 기본값으로 진행할 수 있다.
-end note
-
-note bottom of context_slot_option
-  SINGLE_SELECT slot에서 허용 가능한
-  option을 정의한다.
-
-  Unique:
-  - context_slot_id + option_key
-end note
-
-note top of context_slot_schema
-  Index:
-  - active
-end note
-
-note top of context_slot_schema_item
-  Unique:
-  - context_slot_schema_id + context_slot_id
-
-  Index:
-  - context_slot_schema_id
-  - active
-  - priority
+note bottom of Session
+하루용 단일 인스턴스 전시라면
+인메모리 또는 단순 DB 하나로 충분하다.
 end note
 
 @enduml

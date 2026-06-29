@@ -1,0 +1,131 @@
+@startuml
+title Daily Rehearsal - Overall Sequence
+
+skinparam responseMessageBelowArrow true
+skinparam sequence {
+    ArrowColor #2B2B2B
+    LifeLineBorderColor #777777
+    LifeLineBackgroundColor #F7F7F7
+    ParticipantBorderColor #555555
+    ParticipantBackgroundColor #FAFAFA
+    ActorBorderColor #555555
+    ActorBackgroundColor #FAFAFA
+}
+
+actor "사용자" as user
+participant "프론트엔드\n(Smart Mirror Web)" as front
+participant "백엔드\n(Rehearsal API)" as back
+participant "외부 API\n(LLM / Decart / Storage)" as external
+
+note over front, back
+Overall sequence는 큰 책임 경계만 표현한다.
+세부 구현은 별도 sequence에서 다룬다.
+
+- 프론트엔드: 카메라/마이크/제스처/STT/TTS/화면 전환/녹화
+- 백엔드: 세션 상태, context 누적, 정적 매핑, AI fallback, 티켓 생성 orchestration
+- 외부 API: LLM 정규화/판정/발화, Decart preview, 영상/티켓 저장
+end note
+
+== 1. 체험 진입 ==
+
+user -> front: 스마트 거울 앞에 섬
+front -> front: 카메라/마이크 권한 확인\n제스처 컨트롤러 준비
+front -> back: 상황 선택 후보 요청
+back --> front: situation type 목록
+
+== 2. 상황 선택 및 세션 시작 ==
+
+user -> front: 제스처로 situation type 선택
+front -> back: 세션 시작\nselectedSituationType
+back -> back: 세션 생성\n선택 타입을 초기 context로 저장
+back --> front: sessionId
+
+== 3. 브리핑 및 재질문 ==
+
+front -> back: 타입별 브리핑 요청
+back --> front: 고정 브리핑 + 예시 답변
+front --> user: 브리핑 표시\n사용자 발화 유도
+user -> front: 내일 상황 브리핑 발화
+front -> front: STT로 transcript 확정
+front -> back: briefing transcript 제출
+back -> external: slot 답변 정규화 요청
+external --> back: 정규화 JSON
+back -> back: context 누적\n빈 slot 판단\nAI 실패 시 default fallback
+
+loop 빈 slot 존재 + max_attempt 미만
+    back --> front: 빈 slot 재질문 리스트
+    front --> user: 재질문 표시
+    user -> front: 추가 답변 발화
+    front -> front: STT로 follow-up transcript 확정
+    front -> back: follow-up transcript 제출
+    back -> external: target slot 정규화 요청
+    external --> back: 정규화 JSON 또는 실패
+    back -> back: context 병합\n빈 slot 재판단\n실패 slot default 처리
+end
+
+back --> front: 최종 context 확정\n남은 slot default 적용
+
+== 4. 내일 입어볼 모습 선택 ==
+
+front -> back: 의상 후보 요청
+back --> front: 옷 목록 + Decart URI\n첫 번째 옷 default
+
+front -> external: Decart WebRTC 직접 연결\n기본 옷 preview
+external --> front: default preview
+front --> user: 1번 의상을 입은 모습 표시
+front -> front: MediaRecorder 녹화 시작\n4~5번 연속 녹화
+
+loop 의상 확정 전
+    user -> front: 제스처로 의상 변경/확정
+    alt 의상 변경
+        front -> external: Decart preview 갱신
+        external --> front: updated preview
+        front --> user: 변경된 모습 표시
+    else 의상 확정
+        front -> back: selectedOutfitId 저장
+        back --> front: simulation ready
+    end
+end
+
+== 5. AI 시뮬레이션 ==
+
+front -> back: 시뮬레이션 시작 요청
+back --> front: 현재 turn + 첫 상대 발화\nfallback 가능
+front -> front: TTS 또는 화면으로 상대 발화 표시
+
+loop N턴 완료 전
+    user -> front: 응답 발화
+    front -> front: STT + 간단 지표 계산
+    front -> back: 1차 판정+피드백 요청\ntranscript + metrics
+    back -> external: 판정+피드백 JSON 생성
+    external --> back: success/fail + feedback 또는 실패
+    back --> front: 판정+피드백 JSON\n실패 시 fallback feedback
+    alt 성공
+        front -> back: 2차 다음 발화 SSE 연결
+        back -> external: 다음 상대 발화 생성
+        external --> back: streamed tokens 또는 실패
+        back --> front: SSE tokens\n실패 시 고정 발화
+        front -> front: 다음 발화 스트리밍 표시
+    else 실패
+        front --> user: 같은 turn 재시도 안내
+    end
+end
+
+front -> front: 녹화 종료
+front -> back: 녹화 영상 업로드
+back -> external: 외부 접근 가능한 위치에 저장
+external --> back: public video URL
+
+== 6. 티켓 발급 ==
+
+front -> back: 티켓 생성 요청
+back -> back: 누적 context + 옷 + 대화 로그 + 영상 URL로 티켓 생성
+back -> external: 다운로드 페이지 저장
+external --> back: downloadUrl
+back -> back: 세션 완료 처리
+back --> front: 티켓 + QR payload
+front --> user: 티켓과 QR 표시
+user -> front: QR 스캔
+front --> user: 다운로드 페이지\n영상 + 티켓 확인
+
+@enduml

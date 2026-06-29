@@ -1,12 +1,15 @@
 package com.rehearsal.api.session.controller;
 
-import com.rehearsal.api.session.application.SessionService;
-import com.rehearsal.api.session.contract.SessionContract.CreateSessionCommand;
-import com.rehearsal.api.session.contract.SessionContract.CreateSessionResult;
-import com.rehearsal.api.session.contract.SessionContract.GetSessionResult;
-import com.rehearsal.api.session.controller.dto.SessionDto.CreateSessionRequest;
-import com.rehearsal.api.session.controller.dto.SessionDto.CreateSessionResponse;
-import com.rehearsal.api.session.controller.dto.SessionDto.GetSessionResponse;
+import com.rehearsal.api.session.controller.dto.SessionResponse;
+import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
+import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
+import com.rehearsal.domain.session.usecase.GetSessionUseCase;
+import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,62 +17,33 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Validated
 @RestController
 @RequestMapping("/api/v1/sessions")
+@RequiredArgsConstructor
 public class SessionController {
 
-  private final SessionService sessionService;
-
-  public SessionController(SessionService sessionService) {
-    this.sessionService = sessionService;
-  }
+  private final CreateSessionUseCase createSessionUseCase;
+  private final GetSessionUseCase getSessionUseCase;
+  private final UpdateClientSessionUseCase updateClientSessionUseCase;
 
   @PostMapping
-  public CreateSessionResponse create(@RequestBody(required = false) CreateSessionRequest request) {
-    String channel = request == null ? null : request.channel();
-    CreateSessionResult result = sessionService.create(new CreateSessionCommand(channel));
-    return toCreateSessionResponse(result);
+  public SessionResponse create() {
+    ClientSession session = createSessionUseCase.createSession();
+    return SessionResponse.from(session);
   }
 
   @GetMapping("/{sessionId}")
-  public GetSessionResponse get(@PathVariable String sessionId) {
-    GetSessionResult result = sessionService.get(sessionId);
-    return toGetSessionResponse(result);
+  public SessionResponse get(@PathVariable @NotBlank String sessionId) {
+    ClientSession session = getSessionUseCase.getSession(sessionId);
+    return SessionResponse.from(session);
   }
 
-  private CreateSessionResponse toCreateSessionResponse(CreateSessionResult result) {
-    return new CreateSessionResponse(
-        result.sessionId(),
-        result.channel(),
-        result.status(),
-        result.contextStatus(),
-        result.followUpAttempt(),
-        result.briefingTranscript(),
-        result.partialContext(),
-        result.finalUserContext(),
-        result.missingRequiredSlotKeys(),
-        result.followUpQuestion(),
-        result.selectedOutfitId(),
-        result.simulationDraft(),
-        result.feedbackResult(),
-        result.finalResult());
-  }
-
-  private GetSessionResponse toGetSessionResponse(GetSessionResult result) {
-    return new GetSessionResponse(
-        result.sessionId(),
-        result.channel(),
-        result.status(),
-        result.contextStatus(),
-        result.followUpAttempt(),
-        result.briefingTranscript(),
-        result.partialContext(),
-        result.finalUserContext(),
-        result.missingRequiredSlotKeys(),
-        result.followUpQuestion(),
-        result.selectedOutfitId(),
-        result.simulationDraft(),
-        result.feedbackResult(),
-        result.finalResult());
+  @PostMapping("/{sessionId}/briefing")
+  public SessionResponse submitBriefing(
+      @PathVariable @NotBlank String sessionId, @Valid @RequestBody SubmitBriefingRequest request) {
+    ClientSession session =
+        updateClientSessionUseCase.submitBriefing(sessionId, request.transcript());
+    return SessionResponse.from(session);
   }
 }
