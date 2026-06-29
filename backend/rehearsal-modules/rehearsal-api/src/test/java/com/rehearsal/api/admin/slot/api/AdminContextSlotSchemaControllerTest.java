@@ -3,12 +3,14 @@ package com.rehearsal.api.admin.slot.api;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
-import com.rehearsal.api.slot.controller.AdminContextSlotSchemaController;
+import com.rehearsal.api.slot.controller.AdminContextSlotController;
 import com.rehearsal.domain.slot.model.ContextSlot;
 import com.rehearsal.domain.slot.model.ContextSlotOption;
 import com.rehearsal.domain.slot.model.ContextSlotSchema;
@@ -16,27 +18,28 @@ import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
 import com.rehearsal.domain.slot.model.RequiredLevel;
 import com.rehearsal.domain.slot.model.SlotType;
 import com.rehearsal.domain.slot.usecase.GetContextSlotSchemaUseCase;
-import com.rehearsal.domain.slot.usecase.AdminContextSlotSchemaUseCase;
+import com.rehearsal.domain.slot.usecase.ManageContextSlotSchemaUseCase;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-@WebMvcTest(controllers = AdminContextSlotSchemaController.class)
+@WebMvcTest(controllers = AdminContextSlotController.class)
 @Import({GlobalExceptionHandler.class, ApiResponseBodyAdvice.class})
 class AdminContextSlotSchemaControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private GetContextSlotSchemaUseCase getContextSlotSchemaUseCase;
-  @MockitoBean private AdminContextSlotSchemaUseCase adminContextSlotSchemaUseCase;
+  @MockitoBean private ManageContextSlotSchemaUseCase manageContextSlotSchemaUseCase;
 
   @Test
   void listContextSlotSchemaKeys() throws Exception {
-    when(adminContextSlotSchemaUseCase.listActiveContextSlotSchemaKeys())
+    when(manageContextSlotSchemaUseCase.listActiveContextSlotSchemaKeys())
         .thenReturn(List.of("p1_offline_default"));
 
     mockMvc
@@ -59,6 +62,71 @@ class AdminContextSlotSchemaControllerTest {
         .andExpect(jsonPath("$.data.items[0].requiredLevel").value("REQUIRED"))
         .andExpect(jsonPath("$.data.items[0].slot.slotKey").value("situation_type"))
         .andExpect(jsonPath("$.data.items[0].slot.options[0].optionKey").value("presentation"));
+  }
+
+  @Test
+  void createContextSlotSchema() throws Exception {
+    when(manageContextSlotSchemaUseCase.createSchema(any())).thenReturn(contextSlotSchema());
+
+    mockMvc
+        .perform(
+            post("/api/v1/admin/context-slot-schemas")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "schemaKey": "p1_offline_default",
+                      "name": "P1 Offline Default Context Slot Schema",
+                      "maxFollowUpAttempt": 1,
+                      "active": true
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.schemaKey").value("p1_offline_default"));
+  }
+
+  @Test
+  void updateContextSlotSchema() throws Exception {
+    when(manageContextSlotSchemaUseCase.updateSchema(any())).thenReturn(contextSlotSchema());
+
+    mockMvc
+        .perform(
+            patch("/api/v1/admin/context-slot-schemas/{schemaId}", 1L)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "name": "P1 Offline Default Context Slot Schema",
+                      "maxFollowUpAttempt": 1,
+                      "active": true
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.id").value(1));
+  }
+
+  @Test
+  void createContextSlotSchemaItem() throws Exception {
+    when(manageContextSlotSchemaUseCase.createSchemaItem(any())).thenReturn(contextSlotSchema());
+
+    mockMvc
+        .perform(
+            post("/api/v1/admin/context-slot-schemas/{schemaId}/items", 1L)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "slotId": 1,
+                      "requiredLevel": "REQUIRED",
+                      "priority": 10,
+                      "active": true
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.items[0].id").value(1));
   }
 
   private ContextSlotSchema contextSlotSchema() {

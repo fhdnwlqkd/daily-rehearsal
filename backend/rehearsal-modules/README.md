@@ -74,6 +74,79 @@ MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이
 
 기본 active profile은 `local`입니다.
 
+## AI Provider
+
+AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의 `rehearsal.ai` 아래에서 관리합니다.
+
+목표 플로우의 AI provider는 Gemini 하나로 고정합니다. OpenAI/Gemini 혼용이나 task별 provider routing은 두지 않습니다.
+
+현재 실제 코드에 연결된 AI 작업은 `slot-extraction`입니다. 목표 플로우에서는 같은 Gemini provider로 다음 AI 작업을 처리합니다.
+
+- `context-normalize`: 사용자 transcript를 slot 값으로 정규화
+- `simulation-evaluation`: 현재 turn 성공/실패와 피드백 JSON 생성
+- `simulation-next-line`: 다음 상대 발화 생성, SSE 스트리밍 대상
+- `ticket-generation`: 최종 티켓 문구 생성
+
+문서 기준 provider는 다음 하나입니다.
+
+| provider | 용도 | API key |
+| --- | --- | --- |
+| `gemini` | 모든 AI 작업 | `GEMINI_API_KEY` |
+
+설정 예시는 다음과 같습니다.
+
+```yaml
+rehearsal:
+  ai:
+    defaults:
+      provider: gemini
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+      temperature: ${GEMINI_TEMPERATURE:0.0}
+      thinking-budget: ${GEMINI_THINKING_BUDGET:0}
+```
+
+로컬 실행 예시는 다음과 같습니다.
+
+```bash
+GEMINI_API_KEY=... \
+./gradlew :rehearsal-api:bootRun
+```
+
+## Secret Management
+
+API key와 password 같은 secret은 git에 커밋하지 않습니다. 애플리케이션은 secret 저장소를 직접 알지 않고, `application.yml`에 선언된 환경변수만 읽습니다.
+
+로컬 개발에서는 backend 모듈의 `.env.example`을 참고해 개인별 `.env.local`을 만듭니다. `.env.local`과 `.env*` 파일은 gitignore 대상이고, 실제 값은 팀 password manager나 AWS Secrets Manager에서 공유합니다.
+
+```bash
+cp .env.example .env.local
+```
+
+터미널에서 실행할 때는 필요한 값을 export하거나 dotenv를 로드한 뒤 실행합니다.
+
+```bash
+export GEMINI_API_KEY=...
+./gradlew :rehearsal-api:bootRun
+```
+
+AWS 배포에서는 secret과 일반 설정을 나눕니다.
+
+| 구분 | 저장 위치 | 예시 |
+| --- | --- | --- |
+| Secret | AWS Secrets Manager | `GEMINI_API_KEY`, DB password |
+| 일반 설정 | SSM Parameter Store 또는 배포 환경변수 | `GEMINI_MODEL`, `GEMINI_TEMPERATURE` |
+
+권장 secret 이름은 환경을 포함한 계층형 이름을 사용합니다.
+
+```text
+/daily-rehearsal/local/gemini/api-key
+/daily-rehearsal/prod/gemini/api-key
+```
+
+ECS/Fargate로 배포할 경우 task definition에서 Secrets Manager 값을 환경변수로 주입합니다. Spring Boot 앱은 AWS SDK로 secret을 직접 조회하지 않고, 주입된 `GEMINI_API_KEY`만 사용합니다.
+
 ## Database Migration
 
 로컬 환경에서는 Flyway로 DB 형상을 관리합니다.

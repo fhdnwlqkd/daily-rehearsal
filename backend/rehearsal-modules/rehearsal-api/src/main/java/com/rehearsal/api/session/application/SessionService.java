@@ -1,32 +1,53 @@
 package com.rehearsal.api.session.application;
 
-import com.rehearsal.api.session.contract.SessionContract.CreateSessionCommand;
-import com.rehearsal.api.session.contract.SessionContract.CreateSessionResult;
-import com.rehearsal.api.session.contract.SessionContract.GetSessionResult;
+import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.session.cache.SessionCache;
+import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.ContextStatus;
+import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
+import com.rehearsal.domain.session.usecase.GetSessionUseCase;
+import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+@Description("Application service for P1 client session create, get, and briefing submit flow")
 @Service
-public class SessionService {
+@RequiredArgsConstructor
+public class SessionService
+    implements CreateSessionUseCase, GetSessionUseCase, UpdateClientSessionUseCase {
 
-  private final InMemorySessionStore sessionStore;
+  private final SessionCache sessionCache;
 
-  public SessionService(InMemorySessionStore sessionStore) {
-    this.sessionStore = sessionStore;
+  @Override
+  public ClientSession createSession() {
+    ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
+    return sessionCache.save(session);
   }
 
-  public CreateSessionResult create(CreateSessionCommand command) {
-    SessionState sessionState = SessionState.create(command.channel());
-    sessionStore.save(sessionState);
-    return CreateSessionResult.from(sessionState);
+  @Override
+  public ClientSession getSession(String sessionId) {
+    return sessionCache
+        .findById(sessionId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
   }
 
-  public GetSessionResult get(String sessionId) {
-    SessionState sessionState =
-        sessionStore
-            .findById(sessionId)
-            .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
-    return GetSessionResult.from(sessionState);
+  @Override
+  public ClientSession submitBriefing(String sessionId, String transcript) {
+    ClientSession session = getSession(sessionId);
+    validateSessionStatus(session, SessionStatus.BRIEFING);
+
+    session.updateBriefingTranscript(transcript);
+    session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    session.updateContextStatus(ContextStatus.EXTRACTING);
+    return sessionCache.save(session);
+  }
+
+  private void validateSessionStatus(ClientSession session, SessionStatus expected) {
+    if (session.getStatus() != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
   }
 }

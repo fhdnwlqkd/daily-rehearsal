@@ -4,7 +4,9 @@ plugins {
 
 dependencies {
     implementation project(':domain')
-    runtimeOnly project(':datasource')
+    implementation project(':datasource')
+    implementation project(':datasource:client-openai')
+    implementation project(':datasource:client-gemini')
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

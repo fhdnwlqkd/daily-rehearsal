@@ -9,6 +9,10 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ContextSlotOptionJpaRepository
     extends JpaRepository<ContextSlotOptionJpaEntity, Long> {
 
+  boolean existsBySlot_IdAndOptionKey(Long slotId, String optionKey);
+
+  boolean existsBySlot_Id(Long slotId);
+
   @EntityGraph(attributePaths = {"slot"})
   List<ContextSlotOptionJpaEntity> findBySlot_IdIn(Collection<Long> slotIds);
 }

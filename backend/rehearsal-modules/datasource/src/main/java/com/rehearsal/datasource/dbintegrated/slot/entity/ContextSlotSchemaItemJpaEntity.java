@@ -53,6 +53,32 @@ public class ContextSlotSchemaItemJpaEntity extends BaseJpaEntity {
   @Column(name = "active", nullable = false)
   private boolean active;
 
+  public static ContextSlotSchemaItemJpaEntity create(
+      ContextSlotSchemaJpaEntity schema,
+      ContextSlotJpaEntity slot,
+      RequiredLevel requiredLevel,
+      int priority,
+      boolean active) {
+    ContextSlotSchemaItemJpaEntity entity = new ContextSlotSchemaItemJpaEntity();
+    entity.schema = schema;
+    entity.slot = slot;
+    entity.requiredLevel = requiredLevel;
+    entity.priority = priority;
+    entity.active = active;
+    return entity;
+  }
+
+  public static ContextSlotSchemaItemJpaEntity from(
+      ContextSlotSchemaJpaEntity schema, ContextSlotJpaEntity slot, ContextSlotSchemaItem item) {
+    return create(schema, slot, item.requiredLevel(), item.priority(), item.active());
+  }
+
+  public void update(RequiredLevel requiredLevel, int priority, boolean active) {
+    this.requiredLevel = requiredLevel;
+    this.priority = priority;
+    this.active = active;
+  }
+
   public ContextSlotSchemaItem toDomain(
       Map<Long, List<ContextSlotOptionJpaEntity>> optionsBySlotId) {
     return new ContextSlotSchemaItem(
