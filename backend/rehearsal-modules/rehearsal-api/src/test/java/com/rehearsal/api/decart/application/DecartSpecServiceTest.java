@@ -6,7 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import com.rehearsal.api.config.decart.DecartProperties;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.decart.usecase.result.DecartSpecResult;
+import com.rehearsal.domain.decart.model.DecartSpec;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionStatus;
@@ -21,16 +21,47 @@ class DecartSpecServiceTest {
   private static final String CLIENT_TOKEN = "test-client-token";
 
   @Test
-  void returnsDecartSpecResultForValidSession() {
+  void issuesDecartTokenForValidSession() {
     ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
     DecartSpecService service = serviceWith(session);
 
-    DecartSpecResult result = service.getDecartSpec(session.getSessionId(), OUTFIT_ID);
+    String token = service.issueDecartToken(session.getSessionId());
 
-    assertThat(result.clientToken()).isEqualTo(CLIENT_TOKEN);
-    assertThat(result.spec().model()).isEqualTo("lucy-vton-latest");
-    assertThat(result.spec().prompt()).isNotBlank();
-    assertThat(result.spec().referenceImageUrl()).isNotBlank();
+    assertThat(token).isEqualTo(CLIENT_TOKEN);
+  }
+
+  @Test
+  void issueTokenThrowsSessionNotFound() {
+    DecartSpecService service =
+        new DecartSpecService(new EmptySessionCache(), () -> CLIENT_TOKEN, resolverWithOutfit());
+
+    assertThatThrownBy(() -> service.issueDecartToken("unknown-session-id"))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
+  }
+
+  @Test
+  void issueTokenThrowsInvalidSessionStateWhenNotTransformationReady() {
+    ClientSession session = sessionWith(SessionStatus.BRIEFING);
+    DecartSpecService service = serviceWith(session);
+
+    assertThatThrownBy(() -> service.issueDecartToken(session.getSessionId()))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  @Test
+  void returnsOutfitSpecForValidSession() {
+    ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
+    DecartSpecService service = serviceWith(session);
+
+    DecartSpec spec = service.getOutfitSpec(session.getSessionId(), OUTFIT_ID);
+
+    assertThat(spec.model()).isEqualTo("lucy-vton-latest");
+    assertThat(spec.prompt()).isNotBlank();
+    assertThat(spec.referenceImageUrl()).isNotBlank();
   }
 
   @Test
@@ -38,39 +69,39 @@ class DecartSpecServiceTest {
     ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
     DecartSpecService service = serviceWith(session);
 
-    service.getDecartSpec(session.getSessionId(), OUTFIT_ID);
+    service.getOutfitSpec(session.getSessionId(), OUTFIT_ID);
 
     assertThat(session.getSelectedOutfitId()).isEqualTo(OUTFIT_ID);
   }
 
   @Test
-  void throwsSessionNotFoundForUnknownSession() {
+  void getOutfitSpecThrowsSessionNotFound() {
     DecartSpecService service =
         new DecartSpecService(new EmptySessionCache(), () -> CLIENT_TOKEN, resolverWithOutfit());
 
-    assertThatThrownBy(() -> service.getDecartSpec("unknown-session-id", OUTFIT_ID))
+    assertThatThrownBy(() -> service.getOutfitSpec("unknown-session-id", OUTFIT_ID))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
   }
 
   @Test
-  void throwsInvalidSessionStateWhenNotTransformationReady() {
+  void getOutfitSpecThrowsInvalidSessionStateWhenNotTransformationReady() {
     ClientSession session = sessionWith(SessionStatus.BRIEFING);
     DecartSpecService service = serviceWith(session);
 
-    assertThatThrownBy(() -> service.getDecartSpec(session.getSessionId(), OUTFIT_ID))
+    assertThatThrownBy(() -> service.getOutfitSpec(session.getSessionId(), OUTFIT_ID))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
   }
 
   @Test
-  void throwsNotFoundForUnknownOutfitId() {
+  void getOutfitSpecThrowsNotFoundForUnknownOutfitId() {
     ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
     DecartSpecService service = serviceWith(session);
 
-    assertThatThrownBy(() -> service.getDecartSpec(session.getSessionId(), "unknown_outfit"))
+    assertThatThrownBy(() -> service.getOutfitSpec(session.getSessionId(), "unknown_outfit"))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.NOT_FOUND);

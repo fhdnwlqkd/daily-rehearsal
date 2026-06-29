@@ -1,7 +1,7 @@
 package com.rehearsal.api.config.decart;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.rehearsal.datasource.client.decart.DecartHttpTokenClient;
+import com.rehearsal.datasource.client.decart.DecartTokenAdapter;
+import com.rehearsal.datasource.client.decart.DecartWebTokenClient;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.decart.port.DecartTokenPort;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -15,7 +15,8 @@ public class DecartConfiguration {
 
   @Bean
   public DecartTokenPort decartTokenPort(DecartProperties properties) {
-    return new DecartHttpTokenClient(
-        properties.getApiKey(), properties.getTokenEndpoint(), new ObjectMapper());
+    return new DecartTokenAdapter(
+        properties.getApiKey(),
+        DecartWebTokenClient.of(properties.getApiKey(), properties.getTokenEndpoint()));
   }
 }
