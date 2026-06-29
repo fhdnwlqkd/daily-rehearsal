@@ -34,3 +34,8 @@ rehearsal:
       model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
       temperature: ${GEMINI_TEMPERATURE:0.0}
       thinking-budget: ${GEMINI_THINKING_BUDGET:0}
+  decart:
+    api-key: ${DECART_API_KEY:}
+    model: ${DECART_MODEL:lucy-vton-latest}
+    token-endpoint: ${DECART_TOKEN_ENDPOINT:https://api.decart.ai/v1/tokens}
+    outfits: {}
