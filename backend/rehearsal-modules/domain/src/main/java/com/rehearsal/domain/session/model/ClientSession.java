@@ -1,6 +1,7 @@
 package com.rehearsal.domain.session.model;
 
 import com.rehearsal.domain.core.annotation.Description;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -10,58 +11,65 @@ import lombok.Getter;
 @Description("P1 client rehearsal session state stored in Redis")
 public class ClientSession {
 
-  public static final String DEFAULT_CHANNEL = "P1_OFFLINE";
-
   private String sessionId;
-  private String channel;
+  private SituationType situationType;
   private SessionStatus status;
   private ContextStatus contextStatus;
-  private int followUpAttempt;
+  private int attempt;
   private String briefingTranscript;
   private Map<String, Object> partialContext;
-  private Map<String, Object> finalUserContext;
-  private List<String> missingRequiredSlotKeys;
-  private String followUpQuestion;
+  private Map<String, Object> finalContext;
+  private List<String> missingSlotKeys;
+  private List<String> followUpQuestions;
   private String selectedOutfitId;
-  private Map<String, Object> simulationDraft;
-  private Map<String, Object> feedbackResult;
-  private Map<String, Object> finalResult;
+  private int simulationTurn;
+  private List<Map<String, Object>> conversationHistory;
+  private List<Map<String, Object>> turnEvaluations;
+  private String videoUrl;
+  private Map<String, Object> ticket;
+  private String downloadUrl;
 
   private ClientSession(
       String sessionId,
-      String channel,
+      SituationType situationType,
       SessionStatus status,
       ContextStatus contextStatus,
-      int followUpAttempt,
+      int attempt,
       String briefingTranscript,
       Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
+      Map<String, Object> finalContext,
+      List<String> missingSlotKeys,
+      List<String> followUpQuestions,
       String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
+      int simulationTurn,
+      List<Map<String, Object>> conversationHistory,
+      List<Map<String, Object>> turnEvaluations,
+      String videoUrl,
+      Map<String, Object> ticket,
+      String downloadUrl) {
     this.sessionId = sessionId;
-    this.channel = normalizeChannel(channel);
+    this.situationType = situationType;
     this.status = status;
     this.contextStatus = contextStatus;
-    this.followUpAttempt = followUpAttempt;
+    this.attempt = attempt;
     this.briefingTranscript = briefingTranscript;
     this.partialContext = partialContext;
-    this.finalUserContext = finalUserContext;
-    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
-    this.followUpQuestion = followUpQuestion;
+    this.finalContext = finalContext;
+    this.missingSlotKeys = missingSlotKeys;
+    this.followUpQuestions = followUpQuestions;
     this.selectedOutfitId = selectedOutfitId;
-    this.simulationDraft = simulationDraft;
-    this.feedbackResult = feedbackResult;
-    this.finalResult = finalResult;
+    this.simulationTurn = simulationTurn;
+    this.conversationHistory = conversationHistory;
+    this.turnEvaluations = turnEvaluations;
+    this.videoUrl = videoUrl;
+    this.ticket = ticket;
+    this.downloadUrl = downloadUrl;
   }
 
-  public static ClientSession create(String channel) {
+  public static ClientSession create() {
     return new ClientSession(
         UUID.randomUUID().toString(),
-        channel,
+        SituationType.DATE,
         SessionStatus.BRIEFING,
         ContextStatus.NOT_STARTED,
         0,
@@ -71,6 +79,9 @@ public class ClientSession {
         null,
         null,
         null,
+        0,
+        List.of(),
+        List.of(),
         null,
         null,
         null);
@@ -78,34 +89,40 @@ public class ClientSession {
 
   public static ClientSession restore(
       String sessionId,
-      String channel,
+      SituationType situationType,
       SessionStatus status,
       ContextStatus contextStatus,
-      int followUpAttempt,
+      int attempt,
       String briefingTranscript,
       Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
+      Map<String, Object> finalContext,
+      List<String> missingSlotKeys,
+      List<String> followUpQuestions,
       String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
+      int simulationTurn,
+      List<Map<String, Object>> conversationHistory,
+      List<Map<String, Object>> turnEvaluations,
+      String videoUrl,
+      Map<String, Object> ticket,
+      String downloadUrl) {
     return new ClientSession(
         sessionId,
-        channel,
+        situationType,
         status,
         contextStatus,
-        followUpAttempt,
+        attempt,
         briefingTranscript,
         partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
+        finalContext,
+        missingSlotKeys,
+        followUpQuestions,
         selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+        simulationTurn,
+        conversationHistory,
+        turnEvaluations,
+        videoUrl,
+        ticket,
+        downloadUrl);
   }
 
   public void updateStatus(SessionStatus status) {
@@ -120,45 +137,7 @@ public class ClientSession {
     this.briefingTranscript = briefingTranscript;
   }
 
-  public void updateContext(
-      Map<String, Object> partialContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion) {
-    this.partialContext = partialContext;
-    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
-    this.followUpQuestion = followUpQuestion;
-  }
-
-  public void updateFinalUserContext(Map<String, Object> finalUserContext) {
-    this.finalUserContext = finalUserContext;
-    this.missingRequiredSlotKeys = List.of();
-    this.followUpQuestion = null;
-  }
-
   public void updateSelectedOutfitId(String selectedOutfitId) {
     this.selectedOutfitId = selectedOutfitId;
-  }
-
-  public void updateSimulationDraft(Map<String, Object> simulationDraft) {
-    this.simulationDraft = simulationDraft;
-  }
-
-  public void updateFeedbackResult(Map<String, Object> feedbackResult) {
-    this.feedbackResult = feedbackResult;
-  }
-
-  public void updateFinalResult(Map<String, Object> finalResult) {
-    this.finalResult = finalResult;
-  }
-
-  public void increaseFollowUpAttempt() {
-    this.followUpAttempt++;
-  }
-
-  private static String normalizeChannel(String channel) {
-    if (channel == null || channel.isBlank()) {
-      return DEFAULT_CHANNEL;
-    }
-    return channel;
   }
 }

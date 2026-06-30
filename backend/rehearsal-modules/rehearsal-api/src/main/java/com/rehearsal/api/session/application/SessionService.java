@@ -23,7 +23,7 @@ public class SessionService
 
   @Override
   public ClientSession createSession() {
-    ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
+    ClientSession session = ClientSession.create();
     return sessionCache.save(session);
   }
 

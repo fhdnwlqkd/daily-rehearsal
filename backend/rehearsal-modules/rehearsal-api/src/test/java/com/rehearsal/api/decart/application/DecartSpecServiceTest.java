@@ -126,7 +126,7 @@ class DecartSpecServiceTest {
   }
 
   private ClientSession sessionWith(SessionStatus status) {
-    ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
+    ClientSession session = ClientSession.create();
     session.updateStatus(status);
     return session;
   }

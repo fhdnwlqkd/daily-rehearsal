@@ -44,10 +44,10 @@ class SessionControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.sessionId").isString())
-        .andExpect(jsonPath("$.data.channel").value("P1_OFFLINE"))
-        .andExpect(jsonPath("$.data.status").value("BRIEFING"))
-        .andExpect(jsonPath("$.data.contextStatus").value("NOT_STARTED"))
-        .andExpect(jsonPath("$.data.followUpAttempt").value(0));
+        .andExpect(jsonPath("$.data.situationType").value("date"))
+        .andExpect(jsonPath("$.data.status").doesNotExist())
+        .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
+        .andExpect(jsonPath("$.data.attempt").doesNotExist());
   }
 
   @Test
@@ -64,9 +64,11 @@ class SessionControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+        .andExpect(jsonPath("$.data.situationType").value("date"))
         .andExpect(jsonPath("$.data.status").value("BRIEFING"))
         .andExpect(jsonPath("$.data.contextStatus").value("NOT_STARTED"))
-        .andExpect(jsonPath("$.data.followUpAttempt").value(0));
+        .andExpect(jsonPath("$.data.attempt").value(0))
+        .andExpect(jsonPath("$.data.simulationTurn").value(0));
   }
 
   @Test
@@ -157,7 +159,7 @@ class SessionControllerTest {
 
     @Override
     public ClientSession createSession() {
-      ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
+      ClientSession session = ClientSession.create();
       sessions.put(session.getSessionId(), session);
       return session;
     }
