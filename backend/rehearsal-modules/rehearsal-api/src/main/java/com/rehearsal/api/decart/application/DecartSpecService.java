@@ -32,10 +32,10 @@ public class DecartSpecService implements IssueDecartTokenUseCase, GetOutfitSpec
   @Override
   public DecartSpec getOutfitSpec(String sessionId, String outfitId) {
     ClientSession session = getValidSession(sessionId);
-    validateSessionStatus(session);
-    session.updateSelectedOutfitId(outfitId);
+    DecartSpec spec = outfitSpecResolver.resolve(outfitId);
+    session.selectOutfit(outfitId);
     sessionCache.save(session);
-    return outfitSpecResolver.resolve(outfitId);
+    return spec;
   }
 
   private ClientSession getValidSession(String sessionId) {

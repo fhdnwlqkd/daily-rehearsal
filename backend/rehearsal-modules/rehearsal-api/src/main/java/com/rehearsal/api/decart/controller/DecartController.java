@@ -32,8 +32,7 @@ public class DecartController {
 
   @GetMapping("/{sessionId}/outfit-spec")
   public OutfitSpecResponse getOutfitSpec(
-      @PathVariable @NotBlank String sessionId,
-      @RequestParam @NotBlank String outfitId) {
+      @PathVariable @NotBlank String sessionId, @RequestParam @NotBlank String outfitId) {
     DecartSpec spec = getOutfitSpecUseCase.getOutfitSpec(sessionId, outfitId);
     return OutfitSpecResponse.from(spec);
   }

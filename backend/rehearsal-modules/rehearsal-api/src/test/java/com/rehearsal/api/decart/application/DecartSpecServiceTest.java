@@ -9,7 +9,9 @@ import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.decart.model.DecartSpec;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -126,9 +128,17 @@ class DecartSpecServiceTest {
   }
 
   private ClientSession sessionWith(SessionStatus status) {
-    ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
-    session.updateStatus(status);
-    return session;
+    return ClientSession.restore(
+        "test-session-id",
+        SituationType.DATE,
+        status,
+        ContextStatus.NOT_STARTED,
+        0,
+        Map.of(),
+        Map.of(),
+        java.util.List.of(),
+        java.util.List.of(),
+        null);
   }
 
   static class EmptySessionCache implements SessionCache {

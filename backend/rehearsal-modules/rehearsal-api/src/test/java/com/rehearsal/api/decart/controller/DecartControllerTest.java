@@ -90,8 +90,7 @@ class DecartControllerTest {
   void getOutfitSpecReturnsBadRequestWhenOutfitIdIsBlank() throws Exception {
     mockMvc
         .perform(
-            get("/api/v1/sessions/{sessionId}/outfit-spec", VALID_SESSION_ID)
-                .param("outfitId", ""))
+            get("/api/v1/sessions/{sessionId}/outfit-spec", VALID_SESSION_ID).param("outfitId", ""))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.success").value(false))
         .andExpect(jsonPath("$.error.code").value("C001"));

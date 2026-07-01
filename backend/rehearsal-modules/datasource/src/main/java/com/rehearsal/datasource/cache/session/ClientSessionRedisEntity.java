@@ -3,58 +3,54 @@ package com.rehearsal.datasource.cache.session;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
 
 public record ClientSessionRedisEntity(
     String sessionId,
-    String channel,
+    String situationType,
     SessionStatus status,
     ContextStatus contextStatus,
     int followUpAttempt,
-    String briefingTranscript,
     Map<String, Object> partialContext,
-    Map<String, Object> finalUserContext,
-    List<String> missingRequiredSlotKeys,
-    String followUpQuestion,
-    String selectedOutfitId,
-    Map<String, Object> simulationDraft,
-    Map<String, Object> feedbackResult,
-    Map<String, Object> finalResult) {
+    Map<String, Object> finalContext,
+    List<String> missingSlotKeys,
+    List<String> followUpQuestions,
+    String selectedOutfitId) {
 
   public static ClientSessionRedisEntity from(ClientSession session) {
     return new ClientSessionRedisEntity(
         session.getSessionId(),
-        session.getChannel(),
+        session.getSituationType().key(),
         session.getStatus(),
         session.getContextStatus(),
         session.getFollowUpAttempt(),
-        session.getBriefingTranscript(),
         session.getPartialContext(),
-        session.getFinalUserContext(),
-        session.getMissingRequiredSlotKeys(),
-        session.getFollowUpQuestion(),
-        session.getSelectedOutfitId(),
-        session.getSimulationDraft(),
-        session.getFeedbackResult(),
-        session.getFinalResult());
+        session.getFinalContext(),
+        session.getMissingSlotKeys(),
+        session.getFollowUpQuestions(),
+        session.getSelectedOutfitId());
   }
 
   public ClientSession toDomain() {
     return ClientSession.restore(
         sessionId,
-        channel,
+        restoreSituationType(),
         status,
         contextStatus,
         followUpAttempt,
-        briefingTranscript,
         partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+        finalContext,
+        missingSlotKeys,
+        followUpQuestions,
+        selectedOutfitId);
+  }
+
+  private SituationType restoreSituationType() {
+    if (situationType == null || situationType.isBlank()) {
+      return SituationType.DATE;
+    }
+    return SituationType.fromKey(situationType);
   }
 }

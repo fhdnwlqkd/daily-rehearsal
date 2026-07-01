@@ -5,8 +5,6 @@ import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
-import com.rehearsal.domain.session.model.ContextStatus;
-import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -23,7 +21,7 @@ public class SessionService
 
   @Override
   public ClientSession createSession() {
-    ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
+    ClientSession session = ClientSession.create();
     return sessionCache.save(session);
   }
 
@@ -37,17 +35,8 @@ public class SessionService
   @Override
   public ClientSession submitBriefing(String sessionId, String transcript) {
     ClientSession session = getSession(sessionId);
-    validateSessionStatus(session, SessionStatus.BRIEFING);
 
-    session.updateBriefingTranscript(transcript);
-    session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
-    session.updateContextStatus(ContextStatus.EXTRACTING);
+    session.startContextExtraction();
     return sessionCache.save(session);
-  }
-
-  private void validateSessionStatus(ClientSession session, SessionStatus expected) {
-    if (session.getStatus() != expected) {
-      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
-    }
   }
 }

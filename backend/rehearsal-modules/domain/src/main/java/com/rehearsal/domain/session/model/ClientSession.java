@@ -1,6 +1,9 @@
 package com.rehearsal.domain.session.model;
 
 import com.rehearsal.domain.core.annotation.Description;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -10,65 +13,47 @@ import lombok.Getter;
 @Description("P1 client rehearsal session state stored in Redis")
 public class ClientSession {
 
-  public static final String DEFAULT_CHANNEL = "P1_OFFLINE";
-
   private String sessionId;
-  private String channel;
+  private SituationType situationType;
   private SessionStatus status;
   private ContextStatus contextStatus;
   private int followUpAttempt;
-  private String briefingTranscript;
   private Map<String, Object> partialContext;
-  private Map<String, Object> finalUserContext;
-  private List<String> missingRequiredSlotKeys;
-  private String followUpQuestion;
+  private Map<String, Object> finalContext;
+  private List<String> missingSlotKeys;
+  private List<String> followUpQuestions;
   private String selectedOutfitId;
-  private Map<String, Object> simulationDraft;
-  private Map<String, Object> feedbackResult;
-  private Map<String, Object> finalResult;
 
   private ClientSession(
       String sessionId,
-      String channel,
+      SituationType situationType,
       SessionStatus status,
       ContextStatus contextStatus,
       int followUpAttempt,
-      String briefingTranscript,
       Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
-      String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
+      Map<String, Object> finalContext,
+      List<String> missingSlotKeys,
+      List<String> followUpQuestions,
+      String selectedOutfitId) {
     this.sessionId = sessionId;
-    this.channel = normalizeChannel(channel);
+    this.situationType = situationType;
     this.status = status;
     this.contextStatus = contextStatus;
     this.followUpAttempt = followUpAttempt;
-    this.briefingTranscript = briefingTranscript;
     this.partialContext = partialContext;
-    this.finalUserContext = finalUserContext;
-    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
-    this.followUpQuestion = followUpQuestion;
+    this.finalContext = finalContext;
+    this.missingSlotKeys = missingSlotKeys;
+    this.followUpQuestions = followUpQuestions;
     this.selectedOutfitId = selectedOutfitId;
-    this.simulationDraft = simulationDraft;
-    this.feedbackResult = feedbackResult;
-    this.finalResult = finalResult;
   }
 
-  public static ClientSession create(String channel) {
+  public static ClientSession create() {
     return new ClientSession(
         UUID.randomUUID().toString(),
-        channel,
+        SituationType.DATE,
         SessionStatus.BRIEFING,
         ContextStatus.NOT_STARTED,
         0,
-        null,
-        null,
-        null,
-        null,
         null,
         null,
         null,
@@ -78,87 +63,42 @@ public class ClientSession {
 
   public static ClientSession restore(
       String sessionId,
-      String channel,
+      SituationType situationType,
       SessionStatus status,
       ContextStatus contextStatus,
       int followUpAttempt,
-      String briefingTranscript,
       Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
-      String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
+      Map<String, Object> finalContext,
+      List<String> missingSlotKeys,
+      List<String> followUpQuestions,
+      String selectedOutfitId) {
     return new ClientSession(
         sessionId,
-        channel,
+        situationType,
         status,
         contextStatus,
         followUpAttempt,
-        briefingTranscript,
         partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+        finalContext,
+        missingSlotKeys,
+        followUpQuestions,
+        selectedOutfitId);
   }
 
-  public void updateStatus(SessionStatus status) {
-    this.status = status;
+  public void startContextExtraction() {
+    validateStatus(SessionStatus.BRIEFING);
+    this.status = SessionStatus.CONTEXT_EXTRACTING;
+    this.contextStatus = ContextStatus.EXTRACTING;
   }
 
-  public void updateContextStatus(ContextStatus contextStatus) {
-    this.contextStatus = contextStatus;
-  }
-
-  public void updateBriefingTranscript(String briefingTranscript) {
-    this.briefingTranscript = briefingTranscript;
-  }
-
-  public void updateContext(
-      Map<String, Object> partialContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion) {
-    this.partialContext = partialContext;
-    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
-    this.followUpQuestion = followUpQuestion;
-  }
-
-  public void updateFinalUserContext(Map<String, Object> finalUserContext) {
-    this.finalUserContext = finalUserContext;
-    this.missingRequiredSlotKeys = List.of();
-    this.followUpQuestion = null;
-  }
-
-  public void updateSelectedOutfitId(String selectedOutfitId) {
+  public void selectOutfit(String selectedOutfitId) {
+    validateStatus(SessionStatus.TRANSFORMATION_READY);
     this.selectedOutfitId = selectedOutfitId;
   }
 
-  public void updateSimulationDraft(Map<String, Object> simulationDraft) {
-    this.simulationDraft = simulationDraft;
-  }
-
-  public void updateFeedbackResult(Map<String, Object> feedbackResult) {
-    this.feedbackResult = feedbackResult;
-  }
-
-  public void updateFinalResult(Map<String, Object> finalResult) {
-    this.finalResult = finalResult;
-  }
-
-  public void increaseFollowUpAttempt() {
-    this.followUpAttempt++;
-  }
-
-  private static String normalizeChannel(String channel) {
-    if (channel == null || channel.isBlank()) {
-      return DEFAULT_CHANNEL;
+  private void validateStatus(SessionStatus expected) {
+    if (status != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
-    return channel;
   }
 }

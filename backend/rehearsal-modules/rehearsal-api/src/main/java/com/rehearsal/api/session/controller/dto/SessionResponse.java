@@ -12,35 +12,27 @@ import java.util.Map;
 @Description("Current P1 client session state response")
 public record SessionResponse(
     String sessionId,
-    String channel,
+    String situationType,
     SessionStatus status,
     ContextStatus contextStatus,
     int followUpAttempt,
-    String briefingTranscript,
     Map<String, Object> partialContext,
-    Map<String, Object> finalUserContext,
-    List<String> missingRequiredSlotKeys,
-    String followUpQuestion,
-    String selectedOutfitId,
-    Map<String, Object> simulationDraft,
-    Map<String, Object> feedbackResult,
-    Map<String, Object> finalResult) {
+    Map<String, Object> finalContext,
+    List<String> missingSlotKeys,
+    List<String> followUpQuestions,
+    String selectedOutfitId) {
 
   public static SessionResponse from(ClientSession session) {
     return new SessionResponse(
         session.getSessionId(),
-        session.getChannel(),
+        session.getSituationType().key(),
         session.getStatus(),
         session.getContextStatus(),
         session.getFollowUpAttempt(),
-        session.getBriefingTranscript(),
         session.getPartialContext(),
-        session.getFinalUserContext(),
-        session.getMissingRequiredSlotKeys(),
-        session.getFollowUpQuestion(),
-        session.getSelectedOutfitId(),
-        session.getSimulationDraft(),
-        session.getFeedbackResult(),
-        session.getFinalResult());
+        session.getFinalContext(),
+        session.getMissingSlotKeys(),
+        session.getFollowUpQuestions(),
+        session.getSelectedOutfitId());
   }
 }
