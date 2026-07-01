@@ -26,6 +26,19 @@ class StaticContextSlotSchemaServiceTest {
   }
 
   @Test
+  void staticSchemaDoesNotExposeDbIds() {
+    ContextSlotSchema schema =
+        service.getContextSlotSchema(new GetContextSlotSchemaCommand("date"));
+
+    assertThat(schema.id()).isNull();
+    assertThat(schema.items()).allSatisfy(item -> assertThat(item.id()).isNull());
+    assertThat(schema.items()).allSatisfy(item -> assertThat(item.slot().id()).isNull());
+    assertThat(schema.items())
+        .flatExtracting(item -> item.slot().options())
+        .allSatisfy(option -> assertThat(option.id()).isNull());
+  }
+
+  @Test
   void getsBusinessMeetingSchemaFromStaticRegistry() {
     ContextSlotSchema schema =
         service.getContextSlotSchema(new GetContextSlotSchemaCommand("business_meeting"));
