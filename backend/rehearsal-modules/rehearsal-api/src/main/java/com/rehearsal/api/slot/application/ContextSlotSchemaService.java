@@ -6,8 +6,8 @@ import com.rehearsal.domain.slot.model.ContextSlot;
 import com.rehearsal.domain.slot.model.ContextSlotOption;
 import com.rehearsal.domain.slot.model.ContextSlotSchema;
 import com.rehearsal.domain.slot.model.SlotType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaRegistry;
 import com.rehearsal.domain.slot.repository.ContextSlotSchemaRepository;
-import com.rehearsal.domain.slot.usecase.GetContextSlotSchemaUseCase;
 import com.rehearsal.domain.slot.usecase.ManageContextSlotSchemaUseCase;
 import com.rehearsal.domain.slot.usecase.command.CreateContextSlotCommand;
 import com.rehearsal.domain.slot.usecase.command.CreateContextSlotOptionCommand;
@@ -17,38 +17,27 @@ import com.rehearsal.domain.slot.usecase.command.DeleteContextSlotCommand;
 import com.rehearsal.domain.slot.usecase.command.DeleteContextSlotOptionCommand;
 import com.rehearsal.domain.slot.usecase.command.DeleteContextSlotSchemaCommand;
 import com.rehearsal.domain.slot.usecase.command.DeleteContextSlotSchemaItemCommand;
-import com.rehearsal.domain.slot.usecase.command.GetContextSlotSchemaCommand;
 import com.rehearsal.domain.slot.usecase.command.UpdateContextSlotCommand;
 import com.rehearsal.domain.slot.usecase.command.UpdateContextSlotOptionCommand;
 import com.rehearsal.domain.slot.usecase.command.UpdateContextSlotSchemaCommand;
 import com.rehearsal.domain.slot.usecase.command.UpdateContextSlotSchemaItemCommand;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Profile("slot-admin")
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class ContextSlotSchemaService
-    implements GetContextSlotSchemaUseCase, ManageContextSlotSchemaUseCase {
+public class ContextSlotSchemaService implements ManageContextSlotSchemaUseCase {
 
   private final ContextSlotSchemaRepository contextSlotSchemaRepository;
 
   @Override
-  public ContextSlotSchema getContextSlotSchema(GetContextSlotSchemaCommand command) {
-    return contextSlotSchemaRepository
-        .findActiveBySchemaKey(command.schemaKey())
-        .orElseThrow(
-            () ->
-                new BusinessException(
-                    ErrorCode.NOT_FOUND,
-                    "Context slot schema not found. schemaKey=" + command.schemaKey()));
-  }
-
-  @Override
   public List<String> listActiveContextSlotSchemaKeys() {
-    return contextSlotSchemaRepository.findActiveSchemaKeys();
+    return ContextSlotSchemaRegistry.schemaKeys();
   }
 
   @Override

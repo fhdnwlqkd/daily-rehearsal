@@ -14,7 +14,7 @@ public record ExtractContextSlotsCommand(
     Map<String, Object> currentSlots,
     List<String> targetSlotKeys) {
 
-  public static final String DEFAULT_SCHEMA_KEY = "p1_offline_default";
+  public static final String DEFAULT_SCHEMA_KEY = "date";
 
   public ExtractContextSlotsCommand(String transcript) {
     this(DEFAULT_SCHEMA_KEY, transcript, 0, SlotExtractionMode.INITIAL, Map.of(), List.of());

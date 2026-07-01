@@ -34,7 +34,7 @@ class ContextSlotExtractionServiceTest {
     ExtractContextSlotsResult result =
         service.extract(new ExtractContextSlotsCommand("내일 발표가 걱정돼."));
 
-    assertThat(result.schemaKey()).isEqualTo("p1_offline_default");
+    assertThat(result.schemaKey()).isEqualTo("date");
     assertThat(result.readyForSimulation()).isTrue();
     assertThat(result.followUpQuestion()).isNull();
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
@@ -70,7 +70,7 @@ class ContextSlotExtractionServiceTest {
 
     return new ContextSlotSchema(
         1L,
-        "p1_offline_default",
+        "date",
         "P1 Offline Default Context Slot Schema",
         1,
         true,
