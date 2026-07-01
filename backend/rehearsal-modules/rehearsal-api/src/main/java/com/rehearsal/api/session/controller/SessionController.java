@@ -5,13 +5,11 @@ import com.rehearsal.api.session.controller.dto.SessionResponse;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
-import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -25,19 +23,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class SessionController {
 
   private final CreateSessionUseCase createSessionUseCase;
-  private final GetSessionUseCase getSessionUseCase;
   private final UpdateClientSessionUseCase updateClientSessionUseCase;
 
   @PostMapping
   public CreateSessionResponse create() {
     ClientSession session = createSessionUseCase.createSession();
     return CreateSessionResponse.from(session);
-  }
-
-  @GetMapping("/{sessionId}")
-  public SessionResponse get(@PathVariable @NotBlank String sessionId) {
-    ClientSession session = getSessionUseCase.getSession(sessionId);
-    return SessionResponse.from(session);
   }
 
   @PostMapping("/{sessionId}/briefing")
