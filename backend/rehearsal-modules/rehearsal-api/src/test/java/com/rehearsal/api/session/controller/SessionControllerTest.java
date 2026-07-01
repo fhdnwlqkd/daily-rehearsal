@@ -1,6 +1,5 @@
 package com.rehearsal.api.session.controller;
 
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -10,8 +9,6 @@ import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.session.model.ClientSession;
-import com.rehearsal.domain.session.model.ContextStatus;
-import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -47,39 +44,7 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.data.situationType").value("date"))
         .andExpect(jsonPath("$.data.status").doesNotExist())
         .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
-        .andExpect(jsonPath("$.data.attempt").doesNotExist());
-  }
-
-  @Test
-  void getSession() throws Exception {
-    MvcResult createResult =
-        mockMvc.perform(post("/api/v1/sessions")).andExpect(status().isOk()).andReturn();
-
-    String sessionId =
-        com.jayway.jsonpath.JsonPath.read(
-            createResult.getResponse().getContentAsString(), "$.data.sessionId");
-
-    mockMvc
-        .perform(get("/api/v1/sessions/{sessionId}", sessionId))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.situationType").value("date"))
-        .andExpect(jsonPath("$.data.status").value("BRIEFING"))
-        .andExpect(jsonPath("$.data.contextStatus").value("NOT_STARTED"))
-        .andExpect(jsonPath("$.data.attempt").value(0))
-        .andExpect(jsonPath("$.data.simulationTurn").value(0));
-  }
-
-  @Test
-  void getSessionWhenSessionNotFound() throws Exception {
-    mockMvc
-        .perform(get("/api/v1/sessions/{sessionId}", "missing-session-id"))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.code").value("S001"))
-        .andExpect(jsonPath("$.error.name").value("SESSION_NOT_FOUND"))
-        .andExpect(jsonPath("$.error.message").value("Session not found."));
+        .andExpect(jsonPath("$.data.followUpAttempt").doesNotExist());
   }
 
   @Test
@@ -95,7 +60,7 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
         .andExpect(jsonPath("$.data.status").value("CONTEXT_EXTRACTING"))
         .andExpect(jsonPath("$.data.contextStatus").value("EXTRACTING"))
-        .andExpect(jsonPath("$.data.briefingTranscript").value("tomorrow interview rehearsal"));
+        .andExpect(jsonPath("$.data.briefingTranscript").doesNotExist());
   }
 
   @Test
@@ -176,13 +141,7 @@ class SessionControllerTest {
     @Override
     public ClientSession submitBriefing(String sessionId, String transcript) {
       ClientSession session = getSession(sessionId);
-      if (session.getStatus() != SessionStatus.BRIEFING) {
-        throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
-      }
-
-      session.updateBriefingTranscript(transcript);
-      session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
-      session.updateContextStatus(ContextStatus.EXTRACTING);
+      session.startContextExtraction();
       sessions.put(session.getSessionId(), session);
       return session;
     }

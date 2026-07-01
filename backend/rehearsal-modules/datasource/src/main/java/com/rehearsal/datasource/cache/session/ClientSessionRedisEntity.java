@@ -12,19 +12,12 @@ public record ClientSessionRedisEntity(
     String situationType,
     SessionStatus status,
     ContextStatus contextStatus,
-    int attempt,
-    String briefingTranscript,
+    int followUpAttempt,
     Map<String, Object> partialContext,
     Map<String, Object> finalContext,
     List<String> missingSlotKeys,
     List<String> followUpQuestions,
-    String selectedOutfitId,
-    int simulationTurn,
-    List<Map<String, Object>> conversationHistory,
-    List<Map<String, Object>> turnEvaluations,
-    String videoUrl,
-    Map<String, Object> ticket,
-    String downloadUrl) {
+    String selectedOutfitId) {
 
   public static ClientSessionRedisEntity from(ClientSession session) {
     return new ClientSessionRedisEntity(
@@ -32,19 +25,12 @@ public record ClientSessionRedisEntity(
         session.getSituationType().key(),
         session.getStatus(),
         session.getContextStatus(),
-        session.getAttempt(),
-        session.getBriefingTranscript(),
+        session.getFollowUpAttempt(),
         session.getPartialContext(),
         session.getFinalContext(),
         session.getMissingSlotKeys(),
         session.getFollowUpQuestions(),
-        session.getSelectedOutfitId(),
-        session.getSimulationTurn(),
-        session.getConversationHistory(),
-        session.getTurnEvaluations(),
-        session.getVideoUrl(),
-        session.getTicket(),
-        session.getDownloadUrl());
+        session.getSelectedOutfitId());
   }
 
   public ClientSession toDomain() {
@@ -53,19 +39,12 @@ public record ClientSessionRedisEntity(
         restoreSituationType(),
         status,
         contextStatus,
-        attempt,
-        briefingTranscript,
+        followUpAttempt,
         partialContext,
         finalContext,
         missingSlotKeys,
         followUpQuestions,
-        selectedOutfitId,
-        simulationTurn,
-        conversationHistory,
-        turnEvaluations,
-        videoUrl,
-        ticket,
-        downloadUrl);
+        selectedOutfitId);
   }
 
   private SituationType restoreSituationType() {
