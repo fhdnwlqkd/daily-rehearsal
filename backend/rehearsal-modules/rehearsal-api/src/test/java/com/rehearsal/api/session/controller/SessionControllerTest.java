@@ -46,7 +46,7 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.data.situationType").value("date"))
         .andExpect(jsonPath("$.data.status").doesNotExist())
         .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
-        .andExpect(jsonPath("$.data.attempt").doesNotExist());
+        .andExpect(jsonPath("$.data.followUpAttempt").doesNotExist());
   }
 
   @Test
@@ -62,7 +62,7 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
         .andExpect(jsonPath("$.data.status").value("CONTEXT_EXTRACTING"))
         .andExpect(jsonPath("$.data.contextStatus").value("EXTRACTING"))
-        .andExpect(jsonPath("$.data.briefingTranscript").value("tomorrow interview rehearsal"));
+        .andExpect(jsonPath("$.data.briefingTranscript").doesNotExist());
   }
 
   @Test
@@ -147,7 +147,6 @@ class SessionControllerTest {
         throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
       }
 
-      session.updateBriefingTranscript(transcript);
       session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
       session.updateContextStatus(ContextStatus.EXTRACTING);
       sessions.put(session.getSessionId(), session);

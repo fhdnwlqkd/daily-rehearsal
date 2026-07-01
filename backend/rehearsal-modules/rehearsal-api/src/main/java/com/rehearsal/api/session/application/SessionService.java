@@ -39,7 +39,6 @@ public class SessionService
     ClientSession session = getSession(sessionId);
     validateSessionStatus(session, SessionStatus.BRIEFING);
 
-    session.updateBriefingTranscript(transcript);
     session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
     session.updateContextStatus(ContextStatus.EXTRACTING);
     return sessionCache.save(session);
