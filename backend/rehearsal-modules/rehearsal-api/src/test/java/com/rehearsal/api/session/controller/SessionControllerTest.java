@@ -9,8 +9,6 @@ import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.session.model.ClientSession;
-import com.rehearsal.domain.session.model.ContextStatus;
-import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -143,12 +141,7 @@ class SessionControllerTest {
     @Override
     public ClientSession submitBriefing(String sessionId, String transcript) {
       ClientSession session = getSession(sessionId);
-      if (session.getStatus() != SessionStatus.BRIEFING) {
-        throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
-      }
-
-      session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
-      session.updateContextStatus(ContextStatus.EXTRACTING);
+      session.startContextExtraction();
       sessions.put(session.getSessionId(), session);
       return session;
     }

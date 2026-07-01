@@ -1,6 +1,8 @@
 package com.rehearsal.domain.session.model;
 
 import com.rehearsal.domain.core.annotation.Description;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -83,15 +85,20 @@ public class ClientSession {
         selectedOutfitId);
   }
 
-  public void updateStatus(SessionStatus status) {
-    this.status = status;
+  public void startContextExtraction() {
+    validateStatus(SessionStatus.BRIEFING);
+    this.status = SessionStatus.CONTEXT_EXTRACTING;
+    this.contextStatus = ContextStatus.EXTRACTING;
   }
 
-  public void updateContextStatus(ContextStatus contextStatus) {
-    this.contextStatus = contextStatus;
-  }
-
-  public void updateSelectedOutfitId(String selectedOutfitId) {
+  public void selectOutfit(String selectedOutfitId) {
+    validateStatus(SessionStatus.TRANSFORMATION_READY);
     this.selectedOutfitId = selectedOutfitId;
+  }
+
+  private void validateStatus(SessionStatus expected) {
+    if (status != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
   }
 }
