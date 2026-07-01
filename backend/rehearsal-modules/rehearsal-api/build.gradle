@@ -5,7 +5,6 @@ plugins {
 dependencies {
     implementation project(':domain')
     implementation project(':datasource')
-    implementation project(':datasource:client-openai')
     implementation project(':datasource:client-gemini')
     implementation project(':datasource:client-decart')
 

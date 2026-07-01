@@ -19,16 +19,6 @@ rehearsal:
   ai:
     defaults:
       provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:none}
-    tasks:
-      slot-extraction:
-        provider: ${SLOT_EXTRACTION_AI_PROVIDER:${REHEARSAL_AI_DEFAULT_PROVIDER:none}}
-        model: ${SLOT_EXTRACTION_AI_MODEL:}
-    openai:
-      api-key: ${OPENAI_API_KEY:}
-      model: ${OPENAI_MODEL:gpt-5.4-nano}
-      max-output-tokens: ${OPENAI_MAX_OUTPUT_TOKENS:512}
-      temperature: ${OPENAI_TEMPERATURE:0.0}
-      store: ${OPENAI_STORE:false}
     gemini:
       api-key: ${GEMINI_API_KEY:}
       model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
