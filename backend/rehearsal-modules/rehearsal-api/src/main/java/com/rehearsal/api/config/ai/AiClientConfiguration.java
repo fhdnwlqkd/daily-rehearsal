@@ -21,7 +21,6 @@ public class AiClientConfiguration {
   @ConditionalOnMissingBean(SlotExtractorClient.class)
   public SlotExtractorClient slotExtractorClient(AiClientProperties properties) {
     return switch (properties.getDefaults().getProvider()) {
-      case NONE -> new UnconfiguredSlotExtractorClient();
       case FAKE -> new FakeSlotExtractorClient();
       case GEMINI -> geminiSlotExtractorClient(properties.getGemini());
     };

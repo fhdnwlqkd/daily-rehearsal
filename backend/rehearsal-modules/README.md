@@ -78,7 +78,7 @@ MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이
 
 AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의 `rehearsal.ai` 아래에서 관리합니다.
 
-목표 플로우의 AI provider는 Gemini 하나로 고정합니다. OpenAI/Gemini 혼용이나 task별 provider routing은 두지 않습니다.
+AI provider는 Gemini 하나로 고정합니다. OpenAI/Gemini 혼용이나 task별 provider routing은 두지 않습니다. `rehearsal.ai.defaults.provider`의 기본값은 `gemini`이며, `OPENAI_API_KEY` 같은 다른 provider의 설정은 필요하지 않습니다.
 
 현재 실제 코드에 연결된 AI 작업은 `slot-extraction`입니다. 목표 플로우에서는 같은 Gemini provider로 다음 AI 작업을 처리합니다.
 
@@ -87,11 +87,14 @@ AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의
 - `simulation-next-line`: 다음 상대 발화 생성, SSE 스트리밍 대상
 - `ticket-generation`: 최종 티켓 문구 생성
 
-문서 기준 provider는 다음 하나입니다.
+`rehearsal.ai.defaults.provider`가 가질 수 있는 값은 다음 둘뿐입니다.
 
 | provider | 용도 | API key |
 | --- | --- | --- |
-| `gemini` | 모든 AI 작업 | `GEMINI_API_KEY` |
+| `gemini` | 실제 AI 작업 (기본값) | `GEMINI_API_KEY` |
+| `fake` | 외부 호출 없이 deterministic 값을 반환, `test` profile 기본값 | 불필요 |
+
+`gemini` provider를 선택한 상태에서 `GEMINI_API_KEY`가 비어 있으면 애플리케이션 기동이 실패합니다. `NONE`/unconfigured 같은 placeholder provider는 두지 않습니다.
 
 설정 예시는 다음과 같습니다.
 
@@ -99,13 +102,15 @@ AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의
 rehearsal:
   ai:
     defaults:
-      provider: gemini
+      provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:gemini}
     gemini:
       api-key: ${GEMINI_API_KEY:}
       model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
       temperature: ${GEMINI_TEMPERATURE:0.0}
       thinking-budget: ${GEMINI_THINKING_BUDGET:0}
 ```
+
+`test` profile(`application-test.yml`)은 `rehearsal.ai.defaults.provider: fake`를 고정값으로 설정해 API key 없이 테스트가 동작합니다.
 
 로컬 실행 예시는 다음과 같습니다.
 

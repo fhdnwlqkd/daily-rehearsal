@@ -17,7 +17,6 @@ public class AiClientProperties {
   private Gemini gemini = new Gemini();
 
   public enum Provider {
-    NONE,
     FAKE,
     GEMINI
   }
@@ -26,7 +25,7 @@ public class AiClientProperties {
   @Setter
   public static class Defaults {
 
-    private Provider provider = Provider.NONE;
+    private Provider provider = Provider.GEMINI;
   }
 
   @Getter

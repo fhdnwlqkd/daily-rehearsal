@@ -16,13 +16,25 @@ class AiClientConfigurationTest {
           .withUserConfiguration(AiClientConfiguration.class);
 
   @Test
-  void createsUnconfiguredClientByDefault() {
+  void usesGeminiProviderByDefault() {
+    contextRunner
+        .withPropertyValues(
+            "rehearsal.ai.gemini.api-key=test-gemini-key",
+            "rehearsal.ai.gemini.model=gemini-test-model")
+        .run(
+            context -> {
+              assertThat(context).hasSingleBean(SlotExtractorClient.class);
+              assertThat(context.getBean(SlotExtractorClient.class))
+                  .isInstanceOf(GeminiSlotExtractorClient.class);
+            });
+  }
+
+  @Test
+  void failsByDefaultWhenNoApiKeyConfigured() {
     contextRunner.run(
-        context -> {
-          assertThat(context).hasSingleBean(SlotExtractorClient.class);
-          assertThat(context.getBean(SlotExtractorClient.class))
-              .isInstanceOf(UnconfiguredSlotExtractorClient.class);
-        });
+        context ->
+            assertThat(context.getStartupFailure())
+                .hasRootCauseMessage("Gemini api-key must be configured"));
   }
 
   @Test
