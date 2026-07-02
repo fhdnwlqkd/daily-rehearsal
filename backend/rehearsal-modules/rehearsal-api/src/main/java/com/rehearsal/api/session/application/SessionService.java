@@ -8,6 +8,7 @@ import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.situation.model.SituationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -20,8 +21,8 @@ public class SessionService
   private final SessionCache sessionCache;
 
   @Override
-  public ClientSession createSession() {
-    ClientSession session = ClientSession.create();
+  public ClientSession createSession(SituationType situationType) {
+    ClientSession session = ClientSession.create(situationType);
     return sessionCache.save(session);
   }
 

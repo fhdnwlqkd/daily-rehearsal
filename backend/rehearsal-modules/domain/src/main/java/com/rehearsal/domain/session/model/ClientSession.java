@@ -47,10 +47,10 @@ public class ClientSession {
     this.selectedOutfitId = selectedOutfitId;
   }
 
-  public static ClientSession create() {
+  public static ClientSession create(SituationType situationType) {
     return new ClientSession(
         UUID.randomUUID().toString(),
-        SituationType.DATE,
+        situationType,
         SessionStatus.BRIEFING,
         ContextStatus.NOT_STARTED,
         0,

@@ -12,6 +12,7 @@ import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
@@ -37,7 +38,10 @@ class SessionControllerTest {
   @Test
   void createSession() throws Exception {
     mockMvc
-        .perform(post("/api/v1/sessions"))
+        .perform(
+            post("/api/v1/sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"situationType\":\"date\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.sessionId").isString())
@@ -45,6 +49,31 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.data.status").doesNotExist())
         .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
         .andExpect(jsonPath("$.data.followUpAttempt").doesNotExist());
+  }
+
+  @Test
+  void createSessionWhenSituationTypeIsInvalid() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"situationType\":\"unknown\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("C001"))
+        .andExpect(jsonPath("$.error.name").value("INVALID_REQUEST"));
+  }
+
+  @Test
+  void createSessionWhenSituationTypeIsBlank() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"situationType\":\"\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("C001"));
   }
 
   @Test
@@ -88,7 +117,13 @@ class SessionControllerTest {
 
   private String createSessionId() throws Exception {
     MvcResult createResult =
-        mockMvc.perform(post("/api/v1/sessions")).andExpect(status().isOk()).andReturn();
+        mockMvc
+            .perform(
+                post("/api/v1/sessions")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"situationType\":\"date\"}"))
+            .andExpect(status().isOk())
+            .andReturn();
     return com.jayway.jsonpath.JsonPath.read(
         createResult.getResponse().getContentAsString(), "$.data.sessionId");
   }
@@ -123,8 +158,8 @@ class SessionControllerTest {
     private final Map<String, ClientSession> sessions = new ConcurrentHashMap<>();
 
     @Override
-    public ClientSession createSession() {
-      ClientSession session = ClientSession.create();
+    public ClientSession createSession(SituationType situationType) {
+      ClientSession session = ClientSession.create(situationType);
       sessions.put(session.getSessionId(), session);
       return session;
     }
