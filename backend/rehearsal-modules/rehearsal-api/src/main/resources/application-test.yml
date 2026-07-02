@@ -16,3 +16,8 @@ spring:
       enabled: true
   flyway:
     enabled: false
+
+rehearsal:
+  ai:
+    defaults:
+      provider: fake
