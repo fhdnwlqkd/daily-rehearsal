@@ -28,18 +28,18 @@ class ContextSlotSchemaServiceTest {
 
   @Test
   void rejectsDuplicateSchemaKey() {
-    when(repository.existsBySchemaKey("p1_offline_default")).thenReturn(true);
+    when(repository.existsBySchemaKey("date")).thenReturn(true);
 
     assertThatThrownBy(
             () ->
                 service.createSchema(
                     new CreateContextSlotSchemaCommand(
-                        "p1_offline_default", "P1 Offline Default", 1, true)))
+                        "date", "Date Context Slot Schema", 1, true)))
         .isInstanceOf(BusinessException.class)
         .extracting("errorCode")
         .isEqualTo(ErrorCode.INVALID_REQUEST);
 
-    verify(repository).existsBySchemaKey("p1_offline_default");
+    verify(repository).existsBySchemaKey("date");
     verifyNoMoreInteractions(repository);
   }
 

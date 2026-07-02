@@ -1,6 +1,7 @@
 package com.rehearsal.domain.situation.model;
 
 import java.util.Arrays;
+import java.util.Optional;
 
 public enum SituationType {
   DATE("date"),
@@ -17,9 +18,11 @@ public enum SituationType {
   }
 
   public static SituationType fromKey(String key) {
-    return Arrays.stream(values())
-        .filter(type -> type.key.equals(key))
-        .findFirst()
+    return findByKey(key)
         .orElseThrow(() -> new IllegalArgumentException("Unknown situation type: " + key));
+  }
+
+  public static Optional<SituationType> findByKey(String key) {
+    return Arrays.stream(values()).filter(type -> type.key.equals(key)).findFirst();
   }
 }
