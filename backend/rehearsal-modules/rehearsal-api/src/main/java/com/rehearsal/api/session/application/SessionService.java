@@ -1,5 +1,6 @@
 package com.rehearsal.api.session.application;
 
+import com.rehearsal.api.decart.application.OutfitSpecResolver;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
@@ -11,13 +12,15 @@ import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-@Description("Application service for P1 client session create, get, and briefing submit flow")
+@Description(
+    "Application service for P1 client session create, get, briefing submit, and outfit confirm flow")
 @Service
 @RequiredArgsConstructor
 public class SessionService
     implements CreateSessionUseCase, GetSessionUseCase, UpdateClientSessionUseCase {
 
   private final SessionCache sessionCache;
+  private final OutfitSpecResolver outfitSpecResolver;
 
   @Override
   public ClientSession createSession() {
@@ -37,6 +40,15 @@ public class SessionService
     ClientSession session = getSession(sessionId);
 
     session.startContextExtraction();
+    return sessionCache.save(session);
+  }
+
+  @Override
+  public ClientSession confirmOutfit(String sessionId, String selectedOutfitId) {
+    ClientSession session = getSession(sessionId);
+
+    outfitSpecResolver.resolve(selectedOutfitId);
+    session.confirmOutfit(selectedOutfitId);
     return sessionCache.save(session);
   }
 }
