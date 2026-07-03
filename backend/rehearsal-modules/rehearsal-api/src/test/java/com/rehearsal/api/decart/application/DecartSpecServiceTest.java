@@ -138,7 +138,8 @@ class DecartSpecServiceTest {
         Map.of(),
         java.util.List.of(),
         java.util.List.of(),
-        null);
+        null,
+        0);
   }
 
   static class EmptySessionCache implements SessionCache {

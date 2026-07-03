@@ -17,7 +17,8 @@ public record ClientSessionRedisEntity(
     Map<String, Object> finalContext,
     List<String> missingSlotKeys,
     List<String> followUpQuestions,
-    String selectedOutfitId) {
+    String selectedOutfitId,
+    int currentTurn) {
 
   public static ClientSessionRedisEntity from(ClientSession session) {
     return new ClientSessionRedisEntity(
@@ -30,7 +31,8 @@ public record ClientSessionRedisEntity(
         session.getFinalContext(),
         session.getMissingSlotKeys(),
         session.getFollowUpQuestions(),
-        session.getSelectedOutfitId());
+        session.getSelectedOutfitId(),
+        session.getCurrentTurn());
   }
 
   public ClientSession toDomain() {
@@ -44,7 +46,8 @@ public record ClientSessionRedisEntity(
         finalContext,
         missingSlotKeys,
         followUpQuestions,
-        selectedOutfitId);
+        selectedOutfitId,
+        currentTurn);
   }
 
   private SituationType restoreSituationType() {

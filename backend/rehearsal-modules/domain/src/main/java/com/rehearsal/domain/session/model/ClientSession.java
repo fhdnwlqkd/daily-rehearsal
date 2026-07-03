@@ -23,6 +23,7 @@ public class ClientSession {
   private List<String> missingSlotKeys;
   private List<String> followUpQuestions;
   private String selectedOutfitId;
+  private int currentTurn;
 
   private ClientSession(
       String sessionId,
@@ -34,7 +35,8 @@ public class ClientSession {
       Map<String, Object> finalContext,
       List<String> missingSlotKeys,
       List<String> followUpQuestions,
-      String selectedOutfitId) {
+      String selectedOutfitId,
+      int currentTurn) {
     this.sessionId = sessionId;
     this.situationType = situationType;
     this.status = status;
@@ -45,6 +47,7 @@ public class ClientSession {
     this.missingSlotKeys = missingSlotKeys;
     this.followUpQuestions = followUpQuestions;
     this.selectedOutfitId = selectedOutfitId;
+    this.currentTurn = currentTurn;
   }
 
   public static ClientSession create() {
@@ -58,7 +61,8 @@ public class ClientSession {
         null,
         null,
         null,
-        null);
+        null,
+        0);
   }
 
   public static ClientSession restore(
@@ -71,7 +75,8 @@ public class ClientSession {
       Map<String, Object> finalContext,
       List<String> missingSlotKeys,
       List<String> followUpQuestions,
-      String selectedOutfitId) {
+      String selectedOutfitId,
+      int currentTurn) {
     return new ClientSession(
         sessionId,
         situationType,
@@ -82,7 +87,8 @@ public class ClientSession {
         finalContext,
         missingSlotKeys,
         followUpQuestions,
-        selectedOutfitId);
+        selectedOutfitId,
+        currentTurn);
   }
 
   public void startContextExtraction() {
@@ -101,6 +107,12 @@ public class ClientSession {
     validateFinalContextCompleted();
     this.selectedOutfitId = selectedOutfitId;
     this.status = SessionStatus.REHEARSAL_READY;
+  }
+
+  public void startSimulation() {
+    validateStatus(SessionStatus.REHEARSAL_READY);
+    this.status = SessionStatus.REHEARSAL_PLAYING;
+    this.currentTurn = 1;
   }
 
   private void validateStatus(SessionStatus expected) {

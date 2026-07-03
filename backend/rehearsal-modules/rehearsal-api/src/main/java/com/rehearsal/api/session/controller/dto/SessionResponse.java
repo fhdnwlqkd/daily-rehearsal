@@ -20,7 +20,8 @@ public record SessionResponse(
     Map<String, Object> finalContext,
     List<String> missingSlotKeys,
     List<String> followUpQuestions,
-    String selectedOutfitId) {
+    String selectedOutfitId,
+    int currentTurn) {
 
   public static SessionResponse from(ClientSession session) {
     return new SessionResponse(
@@ -33,6 +34,7 @@ public record SessionResponse(
         session.getFinalContext(),
         session.getMissingSlotKeys(),
         session.getFollowUpQuestions(),
-        session.getSelectedOutfitId());
+        session.getSelectedOutfitId(),
+        session.getCurrentTurn());
   }
 }
