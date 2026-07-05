@@ -13,6 +13,7 @@ export default tseslint.config(
       "dist/**",
       "next-env.d.ts",
       "tsconfig.tsbuildinfo",
+      "public/mediapipe/**",
     ],
   },
   js.configs.recommended,
