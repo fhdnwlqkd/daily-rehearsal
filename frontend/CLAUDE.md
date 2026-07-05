@@ -55,6 +55,25 @@ function MockQr() { ... }   // export 안 함 = 이 파일 전용
 
 → `shared/`엔 진짜 공용만 남아서, "이거 공용이야?"를 폴더만 봐도 안다. 파일 수도 안 불어난다.
 
+## API 호출 계층
+
+컴포넌트 → 훅 → API 함수 → 공용 래퍼 순서로 내려간다. 층을 건너뛰지 않는다.
+
+- **`lib/api.ts`** — 공용 fetch 래퍼(`apiFetch`). baseURL 결합, JSON 헤더,
+  백엔드 공통 응답(`{ success, data, error }`) 벗기기, 에러 정규화(`ApiError`)를 담당한다.
+  **JSON 요청 전용** — SSE 스트리밍·multipart 업로드는 래퍼를 거치지 않고
+  기능의 `apis.ts` 안에서 fetch를 직접 쓴다.
+- **`features/<기능>/apis.ts`** — 실제 API 호출 함수 (예: `getSituationTypes`).
+  `apiFetch`를 사용하고, 경로·메서드·body·응답 타입만 선언한다.
+- **`features/<기능>/types.ts`** — API 응답 타입 (예: `GetSituationTypesResponse`).
+  백엔드 미구현 상태에서는 프론트가 먼저 정의하는 명세 역할을 한다.
+- **`features/<기능>/data/mock-*.ts`** — 응답 타입을 그대로 만족하는 mock.
+  타입 검사를 받으므로 명세와 mock이 어긋나면 컴파일이 잡는다.
+- **`features/<기능>/hooks/use-get-*.ts`** — 컴포넌트가 쓰는 훅이자 **mock/실API 전환점**.
+  mock 단계에서는 `data/`의 mock을 비동기로 돌려주고, API가 완성되면
+  훅 안의 호출만 `apis.ts` 함수로 바꾼다. 컴포넌트는 수정하지 않는다.
+  상태는 `ApiStatus`(`"LOADING" | "READY" | "ERROR"` — 대문자) 하나로 통일한다.
+
 ## 명령
 
 - 개발 `pnpm dev` / 타입검사 `pnpm typecheck` / 린트 `pnpm lint` / 포맷 `pnpm format`
