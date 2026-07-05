@@ -69,6 +69,9 @@ export function useGestureController({
     function handleKeyDown(event: KeyboardEvent) {
       const action = KEY_TO_ACTION[event.key];
       if (!action) return;
+      // 키를 꾹 누를 때의 auto-repeat로 CONFIRM이 연발되면
+      // 다음 스테이지까지 관통 확정될 수 있다 — 최초 keydown만 받는다.
+      if (event.repeat) return;
       event.preventDefault();
       onActionRef.current({ action, source: "keyboard" });
     }
