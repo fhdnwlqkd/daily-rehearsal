@@ -2,6 +2,7 @@ import type { GestureAction } from "../../types";
 import {
   SWIPE_COOLDOWN_MS,
   SWIPE_MIN_DISTANCE,
+  SWIPE_OPPOSITE_COOLDOWN_MS,
   SWIPE_WINDOW_MS,
 } from "./constants";
 
@@ -26,6 +27,8 @@ export interface SwipeDetectorOptions {
 export class SwipeDetector {
   private samples: Sample[] = [];
   private lastFiredAt = Number.NEGATIVE_INFINITY;
+  private lastFiredAction: Extract<GestureAction, "NEXT" | "PREV"> | null =
+    null;
   private readonly mirrored: boolean;
 
   constructor(options: SwipeDetectorOptions = {}) {
@@ -53,10 +56,23 @@ export class SwipeDetector {
     const dx = x - oldest.x;
     if (Math.abs(dx) < SWIPE_MIN_DISTANCE) return null;
 
-    this.lastFiredAt = timestampMs;
-    this.samples = [];
-
     const movedRightOnScreen = this.mirrored ? dx < 0 : dx > 0;
-    return movedRightOnScreen ? "NEXT" : "PREV";
+    const action = movedRightOnScreen ? "NEXT" : "PREV";
+
+    // return stroke 억제: 스와이프한 손이 제자리로 돌아오는 동작이
+    // 반대 방향 스와이프로 오인식되지 않게, 직전 발사의 반대 방향은
+    // 더 긴 불응기를 적용한다.
+    if (
+      this.lastFiredAction !== null &&
+      action !== this.lastFiredAction &&
+      timestampMs - this.lastFiredAt < SWIPE_OPPOSITE_COOLDOWN_MS
+    ) {
+      return null;
+    }
+
+    this.lastFiredAt = timestampMs;
+    this.lastFiredAction = action;
+    this.samples = [];
+    return action;
   }
 }

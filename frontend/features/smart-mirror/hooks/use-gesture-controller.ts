@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RUNTIME_ERROR_LIMIT } from "../lib/gesture/constants";
+import {
+  HAND_LOST_GRACE_MS,
+  RUNTIME_ERROR_LIMIT,
+} from "../lib/gesture/constants";
 import { PalmHoldDetector } from "../lib/gesture/palm-hold-detector";
 import { SwipeDetector } from "../lib/gesture/swipe-detector";
 import type {
@@ -95,6 +98,8 @@ export function useGestureController({
     // 바뀔 때만 setHandVisible/setConfirmProgress를 호출한다
     let lastHandVisible: boolean | null = null;
     let lastProgress = -1;
+    // 손 인식이 끊긴 첫 프레임의 시각. 보이는 동안은 null.
+    let handLostAt: number | null = null;
 
     function tick() {
       rafId = requestAnimationFrame(tick);
@@ -116,7 +121,13 @@ export function useGestureController({
 
         const hand = result.landmarks[0];
         if (!hand || !hand[0]) {
-          swipe.reset();
+          // 빠른 스와이프는 모션 블러로 손 인식이 200ms대로 잠깐 끊긴다.
+          // 유예 시간 안의 끊김이면 스와이프 궤적을 유지해 공백을 잇는다.
+          // 팜홀드는 "연속 유지"가 조건이므로 즉시 리셋이 맞다.
+          handLostAt ??= now;
+          if (now - handLostAt > HAND_LOST_GRACE_MS) {
+            swipe.reset();
+          }
           palm.reset();
           if (lastHandVisible !== false) {
             lastHandVisible = false;
@@ -128,6 +139,7 @@ export function useGestureController({
           }
           return;
         }
+        handLostAt = null;
         if (lastHandVisible !== true) {
           lastHandVisible = true;
           setHandVisible(true);

@@ -19,3 +19,17 @@ export const PALM_MAX_SPEED = 0.0002;
 
 /** 프레임 처리 연속 실패가 이 횟수에 달하면 루프 중단 + ERROR */
 export const RUNTIME_ERROR_LIMIT = 30;
+
+/**
+ * 손 인식이 이 시간 이내로 잠깐 끊긴 경우(빠른 스와이프의 모션 블러)
+ * 스와이프 궤적을 리셋하지 않고 유지한다. 실측: 스와이프 최고속 구간에서
+ * 200~240ms 인식 공백 발생 (2026-07-05 데모 로그).
+ */
+export const HAND_LOST_GRACE_MS = 250;
+
+/**
+ * 스와이프 발사 후 "반대 방향" 스와이프를 무시하는 시간.
+ * 스와이프한 손이 제자리로 돌아오는 동작(return stroke)이
+ * 반대 방향 스와이프로 오인식되는 것을 막는다.
+ */
+export const SWIPE_OPPOSITE_COOLDOWN_MS = 800;
