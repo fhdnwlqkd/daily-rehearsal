@@ -54,6 +54,33 @@ class SimulationServiceTest {
         .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
   }
 
+  @Test
+  void recordTurnResultPersistsHistoryAndAdvancesTurnOnSuccess() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3);
+    SimulationService service = serviceWith(session);
+
+    service.recordTurnResult(
+        session.getSessionId(), "오는 길 괜찮으셨어요?", "네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
+
+    assertThat(session.getCurrentTurn()).isEqualTo(2);
+    assertThat(session.getConversationHistory()).hasSize(1);
+    assertThat(session.getTurnEvaluations()).hasSize(1);
+  }
+
+  @Test
+  void recordTurnResultThrowsSessionNotFound() {
+    SimulationService service = new SimulationService(new EmptySessionCache());
+
+    assertThatThrownBy(
+            () ->
+                service.recordTurnResult(
+                    "unknown-session-id", "line", "transcript", true, "feedback", false))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
+  }
+
   private SimulationService serviceWith(ClientSession session) {
     return new SimulationService(new InMemorySessionCache(session));
   }
@@ -70,7 +97,10 @@ class SimulationServiceTest {
         java.util.List.of(),
         java.util.List.of(),
         "test-outfit-id",
-        0);
+        0,
+        0,
+        java.util.List.of(),
+        java.util.List.of());
   }
 
   static class EmptySessionCache implements SessionCache {

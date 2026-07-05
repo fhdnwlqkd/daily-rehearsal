@@ -139,7 +139,7 @@ outfit은 타입과 context에 따라 노출할 수 있는 정적 후보 목록�
 
 시뮬레이션은 고정 턴 수 `N`을 가진다.
 
-세션에는 다음 정보를 누적한다.
+세션에는 다음 정보를 누적한다. `conversationHistory`(발화 원문)와 `turnEvaluations`(평가 결과)는 `turnNo`로 연결되는 별도 리스트로 저장한다. 성공한 turn에서만 `currentTurn`이 증가하고, 실패한 turn은 같은 `turnNo`로 재시도 이력이 쌓인다.
 
 ```json
 {
@@ -149,9 +149,15 @@ outfit은 타입과 context에 따라 노출할 수 있는 정적 후보 목록�
     {
       "turnNo": 1,
       "opponentLine": "처음 뵙네요. 오는 길 괜찮으셨어요?",
-      "userTranscript": "네, 조금 일찍 나와서 여유 있게 도착했어요.",
+      "userTranscript": "네, 조금 일찍 나와서 여유 있게 도착했어요."
+    }
+  ],
+  "turnEvaluations": [
+    {
+      "turnNo": 1,
       "success": true,
-      "feedback": "첫 문장이 짧고 자연스럽습니다."
+      "feedback": "첫 문장이 짧고 자연스럽습니다.",
+      "fallback": false
     }
   ]
 }
