@@ -199,7 +199,8 @@ class SessionControllerTest {
               Map.of("situationType", "date"),
               java.util.List.of(),
               java.util.List.of(),
-              null);
+              null,
+              0);
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
     }
