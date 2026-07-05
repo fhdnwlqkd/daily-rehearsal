@@ -1,6 +1,7 @@
 package com.rehearsal.api.session.controller;
 
 import com.rehearsal.api.session.controller.dto.CreateSessionRequest;
+import com.rehearsal.api.session.controller.dto.ConfirmOutfitRequest;
 import com.rehearsal.api.session.controller.dto.CreateSessionResponse;
 import com.rehearsal.api.session.controller.dto.SessionResponse;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -39,6 +41,14 @@ public class SessionController {
       @PathVariable @NotBlank String sessionId, @Valid @RequestBody SubmitBriefingRequest request) {
     ClientSession session =
         updateClientSessionUseCase.submitBriefing(sessionId, request.transcript());
+    return SessionResponse.from(session);
+  }
+
+  @PatchMapping("/{sessionId}/outfit")
+  public SessionResponse confirmOutfit(
+      @PathVariable @NotBlank String sessionId, @Valid @RequestBody ConfirmOutfitRequest request) {
+    ClientSession session =
+        updateClientSessionUseCase.confirmOutfit(sessionId, request.selectedOutfitId());
     return SessionResponse.from(session);
   }
 }

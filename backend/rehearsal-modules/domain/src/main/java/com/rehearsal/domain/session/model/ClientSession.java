@@ -96,8 +96,23 @@ public class ClientSession {
     this.selectedOutfitId = selectedOutfitId;
   }
 
+  public void confirmOutfit(String selectedOutfitId) {
+    validateStatus(SessionStatus.TRANSFORMATION_READY);
+    validateFinalContextCompleted();
+    this.selectedOutfitId = selectedOutfitId;
+    this.status = SessionStatus.REHEARSAL_READY;
+  }
+
   private void validateStatus(SessionStatus expected) {
     if (status != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateFinalContextCompleted() {
+    if (contextStatus != ContextStatus.COMPLETED
+        || finalContext == null
+        || finalContext.isEmpty()) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
   }

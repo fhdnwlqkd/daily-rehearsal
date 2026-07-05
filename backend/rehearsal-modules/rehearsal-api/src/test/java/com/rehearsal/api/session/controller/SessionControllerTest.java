@@ -1,5 +1,6 @@
 package com.rehearsal.api.session.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,6 +10,7 @@ import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -34,6 +36,7 @@ import org.springframework.test.web.servlet.MvcResult;
 class SessionControllerTest {
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private TestSessionUseCase testSessionUseCase;
 
   @Test
   void createSession() throws Exception {
@@ -115,6 +118,36 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.error.message").value("Invalid session state."));
   }
 
+  @Test
+  void confirmOutfit() throws Exception {
+    String sessionId = testSessionUseCase.seedTransformationReadySession();
+
+    mockMvc
+        .perform(
+            patch("/api/v1/sessions/{sessionId}/outfit", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+        .andExpect(jsonPath("$.data.status").value("REHEARSAL_READY"))
+        .andExpect(jsonPath("$.data.selectedOutfitId").value("presentation_jacket_01"));
+  }
+
+  @Test
+  void confirmOutfitWhenInvalidSessionState() throws Exception {
+    String sessionId = createSessionId();
+
+    mockMvc
+        .perform(
+            patch("/api/v1/sessions/{sessionId}/outfit", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S002"))
+        .andExpect(jsonPath("$.error.name").value("INVALID_SESSION_STATE"));
+  }
+
   private String createSessionId() throws Exception {
     MvcResult createResult =
         mockMvc
@@ -179,6 +212,31 @@ class SessionControllerTest {
       session.startContextExtraction();
       sessions.put(session.getSessionId(), session);
       return session;
+    }
+
+    @Override
+    public ClientSession confirmOutfit(String sessionId, String selectedOutfitId) {
+      ClientSession session = getSession(sessionId);
+      session.confirmOutfit(selectedOutfitId);
+      sessions.put(session.getSessionId(), session);
+      return session;
+    }
+
+    String seedTransformationReadySession() {
+      ClientSession session =
+          ClientSession.restore(
+              java.util.UUID.randomUUID().toString(),
+              com.rehearsal.domain.situation.model.SituationType.DATE,
+              com.rehearsal.domain.session.model.SessionStatus.TRANSFORMATION_READY,
+              ContextStatus.COMPLETED,
+              0,
+              Map.of(),
+              Map.of("situationType", "date"),
+              java.util.List.of(),
+              java.util.List.of(),
+              null);
+      sessions.put(session.getSessionId(), session);
+      return session.getSessionId();
     }
   }
 }
