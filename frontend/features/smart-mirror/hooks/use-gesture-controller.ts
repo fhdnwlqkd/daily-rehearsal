@@ -91,6 +91,10 @@ export function useGestureController({
     let rafId = 0;
     let consecutiveErrors = 0;
     let lastVideoTime = -1;
+    // 프레임마다 무조건 setState하지 않도록 마지막 값을 추적 — 값이 실제로
+    // 바뀔 때만 setHandVisible/setConfirmProgress를 호출한다
+    let lastHandVisible: boolean | null = null;
+    let lastProgress = -1;
 
     function tick() {
       rafId = requestAnimationFrame(tick);
@@ -100,6 +104,9 @@ export function useGestureController({
 
       const now = performance.now();
       try {
+        // tick은 nested 함수라 TS가 바깥의 non-null 좁힘을 안으로 들고
+        // 오지 못한다(TS18047) — recognizer는 const라 실제로는 항상
+        // non-null이지만, 재확인 없이는 typecheck가 통과하지 않는다.
         if (!recognizer) {
           cancelAnimationFrame(rafId);
           return;
@@ -111,11 +118,20 @@ export function useGestureController({
         if (!hand || !hand[0]) {
           swipe.reset();
           palm.reset();
-          setHandVisible(false);
-          setConfirmProgress(0);
+          if (lastHandVisible !== false) {
+            lastHandVisible = false;
+            setHandVisible(false);
+          }
+          if (lastProgress !== 0) {
+            lastProgress = 0;
+            setConfirmProgress(0);
+          }
           return;
         }
-        setHandVisible(true);
+        if (lastHandVisible !== true) {
+          lastHandVisible = true;
+          setHandVisible(true);
+        }
 
         const wristX = hand[0].x; // landmark 0 = 손목
 
@@ -133,7 +149,11 @@ export function useGestureController({
           x: wristX,
           timestampMs: now,
         });
-        setConfirmProgress(Math.round(progress * 100) / 100);
+        const roundedProgress = Math.round(progress * 100) / 100;
+        if (lastProgress !== roundedProgress) {
+          lastProgress = roundedProgress;
+          setConfirmProgress(roundedProgress);
+        }
         if (confirmed) {
           onActionRef.current({ action: "CONFIRM", source: "hand" });
         }
