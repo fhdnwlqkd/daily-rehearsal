@@ -1,5 +1,5 @@
 import { apiFetch } from "@/lib/api";
-import type { GetSituationTypesResponse } from "./types";
+import type { CreateSessionResponse, GetSituationTypesResponse } from "./types";
 
 /**
  * smart-mirror가 백엔드와 주고받는 API 호출 함수 모음.
@@ -11,4 +11,12 @@ import type { GetSituationTypesResponse } from "./types";
 
 export function getSituationTypes() {
   return apiFetch<GetSituationTypesResponse>("/api/v1/situation-types");
+}
+
+/** @param situationType situation-types의 key 값 (예: "date") */
+export function createSession(situationType: string) {
+  return apiFetch<CreateSessionResponse>("/api/v1/sessions", {
+    method: "POST",
+    body: JSON.stringify({ situationType }),
+  });
 }

@@ -1,5 +1,9 @@
-/** API 호출 훅(use-get-*)이 공통으로 쓰는 상태. */
-export type ApiStatus = "LOADING" | "READY" | "ERROR";
+/**
+ * API 호출 훅이 공통으로 쓰는 상태.
+ * IDLE은 사용자 액션으로 시작하는 훅(use-create-* 등)의 초기 상태 —
+ * 마운트 즉시 조회하는 훅(use-get-*)은 LOADING에서 시작한다.
+ */
+export type ApiStatus = "IDLE" | "LOADING" | "READY" | "ERROR";
 
 /** 타입 선택 화면에 뿌릴 상황 타입 카드 하나. 백엔드 스펙과 1:1. */
 export interface SituationType {
@@ -17,6 +21,14 @@ export interface SituationType {
 
 /** GET /api/v1/situation-types 응답(data 알맹이) — 배열이 그대로 온다. */
 export type GetSituationTypesResponse = SituationType[];
+
+/** POST /api/v1/sessions 응답(data 알맹이). 이 두 필드만 온다. */
+export interface CreateSessionResponse {
+  /** 서버가 생성한 세션 UUID. 이후 모든 세션 API 경로에 사용한다. */
+  sessionId: string;
+  /** 요청한 situation type key 그대로 에코. */
+  situationType: string;
+}
 
 export type ExperiencePhaseId =
   | "briefing"
