@@ -200,7 +200,10 @@ class SessionControllerTest {
               java.util.List.of(),
               java.util.List.of(),
               null,
-              0);
+              0,
+              0,
+              java.util.List.of(),
+              java.util.List.of());
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
     }

@@ -1,5 +1,7 @@
 package com.rehearsal.datasource.cache.session;
 
+import com.rehearsal.domain.rehearsal.model.ConversationHistory;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
@@ -18,7 +20,10 @@ public record ClientSessionRedisEntity(
     List<String> missingSlotKeys,
     List<String> followUpQuestions,
     String selectedOutfitId,
-    int currentTurn) {
+    int currentTurn,
+    int maxTurn,
+    List<ConversationHistory> conversationHistory,
+    List<TurnEvaluation> turnEvaluations) {
 
   public static ClientSessionRedisEntity from(ClientSession session) {
     return new ClientSessionRedisEntity(
@@ -32,7 +37,10 @@ public record ClientSessionRedisEntity(
         session.getMissingSlotKeys(),
         session.getFollowUpQuestions(),
         session.getSelectedOutfitId(),
-        session.getCurrentTurn());
+        session.getCurrentTurn(),
+        session.getMaxTurn(),
+        session.getConversationHistory(),
+        session.getTurnEvaluations());
   }
 
   public ClientSession toDomain() {
@@ -47,7 +55,10 @@ public record ClientSessionRedisEntity(
         missingSlotKeys,
         followUpQuestions,
         selectedOutfitId,
-        currentTurn);
+        currentTurn,
+        maxTurn,
+        conversationHistory,
+        turnEvaluations);
   }
 
   private SituationType restoreSituationType() {

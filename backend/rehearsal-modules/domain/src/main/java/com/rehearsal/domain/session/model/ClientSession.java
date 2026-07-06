@@ -3,7 +3,10 @@ package com.rehearsal.domain.session.model;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.rehearsal.model.ConversationHistory;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.situation.model.SituationType;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -24,6 +27,9 @@ public class ClientSession {
   private List<String> followUpQuestions;
   private String selectedOutfitId;
   private int currentTurn;
+  private int maxTurn;
+  private List<ConversationHistory> conversationHistory;
+  private List<TurnEvaluation> turnEvaluations;
 
   private ClientSession(
       String sessionId,
@@ -36,7 +42,10 @@ public class ClientSession {
       List<String> missingSlotKeys,
       List<String> followUpQuestions,
       String selectedOutfitId,
-      int currentTurn) {
+      int currentTurn,
+      int maxTurn,
+      List<ConversationHistory> conversationHistory,
+      List<TurnEvaluation> turnEvaluations) {
     this.sessionId = sessionId;
     this.situationType = situationType;
     this.status = status;
@@ -48,6 +57,9 @@ public class ClientSession {
     this.followUpQuestions = followUpQuestions;
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
+    this.maxTurn = maxTurn;
+    this.conversationHistory = conversationHistory;
+    this.turnEvaluations = turnEvaluations;
   }
 
   public static ClientSession create() {
@@ -62,7 +74,10 @@ public class ClientSession {
         null,
         null,
         null,
-        0);
+        0,
+        0,
+        new ArrayList<>(),
+        new ArrayList<>());
   }
 
   public static ClientSession restore(
@@ -76,7 +91,10 @@ public class ClientSession {
       List<String> missingSlotKeys,
       List<String> followUpQuestions,
       String selectedOutfitId,
-      int currentTurn) {
+      int currentTurn,
+      int maxTurn,
+      List<ConversationHistory> conversationHistory,
+      List<TurnEvaluation> turnEvaluations) {
     return new ClientSession(
         sessionId,
         situationType,
@@ -88,7 +106,10 @@ public class ClientSession {
         missingSlotKeys,
         followUpQuestions,
         selectedOutfitId,
-        currentTurn);
+        currentTurn,
+        maxTurn,
+        conversationHistory != null ? new ArrayList<>(conversationHistory) : new ArrayList<>(),
+        turnEvaluations != null ? new ArrayList<>(turnEvaluations) : new ArrayList<>());
   }
 
   public void startContextExtraction() {
@@ -109,15 +130,37 @@ public class ClientSession {
     this.status = SessionStatus.REHEARSAL_READY;
   }
 
-  public void startSimulation() {
+  public void startSimulation(int maxTurn) {
     validateStatus(SessionStatus.REHEARSAL_READY);
     this.status = SessionStatus.REHEARSAL_PLAYING;
     this.currentTurn = 1;
+    this.maxTurn = maxTurn;
+  }
+
+  public void recordTurn(
+      String opponentLine,
+      String userTranscript,
+      boolean success,
+      String feedback,
+      boolean fallback) {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    validateTurnLimit();
+    conversationHistory.add(new ConversationHistory(currentTurn, opponentLine, userTranscript));
+    turnEvaluations.add(new TurnEvaluation(currentTurn, success, feedback, fallback));
+    if (success) {
+      currentTurn++;
+    }
   }
 
   private void validateStatus(SessionStatus expected) {
     if (status != expected) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateTurnLimit() {
+    if (currentTurn > maxTurn) {
+      throw new BusinessException(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
     }
   }
 
