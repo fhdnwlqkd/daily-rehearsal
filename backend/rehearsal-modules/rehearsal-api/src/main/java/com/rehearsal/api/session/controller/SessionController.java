@@ -1,5 +1,6 @@
 package com.rehearsal.api.session.controller;
 
+import com.rehearsal.api.session.controller.dto.CreateSessionRequest;
 import com.rehearsal.api.session.controller.dto.ConfirmOutfitRequest;
 import com.rehearsal.api.session.controller.dto.CreateSessionResponse;
 import com.rehearsal.api.session.controller.dto.SessionResponse;
@@ -7,6 +8,7 @@ import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.situation.model.SituationType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
@@ -28,8 +30,9 @@ public class SessionController {
   private final UpdateClientSessionUseCase updateClientSessionUseCase;
 
   @PostMapping
-  public CreateSessionResponse create() {
-    ClientSession session = createSessionUseCase.createSession();
+  public CreateSessionResponse create(@Valid @RequestBody CreateSessionRequest request) {
+    SituationType situationType = SituationType.fromKey(request.situationType());
+    ClientSession session = createSessionUseCase.createSession(situationType);
     return CreateSessionResponse.from(session);
   }
 
