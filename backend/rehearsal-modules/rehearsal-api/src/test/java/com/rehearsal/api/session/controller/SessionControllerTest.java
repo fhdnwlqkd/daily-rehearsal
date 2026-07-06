@@ -224,15 +224,14 @@ class SessionControllerTest {
 
     String seedTransformationReadySession() {
       ClientSession session =
-          ClientSession.restore(
-              ClientSession.Snapshot.builder()
-                  .sessionId(java.util.UUID.randomUUID().toString())
-                  .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
-                  .status(com.rehearsal.domain.session.model.SessionStatus.TRANSFORMATION_READY)
-                  .contextStatus(ContextStatus.COMPLETED)
-                  .partialContext(Map.of())
-                  .finalContext(Map.of("situationType", "date"))
-                  .build());
+          ClientSession.builder()
+              .sessionId(java.util.UUID.randomUUID().toString())
+              .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
+              .status(com.rehearsal.domain.session.model.SessionStatus.TRANSFORMATION_READY)
+              .contextStatus(ContextStatus.COMPLETED)
+              .partialContext(Map.of())
+              .finalContext(Map.of("situationType", "date"))
+              .build();
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
     }

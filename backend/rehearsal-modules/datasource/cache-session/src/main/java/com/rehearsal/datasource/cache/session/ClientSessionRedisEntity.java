@@ -44,23 +44,22 @@ public record ClientSessionRedisEntity(
   }
 
   public ClientSession toDomain() {
-    return ClientSession.restore(
-        ClientSession.Snapshot.builder()
-            .sessionId(sessionId)
-            .situationType(restoreSituationType())
-            .status(status)
-            .contextStatus(contextStatus)
-            .followUpAttempt(followUpAttempt)
-            .partialContext(partialContext)
-            .finalContext(finalContext)
-            .missingSlotKeys(missingSlotKeys)
-            .followUpQuestions(followUpQuestions)
-            .selectedOutfitId(selectedOutfitId)
-            .currentTurn(currentTurn)
-            .maxTurn(maxTurn)
-            .conversationHistory(conversationHistory)
-            .turnEvaluations(turnEvaluations)
-            .build());
+    return ClientSession.builder()
+        .sessionId(sessionId)
+        .situationType(restoreSituationType())
+        .status(status)
+        .contextStatus(contextStatus)
+        .followUpAttempt(followUpAttempt)
+        .partialContext(partialContext)
+        .finalContext(finalContext)
+        .missingSlotKeys(missingSlotKeys)
+        .followUpQuestions(followUpQuestions)
+        .selectedOutfitId(selectedOutfitId)
+        .currentTurn(currentTurn)
+        .maxTurn(maxTurn)
+        .conversationHistory(conversationHistory)
+        .turnEvaluations(turnEvaluations)
+        .build();
   }
 
   private SituationType restoreSituationType() {

@@ -32,6 +32,7 @@ public class ClientSession {
   private List<ConversationHistory> conversationHistory;
   private List<TurnEvaluation> turnEvaluations;
 
+  @Builder
   private ClientSession(
       String sessionId,
       SituationType situationType,
@@ -64,31 +65,12 @@ public class ClientSession {
   }
 
   public static ClientSession create(SituationType situationType) {
-    return restore(
-        Snapshot.builder()
-            .sessionId(UUID.randomUUID().toString())
-            .situationType(situationType)
-            .status(SessionStatus.BRIEFING)
-            .contextStatus(ContextStatus.NOT_STARTED)
-            .build());
-  }
-
-  public static ClientSession restore(Snapshot snapshot) {
-    return new ClientSession(
-        snapshot.sessionId(),
-        snapshot.situationType(),
-        snapshot.status(),
-        snapshot.contextStatus(),
-        snapshot.followUpAttempt(),
-        snapshot.partialContext(),
-        snapshot.finalContext(),
-        snapshot.missingSlotKeys(),
-        snapshot.followUpQuestions(),
-        snapshot.selectedOutfitId(),
-        snapshot.currentTurn(),
-        snapshot.maxTurn(),
-        snapshot.conversationHistory(),
-        snapshot.turnEvaluations());
+    return ClientSession.builder()
+        .sessionId(UUID.randomUUID().toString())
+        .situationType(situationType)
+        .status(SessionStatus.BRIEFING)
+        .contextStatus(ContextStatus.NOT_STARTED)
+        .build();
   }
 
   public void startContextExtraction() {
@@ -170,21 +152,4 @@ public class ClientSession {
   private static <T> List<T> mutableList(List<T> values) {
     return values == null ? new ArrayList<>() : new ArrayList<>(values);
   }
-
-  @Builder
-  public record Snapshot(
-      String sessionId,
-      SituationType situationType,
-      SessionStatus status,
-      ContextStatus contextStatus,
-      int followUpAttempt,
-      Map<String, Object> partialContext,
-      Map<String, Object> finalContext,
-      List<String> missingSlotKeys,
-      List<String> followUpQuestions,
-      String selectedOutfitId,
-      int currentTurn,
-      int maxTurn,
-      List<ConversationHistory> conversationHistory,
-      List<TurnEvaluation> turnEvaluations) {}
 }

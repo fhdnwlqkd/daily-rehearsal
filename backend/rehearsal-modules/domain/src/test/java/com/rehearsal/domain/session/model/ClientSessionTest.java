@@ -80,15 +80,14 @@ class ClientSessionTest {
   }
 
   private ClientSession sessionWith(SessionStatus status) {
-    return ClientSession.restore(
-        ClientSession.Snapshot.builder()
-            .sessionId("test-session-id")
-            .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
-            .status(status)
-            .contextStatus(ContextStatus.COMPLETED)
-            .partialContext(Map.of())
-            .finalContext(Map.of("situationType", "date"))
-            .selectedOutfitId("test-outfit-id")
-            .build());
+    return ClientSession.builder()
+        .sessionId("test-session-id")
+        .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
+        .status(status)
+        .contextStatus(ContextStatus.COMPLETED)
+        .partialContext(Map.of())
+        .finalContext(Map.of("situationType", "date"))
+        .selectedOutfitId("test-outfit-id")
+        .build();
   }
 }
