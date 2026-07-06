@@ -1,5 +1,6 @@
 package com.rehearsal.api.rehearsal.application;
 
+import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class SimulationService implements StartSimulationUseCase, RecordTurnResultUseCase {
 
   private final SessionCache sessionCache;
+  private final SessionReader sessionReader;
 
   @Override
   public SimulationStart startSimulation(String sessionId) {
@@ -49,9 +51,7 @@ public class SimulationService implements StartSimulationUseCase, RecordTurnResu
   }
 
   private ClientSession getValidSession(String sessionId) {
-    return sessionCache
-        .findById(sessionId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+    return sessionReader.get(sessionId);
   }
 
   private RehearsalConfigDefinition getConfig(ClientSession session) {

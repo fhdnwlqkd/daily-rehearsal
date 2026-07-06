@@ -1,5 +1,6 @@
 package com.rehearsal.api.decart.application;
 
+import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 public class DecartSpecService implements IssueDecartTokenUseCase, GetOutfitSpecUseCase {
 
   private final SessionCache sessionCache;
+  private final SessionReader sessionReader;
   private final DecartTokenPort decartTokenPort;
   private final OutfitSpecResolver outfitSpecResolver;
 
@@ -39,9 +41,7 @@ public class DecartSpecService implements IssueDecartTokenUseCase, GetOutfitSpec
   }
 
   private ClientSession getValidSession(String sessionId) {
-    return sessionCache
-        .findById(sessionId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+    return sessionReader.get(sessionId);
   }
 
   private void validateSessionStatus(ClientSession session) {

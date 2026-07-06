@@ -1,7 +1,7 @@
 package com.rehearsal.api.session.controller;
 
-import com.rehearsal.api.session.controller.dto.CreateSessionRequest;
 import com.rehearsal.api.session.controller.dto.ConfirmOutfitRequest;
+import com.rehearsal.api.session.controller.dto.CreateSessionRequest;
 import com.rehearsal.api.session.controller.dto.CreateSessionResponse;
 import com.rehearsal.api.session.controller.dto.SessionResponse;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;

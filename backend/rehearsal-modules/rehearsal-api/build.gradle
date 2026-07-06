@@ -4,7 +4,8 @@ plugins {
 
 dependencies {
     implementation project(':domain')
-    implementation project(':datasource')
+    implementation project(':datasource:db-integrated')
+    implementation project(':datasource:cache-session')
     implementation project(':datasource:client-gemini')
     implementation project(':datasource:client-decart')
 

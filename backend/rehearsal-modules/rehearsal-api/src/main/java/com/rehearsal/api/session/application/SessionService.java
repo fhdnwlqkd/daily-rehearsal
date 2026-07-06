@@ -2,8 +2,6 @@ package com.rehearsal.api.session.application;
 
 import com.rehearsal.api.decart.application.OutfitSpecResolver;
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.core.exception.BusinessException;
-import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
@@ -21,6 +19,7 @@ public class SessionService
     implements CreateSessionUseCase, GetSessionUseCase, UpdateClientSessionUseCase {
 
   private final SessionCache sessionCache;
+  private final SessionReader sessionReader;
   private final OutfitSpecResolver outfitSpecResolver;
 
   @Override
@@ -31,9 +30,7 @@ public class SessionService
 
   @Override
   public ClientSession getSession(String sessionId) {
-    return sessionCache
-        .findById(sessionId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+    return sessionReader.get(sessionId);
   }
 
   @Override
