@@ -63,11 +63,11 @@ public class ClientSession {
     this.turnEvaluations = mutableList(turnEvaluations);
   }
 
-  public static ClientSession create() {
+  public static ClientSession create(SituationType situationType) {
     return restore(
         Snapshot.builder()
             .sessionId(UUID.randomUUID().toString())
-            .situationType(SituationType.DATE)
+            .situationType(situationType)
             .status(SessionStatus.BRIEFING)
             .contextStatus(ContextStatus.NOT_STARTED)
             .build());

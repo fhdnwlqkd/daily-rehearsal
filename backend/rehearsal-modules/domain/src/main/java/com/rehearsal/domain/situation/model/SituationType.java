@@ -1,5 +1,7 @@
 package com.rehearsal.domain.situation.model;
 
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
 import java.util.Arrays;
 import java.util.Optional;
 
@@ -18,11 +20,13 @@ public enum SituationType {
   }
 
   public static SituationType fromKey(String key) {
-    return findByKey(key)
-        .orElseThrow(() -> new IllegalArgumentException("Unknown situation type: " + key));
+    return findByKey(key).orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST));
   }
 
   public static Optional<SituationType> findByKey(String key) {
-    return Arrays.stream(values()).filter(type -> type.key.equals(key)).findFirst();
+    if (key == null || key.isBlank()) {
+      return Optional.empty();
+    }
+    return Arrays.stream(values()).filter(type -> type.key.equals(key.strip())).findFirst();
   }
 }
