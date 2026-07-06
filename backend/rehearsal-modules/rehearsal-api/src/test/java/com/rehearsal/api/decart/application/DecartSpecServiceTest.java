@@ -4,17 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.rehearsal.api.config.decart.DecartProperties;
+import com.rehearsal.api.session.application.SessionReader;
+import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.decart.model.DecartSpec;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
-import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
-import com.rehearsal.domain.situation.model.SituationType;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class DecartSpecServiceTest {
@@ -34,8 +31,7 @@ class DecartSpecServiceTest {
 
   @Test
   void issueTokenThrowsSessionNotFound() {
-    DecartSpecService service =
-        new DecartSpecService(new EmptySessionCache(), () -> CLIENT_TOKEN, resolverWithOutfit());
+    DecartSpecService service = serviceWith(new InMemorySessionCache());
 
     assertThatThrownBy(() -> service.issueDecartToken("unknown-session-id"))
         .isInstanceOf(BusinessException.class)
@@ -78,8 +74,7 @@ class DecartSpecServiceTest {
 
   @Test
   void getOutfitSpecThrowsSessionNotFound() {
-    DecartSpecService service =
-        new DecartSpecService(new EmptySessionCache(), () -> CLIENT_TOKEN, resolverWithOutfit());
+    DecartSpecService service = serviceWith(new InMemorySessionCache());
 
     assertThatThrownBy(() -> service.getOutfitSpec("unknown-session-id", OUTFIT_ID))
         .isInstanceOf(BusinessException.class)
@@ -110,8 +105,12 @@ class DecartSpecServiceTest {
   }
 
   private DecartSpecService serviceWith(ClientSession session) {
+    return serviceWith(new InMemorySessionCache(session));
+  }
+
+  private DecartSpecService serviceWith(InMemorySessionCache sessionCache) {
     return new DecartSpecService(
-        new InMemorySessionCache(session), () -> CLIENT_TOKEN, resolverWithOutfit());
+        sessionCache, new SessionReader(sessionCache), () -> CLIENT_TOKEN, resolverWithOutfit());
   }
 
   private OutfitSpecResolver resolverWithOutfit() {
@@ -128,53 +127,6 @@ class DecartSpecServiceTest {
   }
 
   private ClientSession sessionWith(SessionStatus status) {
-    return ClientSession.restore(
-        "test-session-id",
-        SituationType.DATE,
-        status,
-        ContextStatus.NOT_STARTED,
-        0,
-        Map.of(),
-        Map.of(),
-        java.util.List.of(),
-        java.util.List.of(),
-        null,
-        0,
-        0,
-        java.util.List.of(),
-        java.util.List.of());
-  }
-
-  static class EmptySessionCache implements SessionCache {
-
-    @Override
-    public ClientSession save(ClientSession session) {
-      return session;
-    }
-
-    @Override
-    public Optional<ClientSession> findById(String sessionId) {
-      return Optional.empty();
-    }
-  }
-
-  static class InMemorySessionCache implements SessionCache {
-
-    private final Map<String, ClientSession> store = new HashMap<>();
-
-    InMemorySessionCache(ClientSession session) {
-      store.put(session.getSessionId(), session);
-    }
-
-    @Override
-    public ClientSession save(ClientSession session) {
-      store.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public Optional<ClientSession> findById(String sessionId) {
-      return Optional.ofNullable(store.get(sessionId));
-    }
+    return TestClientSessions.sessionWith(status);
   }
 }

@@ -61,8 +61,8 @@ class SessionControllerTest {
                 .content("{\"transcript\":\"tomorrow interview rehearsal\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.status").value("CONTEXT_EXTRACTING"))
-        .andExpect(jsonPath("$.data.contextStatus").value("EXTRACTING"))
+        .andExpect(jsonPath("$.data.status").doesNotExist())
+        .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
         .andExpect(jsonPath("$.data.briefingTranscript").doesNotExist());
   }
 
@@ -100,8 +100,8 @@ class SessionControllerTest {
                 .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.status").value("REHEARSAL_READY"))
-        .andExpect(jsonPath("$.data.selectedOutfitId").value("presentation_jacket_01"));
+        .andExpect(jsonPath("$.data.status").doesNotExist())
+        .andExpect(jsonPath("$.data.selectedOutfitId").doesNotExist());
   }
 
   @Test
@@ -190,20 +190,14 @@ class SessionControllerTest {
     String seedTransformationReadySession() {
       ClientSession session =
           ClientSession.restore(
-              java.util.UUID.randomUUID().toString(),
-              com.rehearsal.domain.situation.model.SituationType.DATE,
-              com.rehearsal.domain.session.model.SessionStatus.TRANSFORMATION_READY,
-              ContextStatus.COMPLETED,
-              0,
-              Map.of(),
-              Map.of("situationType", "date"),
-              java.util.List.of(),
-              java.util.List.of(),
-              null,
-              0,
-              0,
-              java.util.List.of(),
-              java.util.List.of());
+              ClientSession.Snapshot.builder()
+                  .sessionId(java.util.UUID.randomUUID().toString())
+                  .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
+                  .status(com.rehearsal.domain.session.model.SessionStatus.TRANSFORMATION_READY)
+                  .contextStatus(ContextStatus.COMPLETED)
+                  .partialContext(Map.of())
+                  .finalContext(Map.of("situationType", "date"))
+                  .build());
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
     }

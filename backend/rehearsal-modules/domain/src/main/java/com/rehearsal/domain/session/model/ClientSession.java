@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
@@ -53,63 +54,41 @@ public class ClientSession {
     this.followUpAttempt = followUpAttempt;
     this.partialContext = partialContext;
     this.finalContext = finalContext;
-    this.missingSlotKeys = missingSlotKeys;
-    this.followUpQuestions = followUpQuestions;
+    this.missingSlotKeys = mutableList(missingSlotKeys);
+    this.followUpQuestions = mutableList(followUpQuestions);
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
     this.maxTurn = maxTurn;
-    this.conversationHistory = conversationHistory;
-    this.turnEvaluations = turnEvaluations;
+    this.conversationHistory = mutableList(conversationHistory);
+    this.turnEvaluations = mutableList(turnEvaluations);
   }
 
   public static ClientSession create() {
-    return new ClientSession(
-        UUID.randomUUID().toString(),
-        SituationType.DATE,
-        SessionStatus.BRIEFING,
-        ContextStatus.NOT_STARTED,
-        0,
-        null,
-        null,
-        null,
-        null,
-        null,
-        0,
-        0,
-        new ArrayList<>(),
-        new ArrayList<>());
+    return restore(
+        Snapshot.builder()
+            .sessionId(UUID.randomUUID().toString())
+            .situationType(SituationType.DATE)
+            .status(SessionStatus.BRIEFING)
+            .contextStatus(ContextStatus.NOT_STARTED)
+            .build());
   }
 
-  public static ClientSession restore(
-      String sessionId,
-      SituationType situationType,
-      SessionStatus status,
-      ContextStatus contextStatus,
-      int followUpAttempt,
-      Map<String, Object> partialContext,
-      Map<String, Object> finalContext,
-      List<String> missingSlotKeys,
-      List<String> followUpQuestions,
-      String selectedOutfitId,
-      int currentTurn,
-      int maxTurn,
-      List<ConversationHistory> conversationHistory,
-      List<TurnEvaluation> turnEvaluations) {
+  public static ClientSession restore(Snapshot snapshot) {
     return new ClientSession(
-        sessionId,
-        situationType,
-        status,
-        contextStatus,
-        followUpAttempt,
-        partialContext,
-        finalContext,
-        missingSlotKeys,
-        followUpQuestions,
-        selectedOutfitId,
-        currentTurn,
-        maxTurn,
-        conversationHistory != null ? new ArrayList<>(conversationHistory) : new ArrayList<>(),
-        turnEvaluations != null ? new ArrayList<>(turnEvaluations) : new ArrayList<>());
+        snapshot.sessionId(),
+        snapshot.situationType(),
+        snapshot.status(),
+        snapshot.contextStatus(),
+        snapshot.followUpAttempt(),
+        snapshot.partialContext(),
+        snapshot.finalContext(),
+        snapshot.missingSlotKeys(),
+        snapshot.followUpQuestions(),
+        snapshot.selectedOutfitId(),
+        snapshot.currentTurn(),
+        snapshot.maxTurn(),
+        snapshot.conversationHistory(),
+        snapshot.turnEvaluations());
   }
 
   public void startContextExtraction() {
@@ -152,6 +131,22 @@ public class ClientSession {
     }
   }
 
+  public List<String> getMissingSlotKeys() {
+    return List.copyOf(missingSlotKeys);
+  }
+
+  public List<String> getFollowUpQuestions() {
+    return List.copyOf(followUpQuestions);
+  }
+
+  public List<ConversationHistory> getConversationHistory() {
+    return List.copyOf(conversationHistory);
+  }
+
+  public List<TurnEvaluation> getTurnEvaluations() {
+    return List.copyOf(turnEvaluations);
+  }
+
   private void validateStatus(SessionStatus expected) {
     if (status != expected) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
@@ -171,4 +166,25 @@ public class ClientSession {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
   }
+
+  private static <T> List<T> mutableList(List<T> values) {
+    return values == null ? new ArrayList<>() : new ArrayList<>(values);
+  }
+
+  @Builder
+  public record Snapshot(
+      String sessionId,
+      SituationType situationType,
+      SessionStatus status,
+      ContextStatus contextStatus,
+      int followUpAttempt,
+      Map<String, Object> partialContext,
+      Map<String, Object> finalContext,
+      List<String> missingSlotKeys,
+      List<String> followUpQuestions,
+      String selectedOutfitId,
+      int currentTurn,
+      int maxTurn,
+      List<ConversationHistory> conversationHistory,
+      List<TurnEvaluation> turnEvaluations) {}
 }

@@ -7,8 +7,6 @@ import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.rehearsal.model.ConversationHistory;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
-import com.rehearsal.domain.situation.model.SituationType;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -83,19 +81,14 @@ class ClientSessionTest {
 
   private ClientSession sessionWith(SessionStatus status) {
     return ClientSession.restore(
-        "test-session-id",
-        SituationType.DATE,
-        status,
-        ContextStatus.COMPLETED,
-        0,
-        Map.of(),
-        Map.of(),
-        List.of(),
-        List.of(),
-        "test-outfit-id",
-        0,
-        0,
-        List.of(),
-        List.of());
+        ClientSession.Snapshot.builder()
+            .sessionId("test-session-id")
+            .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
+            .status(status)
+            .contextStatus(ContextStatus.COMPLETED)
+            .partialContext(Map.of())
+            .finalContext(Map.of("situationType", "date"))
+            .selectedOutfitId("test-outfit-id")
+            .build());
   }
 }
