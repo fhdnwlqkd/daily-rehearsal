@@ -30,17 +30,12 @@ public class ContextSlotExtractionService {
     ContextSlotSchema schema =
         getContextSlotSchemaUseCase.getContextSlotSchema(
             new GetContextSlotSchemaCommand(command.schemaKey()));
-    SlotExtractionRawResult rawResult =
-        slotExtractorClient.extract(
-            new SlotExtractionCommand(
-                schema,
-                command.transcript(),
-                command.followUpAttempt(),
-                command.mode(),
-                command.currentSlots(),
-                command.targetSlotKeys()));
+    RawExtraction rawExtraction = extractRawSlots(schema, command);
+    SlotExtractionRawResult rawResult = rawExtraction.rawResult();
+    int processingAttempt =
+        rawExtraction.fallback() ? schema.maxFollowUpAttempt() : command.followUpAttempt();
     SlotExtractionProcessingResult processingResult =
-        slotExtractionProcessor.process(schema, rawResult, command.followUpAttempt());
+        slotExtractionProcessor.process(schema, rawResult, processingAttempt);
 
     return new ExtractContextSlotsResult(
         schema.schemaKey(),
@@ -51,6 +46,26 @@ public class ContextSlotExtractionService {
         processingResult.followUpQuestion(),
         processingResult.readyForSimulation());
   }
+
+  private RawExtraction extractRawSlots(
+      ContextSlotSchema schema, ExtractContextSlotsCommand command) {
+    try {
+      return new RawExtraction(
+          slotExtractorClient.extract(
+              new SlotExtractionCommand(
+                  schema,
+                  command.transcript(),
+                  command.followUpAttempt(),
+                  command.mode(),
+                  command.currentSlots(),
+                  command.targetSlotKeys())),
+          false);
+    } catch (RuntimeException exception) {
+      return new RawExtraction(new SlotExtractionRawResult(Map.of()), true);
+    }
+  }
+
+  private record RawExtraction(SlotExtractionRawResult rawResult, boolean fallback) {}
 
   private Map<String, Object> context(Map<String, ContextSlotValue> slots) {
     Map<String, Object> context = new LinkedHashMap<>();

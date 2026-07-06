@@ -90,6 +90,9 @@ class SessionControllerTest {
                 .content("{\"transcript\":\"tomorrow interview rehearsal\"}"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+        .andExpect(jsonPath("$.data.finalContext.situation_type").value("date"))
+        .andExpect(jsonPath("$.data.finalContext.desired_persona").value("warm_natural"))
+        .andExpect(jsonPath("$.data.followUpQuestions").isEmpty())
         .andExpect(jsonPath("$.data.status").doesNotExist())
         .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
         .andExpect(jsonPath("$.data.briefingTranscript").doesNotExist());
@@ -210,6 +213,7 @@ class SessionControllerTest {
     public ClientSession submitBriefing(String sessionId, String transcript) {
       ClientSession session = getSession(sessionId);
       session.startContextExtraction();
+      session.completeContext(Map.of("situation_type", "date", "desired_persona", "warm_natural"));
       sessions.put(session.getSessionId(), session);
       return session;
     }

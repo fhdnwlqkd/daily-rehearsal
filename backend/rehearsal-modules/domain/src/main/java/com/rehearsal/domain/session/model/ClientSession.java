@@ -75,8 +75,34 @@ public class ClientSession {
 
   public void startContextExtraction() {
     validateStatus(SessionStatus.BRIEFING);
+    validateContextStatus(ContextStatus.NOT_STARTED);
     this.status = SessionStatus.CONTEXT_EXTRACTING;
     this.contextStatus = ContextStatus.EXTRACTING;
+  }
+
+  public void requireFollowUp(
+      Map<String, Object> partialContext,
+      List<String> missingSlotKeys,
+      List<String> followUpQuestions) {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatus(ContextStatus.EXTRACTING);
+    this.status = SessionStatus.FOLLOW_UP_REQUIRED;
+    this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
+    this.partialContext = partialContext;
+    this.finalContext = null;
+    this.missingSlotKeys = mutableList(missingSlotKeys);
+    this.followUpQuestions = mutableList(followUpQuestions);
+  }
+
+  public void completeContext(Map<String, Object> finalContext) {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatus(ContextStatus.EXTRACTING);
+    this.status = SessionStatus.TRANSFORMATION_READY;
+    this.contextStatus = ContextStatus.COMPLETED;
+    this.partialContext = null;
+    this.finalContext = finalContext;
+    this.missingSlotKeys = new ArrayList<>();
+    this.followUpQuestions = new ArrayList<>();
   }
 
   public void selectOutfit(String selectedOutfitId) {
@@ -131,6 +157,12 @@ public class ClientSession {
 
   private void validateStatus(SessionStatus expected) {
     if (status != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateContextStatus(ContextStatus expected) {
+    if (contextStatus != expected) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
   }
