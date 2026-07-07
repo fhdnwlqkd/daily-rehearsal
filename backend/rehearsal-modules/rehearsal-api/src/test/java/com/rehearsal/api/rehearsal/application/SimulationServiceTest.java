@@ -9,11 +9,16 @@ import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationRawResult;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionStatus;
 import org.junit.jupiter.api.Test;
 
 class SimulationServiceTest {
+
+  private static final String FIRST_OPPONENT_LINE = "오는 길 괜찮으셨어요?";
 
   @Test
   void startsSimulationForReadySession() {
@@ -54,11 +59,10 @@ class SimulationServiceTest {
   @Test
   void recordTurnResultPersistsHistoryAndAdvancesTurnOnSuccess() {
     ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(3);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
     SimulationService service = serviceWith(session);
 
-    service.recordTurnResult(
-        session.getSessionId(), "오는 길 괜찮으셨어요?", "네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
+    service.recordTurnResult(session.getSessionId(), "네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
 
     assertThat(session.getCurrentTurn()).isEqualTo(2);
     assertThat(session.getConversationHistory()).hasSize(1);
@@ -72,18 +76,84 @@ class SimulationServiceTest {
     assertThatThrownBy(
             () ->
                 service.recordTurnResult(
-                    "unknown-session-id", "line", "transcript", true, "feedback", false))
+                    "unknown-session-id", "transcript", true, "feedback", false))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
   }
 
+  @Test
+  void evaluateTurnPersistsSuccessResultAndAdvancesTurn() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            command -> new TurnEvaluationRawResult(true, "자연스럽습니다."));
+
+    TurnEvaluationResult result =
+        service.evaluateTurn(session.getSessionId(), 1, "네, 여유 있게 도착했어요.", null);
+
+    assertThat(result.success()).isTrue();
+    assertThat(result.feedback()).isEqualTo("자연스럽습니다.");
+    assertThat(result.fallback()).isFalse();
+    assertThat(session.getCurrentTurn()).isEqualTo(2);
+    assertThat(session.getConversationHistory()).hasSize(1);
+    assertThat(session.getTurnEvaluations()).hasSize(1);
+  }
+
+  @Test
+  void evaluateTurnFallsBackWhenAiCallFails() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            command -> {
+              throw new IllegalStateException("Gemini timeout");
+            });
+
+    TurnEvaluationResult result = service.evaluateTurn(session.getSessionId(), 1, "...", null);
+
+    assertThat(result.success()).isFalse();
+    assertThat(result.feedback()).isEqualTo("다시 시도해보세요.");
+    assertThat(result.fallback()).isTrue();
+    assertThat(session.getCurrentTurn()).isEqualTo(1);
+  }
+
+  @Test
+  void evaluateTurnThrowsTurnMismatchWhenTurnNoDoesNotMatchCurrentTurn() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            command -> new TurnEvaluationRawResult(true, "자연스럽습니다."));
+
+    assertThatThrownBy(() -> service.evaluateTurn(session.getSessionId(), 2, "transcript", null))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.SIMULATION_TURN_MISMATCH);
+  }
+
   private SimulationService serviceWith(ClientSession session) {
-    return serviceWith(new InMemorySessionCache(session));
+    return serviceWith(new InMemorySessionCache(session), failingTurnEvaluationClient());
   }
 
   private SimulationService serviceWith(InMemorySessionCache sessionCache) {
-    return new SimulationService(sessionCache, new SessionReader(sessionCache));
+    return serviceWith(sessionCache, failingTurnEvaluationClient());
+  }
+
+  private SimulationService serviceWith(
+      InMemorySessionCache sessionCache, TurnEvaluationClient turnEvaluationClient) {
+    return new SimulationService(
+        sessionCache, new SessionReader(sessionCache), turnEvaluationClient);
+  }
+
+  private TurnEvaluationClient failingTurnEvaluationClient() {
+    return command -> {
+      throw new UnsupportedOperationException("not used by this test");
+    };
   }
 
   private ClientSession sessionWith(SessionStatus status) {

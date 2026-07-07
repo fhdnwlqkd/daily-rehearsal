@@ -29,6 +29,7 @@ public class ClientSession {
   private String selectedOutfitId;
   private int currentTurn;
   private int maxTurn;
+  private String currentOpponentLine;
   private List<ConversationHistory> conversationHistory;
   private List<TurnEvaluation> turnEvaluations;
 
@@ -46,6 +47,7 @@ public class ClientSession {
       String selectedOutfitId,
       int currentTurn,
       int maxTurn,
+      String currentOpponentLine,
       List<ConversationHistory> conversationHistory,
       List<TurnEvaluation> turnEvaluations) {
     this.sessionId = sessionId;
@@ -60,6 +62,7 @@ public class ClientSession {
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
     this.maxTurn = maxTurn;
+    this.currentOpponentLine = currentOpponentLine;
     this.conversationHistory = mutableList(conversationHistory);
     this.turnEvaluations = mutableList(turnEvaluations);
   }
@@ -91,22 +94,20 @@ public class ClientSession {
     this.status = SessionStatus.REHEARSAL_READY;
   }
 
-  public void startSimulation(int maxTurn) {
+  public void startSimulation(int maxTurn, String firstOpponentLine) {
     validateStatus(SessionStatus.REHEARSAL_READY);
     this.status = SessionStatus.REHEARSAL_PLAYING;
     this.currentTurn = 1;
     this.maxTurn = maxTurn;
+    this.currentOpponentLine = firstOpponentLine;
   }
 
   public void recordTurn(
-      String opponentLine,
-      String userTranscript,
-      boolean success,
-      String feedback,
-      boolean fallback) {
+      String userTranscript, boolean success, String feedback, boolean fallback) {
     validateStatus(SessionStatus.REHEARSAL_PLAYING);
     validateTurnLimit();
-    conversationHistory.add(new ConversationHistory(currentTurn, opponentLine, userTranscript));
+    conversationHistory.add(
+        new ConversationHistory(currentTurn, currentOpponentLine, userTranscript));
     turnEvaluations.add(new TurnEvaluation(currentTurn, success, feedback, fallback));
     if (success) {
       currentTurn++;

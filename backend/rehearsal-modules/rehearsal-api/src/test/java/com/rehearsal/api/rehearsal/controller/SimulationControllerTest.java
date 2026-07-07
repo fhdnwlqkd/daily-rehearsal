@@ -4,11 +4,16 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
+import com.rehearsal.api.rehearsal.controller.dto.EvaluationRequest;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.model.TurnMetrics;
+import com.rehearsal.domain.rehearsal.usecase.EvaluateTurnUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +21,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(controllers = SimulationController.class)
@@ -28,8 +34,11 @@ class SimulationControllerTest {
 
   private static final String VALID_SESSION_ID = "valid-session-id";
   private static final String INVALID_STATE_SESSION_ID = "invalid-state-session-id";
+  private static final String TURN_MISMATCH_SESSION_ID = "turn-mismatch-session-id";
+  private static final String AI_FAILURE_SESSION_ID = "ai-failure-session-id";
 
   @Autowired private MockMvc mockMvc;
+  @Autowired private ObjectMapper objectMapper;
 
   @Test
   void startsSimulation() throws Exception {
@@ -61,12 +70,86 @@ class SimulationControllerTest {
         .andExpect(jsonPath("$.error.code").value("S002"));
   }
 
+  @Test
+  void evaluatesTurnSuccessfully() throws Exception {
+    EvaluationRequest request = new EvaluationRequest("네, 여유 있게 도착했어요.", null);
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                    VALID_SESSION_ID,
+                    1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.success").value(true))
+        .andExpect(jsonPath("$.data.feedback").isString());
+  }
+
+  @Test
+  void evaluateTurnReturnsFallbackFeedbackWhenAiFails() throws Exception {
+    EvaluationRequest request = new EvaluationRequest("...", null);
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                    AI_FAILURE_SESSION_ID,
+                    1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.success").value(false))
+        .andExpect(jsonPath("$.data.feedback").value("다시 시도해보세요."));
+  }
+
+  @Test
+  void evaluateTurnReturnsConflictWhenTurnNoMismatches() throws Exception {
+    EvaluationRequest request = new EvaluationRequest("transcript", null);
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                    TURN_MISMATCH_SESSION_ID,
+                    2)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S004"));
+  }
+
+  @Test
+  void evaluateTurnReturnsBadRequestWhenTranscriptBlank() throws Exception {
+    EvaluationRequest request = new EvaluationRequest(" ", null);
+
+    mockMvc
+        .perform(
+            post(
+                    "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                    VALID_SESSION_ID,
+                    1)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(request)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("C001"));
+  }
+
   @TestConfiguration
   static class TestUseCaseConfiguration {
 
     @Bean
     StartSimulationUseCase startSimulationUseCase() {
       return new TestStartSimulationUseCase();
+    }
+
+    @Bean
+    EvaluateTurnUseCase evaluateTurnUseCase() {
+      return new TestEvaluateTurnUseCase();
     }
   }
 
@@ -81,6 +164,21 @@ class SimulationControllerTest {
         throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
       }
       return new SimulationStart(sessionId, 1, 3, "안녕하세요, 만나서 반가워요! 오늘 어떻게 지내셨어요?");
+    }
+  }
+
+  static class TestEvaluateTurnUseCase implements EvaluateTurnUseCase {
+
+    @Override
+    public TurnEvaluationResult evaluateTurn(
+        String sessionId, int turnNo, String userTranscript, TurnMetrics metrics) {
+      if (sessionId.equals(TURN_MISMATCH_SESSION_ID)) {
+        throw new BusinessException(ErrorCode.SIMULATION_TURN_MISMATCH);
+      }
+      if (sessionId.equals(AI_FAILURE_SESSION_ID)) {
+        return new TurnEvaluationResult(false, "다시 시도해보세요.", true);
+      }
+      return new TurnEvaluationResult(true, "자연스러운 답변입니다.", false);
     }
   }
 }

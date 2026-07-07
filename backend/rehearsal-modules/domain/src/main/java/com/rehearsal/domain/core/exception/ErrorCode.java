@@ -15,7 +15,9 @@ public enum ErrorCode {
   FORBIDDEN("A002", "Access is denied.", HttpStatus.FORBIDDEN),
   SESSION_NOT_FOUND("S001", "Session not found.", HttpStatus.NOT_FOUND),
   INVALID_SESSION_STATE("S002", "Invalid session state.", HttpStatus.CONFLICT),
-  SIMULATION_TURN_LIMIT_EXCEEDED("S003", "Simulation turn limit exceeded.", HttpStatus.CONFLICT);
+  SIMULATION_TURN_LIMIT_EXCEEDED("S003", "Simulation turn limit exceeded.", HttpStatus.CONFLICT),
+  SIMULATION_TURN_MISMATCH(
+      "S004", "Requested turn does not match the current turn.", HttpStatus.CONFLICT);
 
   private final String code;
   private final String message;
