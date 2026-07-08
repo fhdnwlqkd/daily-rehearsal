@@ -57,11 +57,30 @@ public class SessionService
                 List.of()));
     Map<String, Object> context = contextWithSituationType(session, result.context());
 
-    if (result.readyForSimulation()) {
-      session.completeContext(context);
-    } else {
-      session.requireFollowUp(context, result.missingRequiredSlotKeys(), followUpQuestions(result));
-    }
+    completeOrRequireFollowUp(session, result, context);
+    return sessionCache.save(session);
+  }
+
+  @Override
+  public ClientSession submitFollowUp(String sessionId, String transcript) {
+    ClientSession session = getSession(sessionId);
+    Map<String, Object> currentContext = safeContext(session.getPartialContext());
+    List<String> targetSlotKeys = session.getMissingSlotKeys();
+
+    session.startFollowUpMerge();
+    ExtractContextSlotsResult result =
+        contextSlotExtractionService.extract(
+            new ExtractContextSlotsCommand(
+                session.getSituationType().key(),
+                transcript,
+                session.getFollowUpAttempt(),
+                SlotExtractionMode.FOLLOW_UP,
+                currentContext,
+                targetSlotKeys));
+    Map<String, Object> mergedContext =
+        contextWithSituationType(session, mergeContext(currentContext, result.context()));
+
+    completeOrRequireFollowUp(session, result, mergedContext);
     return sessionCache.save(session);
   }
 
@@ -82,6 +101,31 @@ public class SessionService
     }
     context.put("situation_type", session.getSituationType().key());
     return context;
+  }
+
+  private Map<String, Object> mergeContext(
+      Map<String, Object> currentContext, Map<String, Object> extractedContext) {
+    Map<String, Object> context = new LinkedHashMap<>();
+    if (currentContext != null) {
+      context.putAll(currentContext);
+    }
+    if (extractedContext != null) {
+      context.putAll(extractedContext);
+    }
+    return context;
+  }
+
+  private Map<String, Object> safeContext(Map<String, Object> context) {
+    return context == null ? Map.of() : new LinkedHashMap<>(context);
+  }
+
+  private void completeOrRequireFollowUp(
+      ClientSession session, ExtractContextSlotsResult result, Map<String, Object> context) {
+    if (result.readyForSimulation()) {
+      session.completeContext(context);
+      return;
+    }
+    session.requireFollowUp(context, result.missingRequiredSlotKeys(), followUpQuestions(result));
   }
 
   private List<String> followUpQuestions(ExtractContextSlotsResult result) {
