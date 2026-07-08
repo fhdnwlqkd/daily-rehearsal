@@ -6,6 +6,8 @@ import com.rehearsal.api.session.controller.dto.CreateSessionResponse;
 import com.rehearsal.api.session.controller.dto.SessionResponse;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingResponse;
+import com.rehearsal.api.session.controller.dto.SubmitFollowUpRequest;
+import com.rehearsal.api.session.controller.dto.SubmitFollowUpResponse;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -43,6 +45,14 @@ public class SessionController {
     ClientSession session =
         updateClientSessionUseCase.submitBriefing(sessionId, request.transcript());
     return SubmitBriefingResponse.from(session);
+  }
+
+  @PostMapping("/{sessionId}/follow-up")
+  public SubmitFollowUpResponse submitFollowUp(
+      @PathVariable @NotBlank String sessionId, @Valid @RequestBody SubmitFollowUpRequest request) {
+    ClientSession session =
+        updateClientSessionUseCase.submitFollowUp(sessionId, request.transcript());
+    return SubmitFollowUpResponse.from(session);
   }
 
   @PatchMapping("/{sessionId}/outfit")

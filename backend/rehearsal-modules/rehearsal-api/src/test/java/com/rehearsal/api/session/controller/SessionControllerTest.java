@@ -122,6 +122,25 @@ class SessionControllerTest {
   }
 
   @Test
+  void submitFollowUp() throws Exception {
+    String sessionId = testSessionUseCase.seedFollowUpRequiredSession();
+
+    mockMvc
+        .perform(
+            post("/api/v1/sessions/{sessionId}/follow-up", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"transcript\":\"focus on first greeting\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+        .andExpect(jsonPath("$.data.finalContext.situation_type").value("date"))
+        .andExpect(jsonPath("$.data.finalContext.desired_persona").value("warm_natural"))
+        .andExpect(jsonPath("$.data.finalContext.critical_moment").value("first greeting"))
+        .andExpect(jsonPath("$.data.followUpQuestions").isEmpty())
+        .andExpect(jsonPath("$.data.status").doesNotExist())
+        .andExpect(jsonPath("$.data.contextStatus").doesNotExist());
+  }
+
+  @Test
   void confirmOutfit() throws Exception {
     String sessionId = testSessionUseCase.seedTransformationReadySession();
 
@@ -219,6 +238,22 @@ class SessionControllerTest {
     }
 
     @Override
+    public ClientSession submitFollowUp(String sessionId, String transcript) {
+      ClientSession session = getSession(sessionId);
+      session.startFollowUpMerge();
+      session.completeContext(
+          Map.of(
+              "situation_type",
+              "date",
+              "desired_persona",
+              "warm_natural",
+              "critical_moment",
+              "first greeting"));
+      sessions.put(session.getSessionId(), session);
+      return session;
+    }
+
+    @Override
     public ClientSession confirmOutfit(String sessionId, String selectedOutfitId) {
       ClientSession session = getSession(sessionId);
       session.confirmOutfit(selectedOutfitId);
@@ -236,6 +271,17 @@ class SessionControllerTest {
               .partialContext(Map.of())
               .finalContext(Map.of("situationType", "date"))
               .build();
+      sessions.put(session.getSessionId(), session);
+      return session.getSessionId();
+    }
+
+    String seedFollowUpRequiredSession() {
+      ClientSession session = ClientSession.create(SituationType.DATE);
+      session.startContextExtraction();
+      session.requireFollowUp(
+          Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+          java.util.List.of("critical_moment"),
+          java.util.List.of("Which moment are you most worried about?"));
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
     }
