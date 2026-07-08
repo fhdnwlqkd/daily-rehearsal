@@ -6,5 +6,7 @@ public interface UpdateClientSessionUseCase {
 
   ClientSession submitBriefing(String sessionId, String transcript);
 
+  ClientSession submitFollowUp(String sessionId, String transcript);
+
   ClientSession confirmOutfit(String sessionId, String selectedOutfitId);
 }

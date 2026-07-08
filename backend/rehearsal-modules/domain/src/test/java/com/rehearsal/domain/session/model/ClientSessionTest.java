@@ -102,6 +102,54 @@ class ClientSessionTest {
   }
 
   @Test
+  void startFollowUpMergeMovesFollowUpRequiredToMergingAndIncreasesAttempt() {
+    ClientSession session = followUpRequiredSession();
+
+    session.startFollowUpMerge();
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.CONTEXT_EXTRACTING);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.MERGING);
+    assertThat(session.getFollowUpAttempt()).isEqualTo(1);
+  }
+
+  @Test
+  void startFollowUpMergeThrowsInvalidSessionStateWhenFollowUpIsNotRequired() {
+    ClientSession session =
+        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
+
+    assertThatThrownBy(session::startFollowUpMerge)
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  @Test
+  void completeContextAllowsMergingContextStatus() {
+    ClientSession session = mergingSession();
+
+    session.completeContext(Map.of("situation_type", "date", "critical_moment", "first greeting"));
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
+    assertThat(session.getFinalContext()).containsEntry("critical_moment", "first greeting");
+  }
+
+  @Test
+  void requireFollowUpAllowsMergingContextStatus() {
+    ClientSession session = mergingSession();
+
+    session.requireFollowUp(
+        Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+        java.util.List.of("critical_moment"),
+        java.util.List.of("Which moment should we focus on?"));
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
+    assertThat(session.getPartialContext()).containsEntry("desired_persona", "warm_natural");
+    assertThat(session.getMissingSlotKeys()).containsExactly("critical_moment");
+  }
+
+  @Test
   void recordTurnAllowsFinalTurnAtMaxTurn() {
     ClientSession session = playingSessionAtTurn(3, 3);
 
@@ -143,5 +191,22 @@ class ClientSessionTest {
         .finalContext(Map.of("situationType", "date"))
         .selectedOutfitId("test-outfit-id")
         .build();
+  }
+
+  private ClientSession followUpRequiredSession() {
+    ClientSession session =
+        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
+    session.startContextExtraction();
+    session.requireFollowUp(
+        Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+        java.util.List.of("critical_moment"),
+        java.util.List.of("Which moment should we focus on?"));
+    return session;
+  }
+
+  private ClientSession mergingSession() {
+    ClientSession session = followUpRequiredSession();
+    session.startFollowUpMerge();
+    return session;
   }
 }

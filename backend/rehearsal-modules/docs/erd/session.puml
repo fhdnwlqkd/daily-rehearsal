@@ -14,6 +14,7 @@ class ClientSession <<Redis document>> {
   selectedOutfitId: String
   currentTurn: int
   maxTurn: int
+  currentOpponentLine: String
 }
 
 class ConversationHistory {
@@ -83,6 +84,16 @@ note bottom of ClientSession
 situationType is the canonical source.
 context.situation_type should be derived
 from session.situationType when needed.
+end note
+
+note left of ContextStatus
+Briefing:
+NOT_STARTED -> EXTRACTING -> COMPLETED
+or FOLLOW_UP_REQUIRED
+
+Follow-up:
+FOLLOW_UP_REQUIRED -> MERGING -> COMPLETED
+or FOLLOW_UP_REQUIRED
 end note
 
 @enduml
