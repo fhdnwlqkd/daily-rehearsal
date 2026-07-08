@@ -88,7 +88,7 @@ public class ClientSession {
       List<String> missingSlotKeys,
       List<String> followUpQuestions) {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
-    validateContextStatus(ContextStatus.EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
     this.status = SessionStatus.FOLLOW_UP_REQUIRED;
     this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
     this.partialContext = partialContext;
@@ -99,13 +99,21 @@ public class ClientSession {
 
   public void completeContext(Map<String, Object> finalContext) {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
-    validateContextStatus(ContextStatus.EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
     this.status = SessionStatus.TRANSFORMATION_READY;
     this.contextStatus = ContextStatus.COMPLETED;
     this.partialContext = null;
     this.finalContext = finalContext;
     this.missingSlotKeys = new ArrayList<>();
     this.followUpQuestions = new ArrayList<>();
+  }
+
+  public void startFollowUpMerge() {
+    validateStatus(SessionStatus.FOLLOW_UP_REQUIRED);
+    validateContextStatus(ContextStatus.FOLLOW_UP_REQUIRED);
+    this.status = SessionStatus.CONTEXT_EXTRACTING;
+    this.contextStatus = ContextStatus.MERGING;
+    this.followUpAttempt++;
   }
 
   public void selectOutfit(String selectedOutfitId) {
@@ -166,6 +174,15 @@ public class ClientSession {
     if (contextStatus != expected) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
+  }
+
+  private void validateContextStatusAny(ContextStatus... expectedStatuses) {
+    for (ContextStatus expected : expectedStatuses) {
+      if (contextStatus == expected) {
+        return;
+      }
+    }
+    throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
   }
 
   private void validateTurnLimit() {

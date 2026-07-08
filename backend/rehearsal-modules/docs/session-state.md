@@ -104,6 +104,7 @@ rehearsal, feedback, result 플로우는 `finalContext`를 기준으로 진행�
 | Method | Valid state | Effect |
 | --- | --- | --- |
 | `startContextExtraction()` | `BRIEFING` | `CONTEXT_EXTRACTING`, `ContextStatus.EXTRACTING`으로 이동 |
+| `startFollowUpMerge()` | `FOLLOW_UP_REQUIRED` / `ContextStatus.FOLLOW_UP_REQUIRED` | `CONTEXT_EXTRACTING`, `ContextStatus.MERGING`으로 이동하고 `followUpAttempt` 증가 |
 | `selectOutfit(selectedOutfitId)` | `TRANSFORMATION_READY` | 플로우를 진행하지 않고 선택 outfit id만 저장 |
 | `confirmOutfit(selectedOutfitId)` | `TRANSFORMATION_READY`이고 `finalContext`가 완료된 상태 | outfit id를 저장하고 `REHEARSAL_READY`로 이동 |
 | `startSimulation(maxTurn)` | `REHEARSAL_READY` | `REHEARSAL_PLAYING`으로 이동하고 `currentTurn = 1`, `maxTurn` 저장 |
@@ -113,8 +114,10 @@ context 완료 관련 전이도 같은 패턴을 따라야 한다.
 
 | Transition | Expected source | Expected effect |
 | --- | --- | --- |
-| Follow-up 필요 | `CONTEXT_EXTRACTING` / `EXTRACTING` | `partialContext`, `missingSlotKeys`, `followUpQuestions` 저장 후 follow-up required 상태로 이동 |
-| Context 완료 | `CONTEXT_EXTRACTING` / `EXTRACTING` | `finalContext` 저장, missing/follow-up 값 정리 후 transformation ready 상태로 이동 |
+| 최초 briefing 추출 시작 | `BRIEFING` / `NOT_STARTED` | `CONTEXT_EXTRACTING` / `EXTRACTING`으로 이동 |
+| Follow-up merge 시작 | `FOLLOW_UP_REQUIRED` / `FOLLOW_UP_REQUIRED` | `CONTEXT_EXTRACTING` / `MERGING`으로 이동하고 `followUpAttempt` 증가 |
+| Follow-up 필요 | `CONTEXT_EXTRACTING` / `EXTRACTING` 또는 `MERGING` | `partialContext`, `missingSlotKeys`, `followUpQuestions` 저장 후 follow-up required 상태로 이동 |
+| Context 완료 | `CONTEXT_EXTRACTING` / `EXTRACTING` 또는 `MERGING` | `finalContext` 저장, missing/follow-up 값 정리 후 transformation ready 상태로 이동 |
 
 ## Flow Ownership
 
