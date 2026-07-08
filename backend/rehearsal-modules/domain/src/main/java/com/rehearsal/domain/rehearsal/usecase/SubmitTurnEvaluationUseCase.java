@@ -1,10 +1,10 @@
 package com.rehearsal.domain.rehearsal.usecase;
 
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
 
-public interface EvaluateTurnUseCase {
+public interface SubmitTurnEvaluationUseCase {
 
-  TurnEvaluationResult evaluateTurn(
+  TurnEvaluationJob submit(
       String sessionId, int turnNo, String userTranscript, TurnMetrics metrics);
 }

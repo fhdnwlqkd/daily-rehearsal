@@ -5,35 +5,39 @@ import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationCommand;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationRawResult;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationJobStatus;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
-import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
+import com.rehearsal.domain.rehearsal.port.TurnEvaluationJobStore;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
-import com.rehearsal.domain.rehearsal.usecase.EvaluateTurnUseCase;
+import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.RecordTurnResultUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
+import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-@Description("고정 N턴 리허설 시뮬레이션 시작, turn 판정, turn 결과 누적을 처리하는 application service")
+@Description("고정 N턴 리허설 시뮬레이션 시작, turn 판정 job 제출/조회, turn 결과 누적을 처리하는 application service")
 @Service
 @RequiredArgsConstructor
 public class SimulationService
-    implements StartSimulationUseCase, RecordTurnResultUseCase, EvaluateTurnUseCase {
+    implements StartSimulationUseCase,
+        RecordTurnResultUseCase,
+        SubmitTurnEvaluationUseCase,
+        GetTurnEvaluationUseCase {
 
   private static final Logger log = LoggerFactory.getLogger(SimulationService.class);
-  private static final String AI_FAILURE_FEEDBACK = "다시 시도해보세요.";
 
   private final SessionCache sessionCache;
   private final SessionReader sessionReader;
-  private final TurnEvaluationClient turnEvaluationClient;
+  private final TurnEvaluationJobStore turnEvaluationJobStore;
+  private final TurnEvaluationWorker turnEvaluationWorker;
 
   @Override
   public SimulationStart startSimulation(String sessionId) {
@@ -59,41 +63,40 @@ public class SimulationService
   }
 
   @Override
-  public TurnEvaluationResult evaluateTurn(
+  public TurnEvaluationJob submit(
       String sessionId, int turnNo, String userTranscript, TurnMetrics metrics) {
     ClientSession session = getValidSession(sessionId);
     validateTurnNo(session, turnNo);
 
-    TurnEvaluationResult result = evaluate(session, userTranscript, metrics);
+    Optional<TurnEvaluationJob> existing = turnEvaluationJobStore.findById(sessionId, turnNo);
+    if (existing.isPresent() && existing.get().status() != TurnEvaluationJobStatus.FAILED) {
+      // 클라이언트의 네트워크 재시도로 인한 중복 제출은 Gemini를 다시 호출하지 않고 기존 job을 그대로 돌려준다.
+      return existing.get();
+    }
 
-    session.recordTurn(userTranscript, result.success(), result.feedback(), result.fallback());
-    sessionCache.save(session);
-
-    return result;
+    TurnEvaluationJob pendingJob = TurnEvaluationJob.pending(sessionId, turnNo);
+    turnEvaluationJobStore.save(pendingJob);
+    try {
+      turnEvaluationWorker.evaluateAsync(sessionId, turnNo, userTranscript, metrics);
+    } catch (RuntimeException exception) {
+      // 스레드풀+큐가 모두 찬 경우 AbortPolicy가 dispatch 시점에 동기적으로 예외를 던진다.
+      log.error(
+          "Failed to dispatch turn evaluation job for session {} turn {}",
+          sessionId,
+          turnNo,
+          exception);
+      TurnEvaluationJob failedJob = pendingJob.fail("작업을 시작하지 못했습니다.");
+      turnEvaluationJobStore.save(failedJob);
+      return failedJob;
+    }
+    return pendingJob;
   }
 
-  private TurnEvaluationResult evaluate(
-      ClientSession session, String userTranscript, TurnMetrics metrics) {
-    TurnEvaluationCommand command =
-        new TurnEvaluationCommand(
-            session.getSituationType(),
-            session.getFinalContext(),
-            session.getSelectedOutfitId(),
-            session.getConversationHistory(),
-            session.getCurrentTurn(),
-            session.getCurrentOpponentLine(),
-            userTranscript,
-            metrics);
-
-    try {
-      TurnEvaluationRawResult raw = turnEvaluationClient.evaluate(command);
-      return new TurnEvaluationResult(raw.success(), raw.feedback(), false);
-    } catch (RuntimeException exception) {
-      // AI 실패는 전시 중단 사유가 아니므로(docs/prompt-and-rule-responsibility.md) 모든 런타임 실패를
-      // 고정 fallback으로 흡수한다. 원인은 client/네트워크/파싱 등 다양해 특정 타입으로 좁힐 수 없다.
-      log.warn("Turn evaluation AI call failed for session {}", session.getSessionId(), exception);
-      return new TurnEvaluationResult(false, AI_FAILURE_FEEDBACK, true);
-    }
+  @Override
+  public TurnEvaluationJob get(String sessionId, int turnNo) {
+    return turnEvaluationJobStore
+        .findById(sessionId, turnNo)
+        .orElseThrow(() -> new BusinessException(ErrorCode.TURN_EVALUATION_JOB_NOT_FOUND));
   }
 
   private void validateTurnNo(ClientSession session, int turnNo) {

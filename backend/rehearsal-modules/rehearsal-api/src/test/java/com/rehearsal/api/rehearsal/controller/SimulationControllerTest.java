@@ -1,5 +1,6 @@
 package com.rehearsal.api.rehearsal.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -11,10 +12,12 @@ import com.rehearsal.api.rehearsal.controller.dto.EvaluationRequest;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
-import com.rehearsal.domain.rehearsal.usecase.EvaluateTurnUseCase;
+import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
+import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -36,6 +39,7 @@ class SimulationControllerTest {
   private static final String INVALID_STATE_SESSION_ID = "invalid-state-session-id";
   private static final String TURN_MISMATCH_SESSION_ID = "turn-mismatch-session-id";
   private static final String AI_FAILURE_SESSION_ID = "ai-failure-session-id";
+  private static final int NOT_FOUND_TURN_NO = 99;
 
   @Autowired private MockMvc mockMvc;
   @Autowired private ObjectMapper objectMapper;
@@ -71,7 +75,7 @@ class SimulationControllerTest {
   }
 
   @Test
-  void evaluatesTurnSuccessfully() throws Exception {
+  void submitEvaluationReturnsAcceptedWithPendingStatus() throws Exception {
     EvaluationRequest request = new EvaluationRequest("네, 여유 있게 도착했어요.", null);
 
     mockMvc
@@ -82,31 +86,13 @@ class SimulationControllerTest {
                     1)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isOk())
+        .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.success").value(true))
-        .andExpect(jsonPath("$.data.feedback").isString());
+        .andExpect(jsonPath("$.data.status").value("PENDING"));
   }
 
   @Test
-  void evaluateTurnReturnsFallbackFeedbackWhenAiFails() throws Exception {
-    EvaluationRequest request = new EvaluationRequest("...", null);
-
-    mockMvc
-        .perform(
-            post(
-                    "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
-                    AI_FAILURE_SESSION_ID,
-                    1)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.success").value(false))
-        .andExpect(jsonPath("$.data.feedback").value("다시 시도해보세요."));
-  }
-
-  @Test
-  void evaluateTurnReturnsConflictWhenTurnNoMismatches() throws Exception {
+  void submitEvaluationReturnsConflictWhenTurnNoMismatches() throws Exception {
     EvaluationRequest request = new EvaluationRequest("transcript", null);
 
     mockMvc
@@ -123,7 +109,7 @@ class SimulationControllerTest {
   }
 
   @Test
-  void evaluateTurnReturnsBadRequestWhenTranscriptBlank() throws Exception {
+  void submitEvaluationReturnsBadRequestWhenTranscriptBlank() throws Exception {
     EvaluationRequest request = new EvaluationRequest(" ", null);
 
     mockMvc
@@ -139,6 +125,47 @@ class SimulationControllerTest {
         .andExpect(jsonPath("$.error.code").value("C001"));
   }
 
+  @Test
+  void getEvaluationReturnsCompletedResult() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                VALID_SESSION_ID,
+                1))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.data.success").value(true))
+        .andExpect(jsonPath("$.data.feedback").isString());
+  }
+
+  @Test
+  void getEvaluationReturnsFailedResultWithFixedMessage() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                AI_FAILURE_SESSION_ID,
+                1))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.status").value("FAILED"))
+        .andExpect(jsonPath("$.data.message").value("다시 시도해보세요."));
+  }
+
+  @Test
+  void getEvaluationReturnsNotFoundWhenJobDoesNotExist() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation",
+                VALID_SESSION_ID,
+                NOT_FOUND_TURN_NO))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S005"));
+  }
+
   @TestConfiguration
   static class TestUseCaseConfiguration {
 
@@ -148,8 +175,13 @@ class SimulationControllerTest {
     }
 
     @Bean
-    EvaluateTurnUseCase evaluateTurnUseCase() {
-      return new TestEvaluateTurnUseCase();
+    SubmitTurnEvaluationUseCase submitTurnEvaluationUseCase() {
+      return new TestSubmitTurnEvaluationUseCase();
+    }
+
+    @Bean
+    GetTurnEvaluationUseCase getTurnEvaluationUseCase() {
+      return new TestGetTurnEvaluationUseCase();
     }
   }
 
@@ -167,18 +199,30 @@ class SimulationControllerTest {
     }
   }
 
-  static class TestEvaluateTurnUseCase implements EvaluateTurnUseCase {
+  static class TestSubmitTurnEvaluationUseCase implements SubmitTurnEvaluationUseCase {
 
     @Override
-    public TurnEvaluationResult evaluateTurn(
+    public TurnEvaluationJob submit(
         String sessionId, int turnNo, String userTranscript, TurnMetrics metrics) {
       if (sessionId.equals(TURN_MISMATCH_SESSION_ID)) {
         throw new BusinessException(ErrorCode.SIMULATION_TURN_MISMATCH);
       }
-      if (sessionId.equals(AI_FAILURE_SESSION_ID)) {
-        return new TurnEvaluationResult(false, "다시 시도해보세요.", true);
+      return TurnEvaluationJob.pending(sessionId, turnNo);
+    }
+  }
+
+  static class TestGetTurnEvaluationUseCase implements GetTurnEvaluationUseCase {
+
+    @Override
+    public TurnEvaluationJob get(String sessionId, int turnNo) {
+      if (sessionId.equals(VALID_SESSION_ID) && turnNo == NOT_FOUND_TURN_NO) {
+        throw new BusinessException(ErrorCode.TURN_EVALUATION_JOB_NOT_FOUND);
       }
-      return new TurnEvaluationResult(true, "자연스러운 답변입니다.", false);
+      if (sessionId.equals(AI_FAILURE_SESSION_ID)) {
+        return TurnEvaluationJob.pending(sessionId, turnNo).fail("Gemini timeout");
+      }
+      return TurnEvaluationJob.pending(sessionId, turnNo)
+          .complete(new TurnEvaluationResult(true, "자연스러운 답변입니다.", false));
     }
   }
 }
