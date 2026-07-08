@@ -50,6 +50,58 @@ class ClientSessionTest {
   }
 
   @Test
+  void startContextExtractionRequiresContextNotStarted() {
+    ClientSession session =
+        ClientSession.builder()
+            .sessionId("test-session-id")
+            .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
+            .status(SessionStatus.BRIEFING)
+            .contextStatus(ContextStatus.COMPLETED)
+            .build();
+
+    assertThatThrownBy(session::startContextExtraction)
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  @Test
+  void requireFollowUpStoresPartialContextAndMovesToFollowUpRequired() {
+    ClientSession session =
+        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
+    session.startContextExtraction();
+
+    session.requireFollowUp(
+        Map.of("situation_type", "date"),
+        java.util.List.of("critical_moment"),
+        java.util.List.of("Which moment are you most worried about?"));
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
+    assertThat(session.getPartialContext()).containsEntry("situation_type", "date");
+    assertThat(session.getMissingSlotKeys()).containsExactly("critical_moment");
+    assertThat(session.getFollowUpQuestions())
+        .containsExactly("Which moment are you most worried about?");
+  }
+
+  @Test
+  void completeContextStoresFinalContextAndMovesToTransformationReady() {
+    ClientSession session =
+        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
+    session.startContextExtraction();
+
+    session.completeContext(Map.of("situation_type", "date", "desired_persona", "warm_natural"));
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
+    assertThat(session.getFinalContext())
+        .containsEntry("situation_type", "date")
+        .containsEntry("desired_persona", "warm_natural");
+    assertThat(session.getMissingSlotKeys()).isEmpty();
+    assertThat(session.getFollowUpQuestions()).isEmpty();
+  }
+
+  @Test
   void recordTurnAllowsFinalTurnAtMaxTurn() {
     ClientSession session = playingSessionAtTurn(3, 3);
 

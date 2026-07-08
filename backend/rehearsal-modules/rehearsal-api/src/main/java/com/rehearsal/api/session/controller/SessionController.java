@@ -5,6 +5,7 @@ import com.rehearsal.api.session.controller.dto.CreateSessionRequest;
 import com.rehearsal.api.session.controller.dto.CreateSessionResponse;
 import com.rehearsal.api.session.controller.dto.SessionResponse;
 import com.rehearsal.api.session.controller.dto.SubmitBriefingRequest;
+import com.rehearsal.api.session.controller.dto.SubmitBriefingResponse;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -37,11 +38,11 @@ public class SessionController {
   }
 
   @PostMapping("/{sessionId}/briefing")
-  public SessionResponse submitBriefing(
+  public SubmitBriefingResponse submitBriefing(
       @PathVariable @NotBlank String sessionId, @Valid @RequestBody SubmitBriefingRequest request) {
     ClientSession session =
         updateClientSessionUseCase.submitBriefing(sessionId, request.transcript());
-    return SessionResponse.from(session);
+    return SubmitBriefingResponse.from(session);
   }
 
   @PatchMapping("/{sessionId}/outfit")

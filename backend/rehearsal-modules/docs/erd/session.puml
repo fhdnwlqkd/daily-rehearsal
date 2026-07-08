@@ -1,0 +1,88 @@
+@startuml
+title Daily Rehearsal - Client Session Redis State
+
+class ClientSession <<Redis document>> {
+  sessionId: String
+  situationType: SituationType
+  status: SessionStatus
+  contextStatus: ContextStatus
+  followUpAttempt: int
+  partialContext: Map<String, Object>
+  finalContext: Map<String, Object>
+  missingSlotKeys: List<String>
+  followUpQuestions: List<String>
+  selectedOutfitId: String
+  currentTurn: int
+  maxTurn: int
+}
+
+class ConversationHistory {
+  turn: int
+  opponentLine: String
+  userTranscript: String
+}
+
+class TurnEvaluation {
+  turn: int
+  success: boolean
+  feedback: String
+  fallback: boolean
+}
+
+enum SituationType {
+  DATE
+  BUSINESS_MEETING
+}
+
+enum SessionStatus {
+  BRIEFING
+  CONTEXT_EXTRACTING
+  FOLLOW_UP_REQUIRED
+  TRANSFORMATION_READY
+  TRANSFORMATION_PREPARING
+  REHEARSAL_READY
+  REHEARSAL_PLAYING
+  FEEDBACK_GENERATING
+  RESULT_READY
+  COMPLETED
+  FAILED
+}
+
+enum ContextStatus {
+  NOT_STARTED
+  EXTRACTING
+  FOLLOW_UP_REQUIRED
+  MERGING
+  COMPLETED
+  FAILED
+}
+
+class SituationTypeRegistry <<static config>>
+class ContextSlotSchemaRegistry <<static config>>
+class OutfitSpecResolver <<static config>>
+class RehearsalConfigRegistry <<static config>>
+
+ClientSession "1" o-- "*" ConversationHistory
+ClientSession "1" o-- "*" TurnEvaluation
+ClientSession --> SituationType
+ClientSession --> SessionStatus
+ClientSession --> ContextStatus
+
+ClientSession ..> SituationTypeRegistry : selected type metadata
+ClientSession ..> ContextSlotSchemaRegistry : slot schema by situationType
+ClientSession ..> OutfitSpecResolver : outfit id validation/spec
+ClientSession ..> RehearsalConfigRegistry : maxTurn/first line
+
+note right of ClientSession
+Stored through SessionCache.
+Current adapter persists it as Redis JSON.
+This is not an RDB table.
+end note
+
+note bottom of ClientSession
+situationType is the canonical source.
+context.situation_type should be derived
+from session.situationType when needed.
+end note
+
+@enduml

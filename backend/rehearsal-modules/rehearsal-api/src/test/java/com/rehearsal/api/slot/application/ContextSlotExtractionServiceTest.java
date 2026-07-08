@@ -26,13 +26,14 @@ class ContextSlotExtractionServiceTest {
     SlotExtractorClient slotExtractorClient =
         command ->
             new SlotExtractionRawResult(
-                Map.of("situation_type", "presentation", "critical_moment", "첫 질문에 답하는 순간"));
+                Map.of(
+                    "situation_type", "presentation", "critical_moment", "first question moment"));
     ContextSlotExtractionService service =
         new ContextSlotExtractionService(
             getContextSlotSchemaUseCase, slotExtractorClient, new SlotExtractionProcessor());
 
     ExtractContextSlotsResult result =
-        service.extract(new ExtractContextSlotsCommand("내일 발표가 걱정돼."));
+        service.extract(new ExtractContextSlotsCommand("tomorrow presentation rehearsal"));
 
     assertThat(result.schemaKey()).isEqualTo("date");
     assertThat(result.readyForSimulation()).isTrue();
@@ -40,19 +41,40 @@ class ContextSlotExtractionServiceTest {
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
     assertThat(result.context())
         .containsEntry("situation_type", "presentation")
-        .containsEntry("critical_moment", "첫 질문에 답하는 순간");
+        .containsEntry("critical_moment", "first question moment");
+  }
+
+  @Test
+  void fallsBackToDefaultContextWhenExtractorFails() {
+    GetContextSlotSchemaUseCase getContextSlotSchemaUseCase = command -> p1Schema();
+    SlotExtractorClient slotExtractorClient =
+        command -> {
+          throw new IllegalStateException("AI unavailable");
+        };
+    ContextSlotExtractionService service =
+        new ContextSlotExtractionService(
+            getContextSlotSchemaUseCase, slotExtractorClient, new SlotExtractionProcessor());
+
+    ExtractContextSlotsResult result =
+        service.extract(new ExtractContextSlotsCommand("tomorrow presentation rehearsal"));
+
+    assertThat(result.readyForSimulation()).isTrue();
+    assertThat(result.followUpQuestion()).isNull();
+    assertThat(result.context())
+        .containsEntry("situation_type", "presentation")
+        .containsEntry("critical_moment", "default critical moment");
   }
 
   private ContextSlotSchema p1Schema() {
-    ContextSlotOption presentation = new ContextSlotOption(1L, "presentation", "발표");
+    ContextSlotOption presentation = new ContextSlotOption(1L, "presentation", "Presentation");
     ContextSlot situationType =
         new ContextSlot(
             1L,
             "situation_type",
-            "상황 유형",
+            "Situation type",
             SlotType.SINGLE_SELECT,
-            "내일 상황을 분류한다.",
-            "내일 어떤 상황인지 알려주세요.",
+            "Classify tomorrow's situation.",
+            "Which situation do you want to rehearse?",
             null,
             presentation,
             List.of(presentation));
@@ -60,11 +82,11 @@ class ContextSlotExtractionServiceTest {
         new ContextSlot(
             2L,
             "critical_moment",
-            "결정적 순간",
+            "Critical moment",
             SlotType.TEXT,
-            "가장 리허설하고 싶은 순간을 추출한다.",
-            "가장 걱정되는 순간은 언제인가요?",
-            null,
+            "Extract the moment the user wants to rehearse.",
+            "Which moment are you most worried about?",
+            "default critical moment",
             null,
             List.of());
 
