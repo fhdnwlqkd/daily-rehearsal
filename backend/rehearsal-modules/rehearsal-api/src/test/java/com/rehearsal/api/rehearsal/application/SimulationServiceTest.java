@@ -5,15 +5,22 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemoryTurnEvaluationJobStore;
+import com.rehearsal.api.support.RecordingTurnEvaluationWorker;
 import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationJobStatus;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionStatus;
 import org.junit.jupiter.api.Test;
 
 class SimulationServiceTest {
+
+  private static final String FIRST_OPPONENT_LINE = "오는 길 괜찮으셨어요?";
 
   @Test
   void startsSimulationForReadySession() {
@@ -54,11 +61,10 @@ class SimulationServiceTest {
   @Test
   void recordTurnResultPersistsHistoryAndAdvancesTurnOnSuccess() {
     ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(3);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
     SimulationService service = serviceWith(session);
 
-    service.recordTurnResult(
-        session.getSessionId(), "오는 길 괜찮으셨어요?", "네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
+    service.recordTurnResult(session.getSessionId(), "네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
 
     assertThat(session.getCurrentTurn()).isEqualTo(2);
     assertThat(session.getConversationHistory()).hasSize(1);
@@ -72,18 +78,163 @@ class SimulationServiceTest {
     assertThatThrownBy(
             () ->
                 service.recordTurnResult(
-                    "unknown-session-id", "line", "transcript", true, "feedback", false))
+                    "unknown-session-id", "transcript", true, "feedback", false))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
   }
 
+  @Test
+  void submitCreatesPendingJobAndDispatchesWorkerWhenNoJobExists() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    RecordingTurnEvaluationWorker worker = new RecordingTurnEvaluationWorker();
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session), new InMemoryTurnEvaluationJobStore(), worker);
+
+    TurnEvaluationJob job = service.submit(session.getSessionId(), 1, "네, 여유 있게 도착했어요.", null);
+
+    assertThat(job.status()).isEqualTo(TurnEvaluationJobStatus.PENDING);
+    assertThat(worker.invocationCount()).isEqualTo(1);
+  }
+
+  @Test
+  void submitReturnsExistingJobWithoutDispatchingWorkerWhenPending() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    TurnEvaluationJob pendingJob = TurnEvaluationJob.pending(session.getSessionId(), 1);
+    RecordingTurnEvaluationWorker worker = new RecordingTurnEvaluationWorker();
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            new InMemoryTurnEvaluationJobStore(pendingJob),
+            worker);
+
+    TurnEvaluationJob job = service.submit(session.getSessionId(), 1, "transcript", null);
+
+    assertThat(job).isEqualTo(pendingJob);
+    assertThat(worker.invocationCount()).isZero();
+  }
+
+  @Test
+  void submitReturnsExistingJobWithoutDispatchingWorkerWhenCompleted() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    TurnEvaluationJob completedJob =
+        TurnEvaluationJob.pending(session.getSessionId(), 1)
+            .complete(new TurnEvaluationResult(true, "자연스럽습니다.", false));
+    RecordingTurnEvaluationWorker worker = new RecordingTurnEvaluationWorker();
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            new InMemoryTurnEvaluationJobStore(completedJob),
+            worker);
+
+    TurnEvaluationJob job = service.submit(session.getSessionId(), 1, "transcript", null);
+
+    assertThat(job).isEqualTo(completedJob);
+    assertThat(worker.invocationCount()).isZero();
+  }
+
+  @Test
+  void submitDispatchesWorkerAgainWhenExistingJobFailed() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    TurnEvaluationJob failedJob =
+        TurnEvaluationJob.pending(session.getSessionId(), 1).fail("이전 실행 실패");
+    RecordingTurnEvaluationWorker worker = new RecordingTurnEvaluationWorker();
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            new InMemoryTurnEvaluationJobStore(failedJob),
+            worker);
+
+    TurnEvaluationJob job = service.submit(session.getSessionId(), 1, "transcript", null);
+
+    assertThat(job.status()).isEqualTo(TurnEvaluationJobStatus.PENDING);
+    assertThat(worker.invocationCount()).isEqualTo(1);
+  }
+
+  @Test
+  void submitThrowsTurnMismatchWhenTurnNoDoesNotMatchCurrentTurn() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    RecordingTurnEvaluationWorker worker = new RecordingTurnEvaluationWorker();
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session), new InMemoryTurnEvaluationJobStore(), worker);
+
+    assertThatThrownBy(() -> service.submit(session.getSessionId(), 2, "transcript", null))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.SIMULATION_TURN_MISMATCH);
+    assertThat(worker.invocationCount()).isZero();
+  }
+
+  @Test
+  void submitMarksJobFailedWhenWorkerDispatchIsRejected() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    RecordingTurnEvaluationWorker worker = new RecordingTurnEvaluationWorker();
+    worker.rejectNextDispatch();
+    InMemoryTurnEvaluationJobStore jobStore = new InMemoryTurnEvaluationJobStore();
+    SimulationService service = serviceWith(new InMemorySessionCache(session), jobStore, worker);
+
+    TurnEvaluationJob job = service.submit(session.getSessionId(), 1, "transcript", null);
+
+    assertThat(job.status()).isEqualTo(TurnEvaluationJobStatus.FAILED);
+    assertThat(jobStore.findById(session.getSessionId(), 1)).contains(job);
+  }
+
+  @Test
+  void getReturnsStoredJob() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+    TurnEvaluationJob completedJob =
+        TurnEvaluationJob.pending(session.getSessionId(), 1)
+            .complete(new TurnEvaluationResult(true, "자연스럽습니다.", false));
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(session),
+            new InMemoryTurnEvaluationJobStore(completedJob),
+            new RecordingTurnEvaluationWorker());
+
+    TurnEvaluationJob job = service.get(session.getSessionId(), 1);
+
+    assertThat(job).isEqualTo(completedJob);
+  }
+
+  @Test
+  void getThrowsJobNotFoundWhenNoJobStored() {
+    SimulationService service =
+        serviceWith(
+            new InMemorySessionCache(),
+            new InMemoryTurnEvaluationJobStore(),
+            new RecordingTurnEvaluationWorker());
+
+    assertThatThrownBy(() -> service.get("unknown-session-id", 1))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.TURN_EVALUATION_JOB_NOT_FOUND);
+  }
+
   private SimulationService serviceWith(ClientSession session) {
-    return serviceWith(new InMemorySessionCache(session));
+    return serviceWith(
+        new InMemorySessionCache(session),
+        new InMemoryTurnEvaluationJobStore(),
+        new RecordingTurnEvaluationWorker());
   }
 
   private SimulationService serviceWith(InMemorySessionCache sessionCache) {
-    return new SimulationService(sessionCache, new SessionReader(sessionCache));
+    return serviceWith(
+        sessionCache, new InMemoryTurnEvaluationJobStore(), new RecordingTurnEvaluationWorker());
+  }
+
+  private SimulationService serviceWith(
+      InMemorySessionCache sessionCache,
+      InMemoryTurnEvaluationJobStore jobStore,
+      RecordingTurnEvaluationWorker worker) {
+    return new SimulationService(sessionCache, new SessionReader(sessionCache), jobStore, worker);
   }
 
   private ClientSession sessionWith(SessionStatus status) {

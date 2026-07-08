@@ -12,15 +12,17 @@ import org.junit.jupiter.api.Test;
 
 class ClientSessionTest {
 
+  private static final String FIRST_OPPONENT_LINE = "오는 길 괜찮으셨어요?";
+
   @Test
   void recordTurnIncrementsCurrentTurnOnSuccess() {
     ClientSession session = playingSessionAtTurn(1);
 
-    session.recordTurn("오는 길 괜찮으셨어요?", "네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
+    session.recordTurn("네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
 
     assertThat(session.getCurrentTurn()).isEqualTo(2);
     assertThat(session.getConversationHistory())
-        .containsExactly(new ConversationHistory(1, "오는 길 괜찮으셨어요?", "네, 여유 있게 도착했어요."));
+        .containsExactly(new ConversationHistory(1, FIRST_OPPONENT_LINE, "네, 여유 있게 도착했어요."));
     assertThat(session.getTurnEvaluations())
         .containsExactly(new TurnEvaluation(1, true, "자연스럽습니다.", false));
   }
@@ -29,7 +31,7 @@ class ClientSessionTest {
   void recordTurnKeepsCurrentTurnOnFailure() {
     ClientSession session = playingSessionAtTurn(1);
 
-    session.recordTurn("오는 길 괜찮으셨어요?", "...", false, "다시 시도해보세요.", true);
+    session.recordTurn("...", false, "다시 시도해보세요.", true);
 
     assertThat(session.getCurrentTurn()).isEqualTo(1);
     assertThat(session.getConversationHistory()).hasSize(1);
@@ -41,7 +43,7 @@ class ClientSessionTest {
   void recordTurnThrowsInvalidSessionStateWhenNotPlaying() {
     ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
 
-    assertThatThrownBy(() -> session.recordTurn("line", "transcript", true, "feedback", false))
+    assertThatThrownBy(() -> session.recordTurn("transcript", true, "feedback", false))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
@@ -51,7 +53,7 @@ class ClientSessionTest {
   void recordTurnAllowsFinalTurnAtMaxTurn() {
     ClientSession session = playingSessionAtTurn(3, 3);
 
-    session.recordTurn("마지막 발화", "마지막 답변", true, "잘하셨습니다.", false);
+    session.recordTurn("마지막 답변", true, "잘하셨습니다.", false);
 
     assertThat(session.getCurrentTurn()).isEqualTo(4);
   }
@@ -60,7 +62,7 @@ class ClientSessionTest {
   void recordTurnThrowsTurnLimitExceededPastMaxTurn() {
     ClientSession session = playingSessionAtTurn(4, 3);
 
-    assertThatThrownBy(() -> session.recordTurn("line", "transcript", true, "feedback", false))
+    assertThatThrownBy(() -> session.recordTurn("transcript", true, "feedback", false))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
@@ -72,9 +74,9 @@ class ClientSessionTest {
 
   private ClientSession playingSessionAtTurn(int currentTurn, int maxTurn) {
     ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(maxTurn);
+    session.startSimulation(maxTurn, FIRST_OPPONENT_LINE);
     for (int i = 1; i < currentTurn; i++) {
-      session.recordTurn("line-" + i, "transcript-" + i, true, "feedback-" + i, false);
+      session.recordTurn("transcript-" + i, true, "feedback-" + i, false);
     }
     return session;
   }

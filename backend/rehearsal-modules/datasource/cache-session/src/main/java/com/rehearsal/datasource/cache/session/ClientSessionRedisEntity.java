@@ -22,6 +22,7 @@ public record ClientSessionRedisEntity(
     String selectedOutfitId,
     int currentTurn,
     int maxTurn,
+    String currentOpponentLine,
     List<ConversationHistory> conversationHistory,
     List<TurnEvaluation> turnEvaluations) {
 
@@ -39,6 +40,7 @@ public record ClientSessionRedisEntity(
         session.getSelectedOutfitId(),
         session.getCurrentTurn(),
         session.getMaxTurn(),
+        session.getCurrentOpponentLine(),
         session.getConversationHistory(),
         session.getTurnEvaluations());
   }
@@ -57,6 +59,7 @@ public record ClientSessionRedisEntity(
         .selectedOutfitId(selectedOutfitId)
         .currentTurn(currentTurn)
         .maxTurn(maxTurn)
+        .currentOpponentLine(currentOpponentLine)
         .conversationHistory(conversationHistory)
         .turnEvaluations(turnEvaluations)
         .build();
