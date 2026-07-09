@@ -148,6 +148,11 @@ public class ClientSession {
     }
   }
 
+  public void updateOpponentLine(String opponentLine) {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    this.currentOpponentLine = opponentLine;
+  }
+
   public List<String> getMissingSlotKeys() {
     return List.copyOf(missingSlotKeys);
   }

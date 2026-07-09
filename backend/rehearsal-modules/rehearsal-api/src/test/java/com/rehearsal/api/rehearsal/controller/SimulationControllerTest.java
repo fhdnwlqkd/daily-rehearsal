@@ -11,12 +11,16 @@ import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.api.rehearsal.controller.dto.EvaluationRequest;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.rehearsal.model.OpponentLineJob;
+import com.rehearsal.domain.rehearsal.model.OpponentLineResult;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
+import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
+import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -166,6 +170,59 @@ class SimulationControllerTest {
         .andExpect(jsonPath("$.error.code").value("S005"));
   }
 
+  @Test
+  void submitNextLineReturnsAcceptedWithPendingStatus() throws Exception {
+    mockMvc
+        .perform(
+            post(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line",
+                VALID_SESSION_ID,
+                1))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.status").value("PENDING"));
+  }
+
+  @Test
+  void submitNextLineReturnsConflictWhenTurnNoMismatches() throws Exception {
+    mockMvc
+        .perform(
+            post(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line",
+                TURN_MISMATCH_SESSION_ID,
+                2))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S004"));
+  }
+
+  @Test
+  void getNextLineReturnsCompletedResult() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line",
+                VALID_SESSION_ID,
+                1))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.data.opponentLine").isString());
+  }
+
+  @Test
+  void getNextLineReturnsNotFoundWhenJobDoesNotExist() throws Exception {
+    mockMvc
+        .perform(
+            get(
+                "/api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line",
+                VALID_SESSION_ID,
+                NOT_FOUND_TURN_NO))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S006"));
+  }
+
   @TestConfiguration
   static class TestUseCaseConfiguration {
 
@@ -182,6 +239,16 @@ class SimulationControllerTest {
     @Bean
     GetTurnEvaluationUseCase getTurnEvaluationUseCase() {
       return new TestGetTurnEvaluationUseCase();
+    }
+
+    @Bean
+    SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase() {
+      return new TestSubmitNextOpponentLineUseCase();
+    }
+
+    @Bean
+    GetNextOpponentLineUseCase getNextOpponentLineUseCase() {
+      return new TestGetNextOpponentLineUseCase();
     }
   }
 
@@ -223,6 +290,29 @@ class SimulationControllerTest {
       }
       return TurnEvaluationJob.pending(sessionId, turnNo)
           .complete(new TurnEvaluationResult(true, "자연스러운 답변입니다.", false));
+    }
+  }
+
+  static class TestSubmitNextOpponentLineUseCase implements SubmitNextOpponentLineUseCase {
+
+    @Override
+    public OpponentLineJob submitNextLine(String sessionId, int turnNo) {
+      if (sessionId.equals(TURN_MISMATCH_SESSION_ID)) {
+        throw new BusinessException(ErrorCode.SIMULATION_TURN_MISMATCH);
+      }
+      return OpponentLineJob.pending(sessionId, turnNo);
+    }
+  }
+
+  static class TestGetNextOpponentLineUseCase implements GetNextOpponentLineUseCase {
+
+    @Override
+    public OpponentLineJob getNextLine(String sessionId, int turnNo) {
+      if (sessionId.equals(VALID_SESSION_ID) && turnNo == NOT_FOUND_TURN_NO) {
+        throw new BusinessException(ErrorCode.NEXT_LINE_JOB_NOT_FOUND);
+      }
+      return OpponentLineJob.pending(sessionId, turnNo)
+          .complete(new OpponentLineResult("다음 발화입니다.", false));
     }
   }
 }

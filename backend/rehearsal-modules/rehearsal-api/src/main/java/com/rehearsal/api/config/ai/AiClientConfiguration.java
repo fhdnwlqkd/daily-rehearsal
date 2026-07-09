@@ -2,14 +2,18 @@ package com.rehearsal.api.config.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.rehearsal.datasource.client.gemini.GeminiGenerateContentConfigBuilder;
+import com.rehearsal.datasource.client.gemini.GeminiOpponentLineConfigBuilder;
+import com.rehearsal.datasource.client.gemini.GeminiOpponentLineGeneratorClient;
 import com.rehearsal.datasource.client.gemini.GeminiSlotExtractorClient;
 import com.rehearsal.datasource.client.gemini.GeminiTurnEvaluationConfigBuilder;
 import com.rehearsal.datasource.client.gemini.GeminiTurnEvaluatorClient;
 import com.rehearsal.datasource.client.gemini.GoogleGenAiGenerateContentClient;
+import com.rehearsal.datasource.client.gemini.prompt.GeminiOpponentLinePromptBuilder;
 import com.rehearsal.datasource.client.gemini.prompt.GeminiSlotExtractionPromptBuilder;
 import com.rehearsal.datasource.client.gemini.prompt.GeminiTurnEvaluationPromptBuilder;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
+import com.rehearsal.domain.rehearsal.port.OpponentLineGeneratorClient;
 import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -40,6 +44,15 @@ public class AiClientConfiguration {
     };
   }
 
+  @Bean
+  @ConditionalOnMissingBean(OpponentLineGeneratorClient.class)
+  public OpponentLineGeneratorClient opponentLineGeneratorClient(AiClientProperties properties) {
+    return switch (properties.getDefaults().getProvider()) {
+      case FAKE -> new FakeOpponentLineGeneratorClient();
+      case GEMINI -> geminiOpponentLineGeneratorClient(properties.getGemini());
+    };
+  }
+
   private SlotExtractorClient geminiSlotExtractorClient(AiClientProperties.Gemini properties) {
     return new GeminiSlotExtractorClient(
         GoogleGenAiGenerateContentClient.fromApiKey(
@@ -60,6 +73,17 @@ public class AiClientConfiguration {
         new GeminiTurnEvaluationConfigBuilder(
             properties.getTemperature(), properties.getThinkingBudget()),
         new ObjectMapper());
+  }
+
+  private OpponentLineGeneratorClient geminiOpponentLineGeneratorClient(
+      AiClientProperties.Gemini properties) {
+    return new GeminiOpponentLineGeneratorClient(
+        GoogleGenAiGenerateContentClient.fromApiKey(
+            requiredApiKey("Gemini", properties.getApiKey())),
+        properties.getModel(),
+        new GeminiOpponentLinePromptBuilder(),
+        new GeminiOpponentLineConfigBuilder(
+            properties.getTemperature(), properties.getThinkingBudget()));
   }
 
   private String requiredApiKey(String provider, String apiKey) {

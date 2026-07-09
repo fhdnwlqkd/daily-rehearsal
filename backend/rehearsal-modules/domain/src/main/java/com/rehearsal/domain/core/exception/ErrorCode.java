@@ -18,7 +18,8 @@ public enum ErrorCode {
   SIMULATION_TURN_LIMIT_EXCEEDED("S003", "Simulation turn limit exceeded.", HttpStatus.CONFLICT),
   SIMULATION_TURN_MISMATCH(
       "S004", "Requested turn does not match the current turn.", HttpStatus.CONFLICT),
-  TURN_EVALUATION_JOB_NOT_FOUND("S005", "Turn evaluation job not found.", HttpStatus.NOT_FOUND);
+  TURN_EVALUATION_JOB_NOT_FOUND("S005", "Turn evaluation job not found.", HttpStatus.NOT_FOUND),
+  NEXT_LINE_JOB_NOT_FOUND("S006", "Next opponent line job not found.", HttpStatus.NOT_FOUND);
 
   private final String code;
   private final String message;

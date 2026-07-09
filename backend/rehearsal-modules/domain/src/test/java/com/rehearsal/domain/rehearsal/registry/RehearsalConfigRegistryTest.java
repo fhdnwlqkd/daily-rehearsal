@@ -15,6 +15,7 @@ class RehearsalConfigRegistryTest {
     assertThat(definition.situationType()).isEqualTo(SituationType.DATE);
     assertThat(definition.maxTurn()).isEqualTo(3);
     assertThat(definition.firstOpponentLine()).isNotBlank();
+    assertThat(definition.nextLineFallback()).isNotBlank();
   }
 
   @Test
@@ -25,5 +26,6 @@ class RehearsalConfigRegistryTest {
     assertThat(definition.situationType()).isEqualTo(SituationType.BUSINESS_MEETING);
     assertThat(definition.maxTurn()).isEqualTo(3);
     assertThat(definition.firstOpponentLine()).isNotBlank();
+    assertThat(definition.nextLineFallback()).isNotBlank();
   }
 }

@@ -40,6 +40,25 @@ class ClientSessionTest {
   }
 
   @Test
+  void updateOpponentLineReplacesCurrentOpponentLine() {
+    ClientSession session = playingSessionAtTurn(1);
+
+    session.updateOpponentLine("다음 발화입니다.");
+
+    assertThat(session.getCurrentOpponentLine()).isEqualTo("다음 발화입니다.");
+  }
+
+  @Test
+  void updateOpponentLineThrowsInvalidSessionStateWhenNotPlaying() {
+    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
+
+    assertThatThrownBy(() -> session.updateOpponentLine("다음 발화입니다."))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  @Test
   void recordTurnThrowsInvalidSessionStateWhenNotPlaying() {
     ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
 

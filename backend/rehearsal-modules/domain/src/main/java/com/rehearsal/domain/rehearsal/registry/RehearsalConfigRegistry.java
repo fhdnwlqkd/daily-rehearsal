@@ -9,6 +9,8 @@ public final class RehearsalConfigRegistry {
   // TODO: 기획 확정 전 임시값. 상황별로 다른 턴 수가 필요해지면 아래 정의별로 다른 값을 넣으면 됨.
   private static final int DEFAULT_MAX_TURN = 3;
 
+  // TODO: nextLineFallback 문구도 기획 확정 전 임시값.
+
   private static final Map<SituationType, RehearsalConfigDefinition> DEFINITIONS =
       Map.of(
           SituationType.DATE, date(),
@@ -32,11 +34,17 @@ public final class RehearsalConfigRegistry {
 
   private static RehearsalConfigDefinition date() {
     return new RehearsalConfigDefinition(
-        SituationType.DATE, DEFAULT_MAX_TURN, "안녕하세요, 만나서 반가워요! 오늘 어떻게 지내셨어요?");
+        SituationType.DATE,
+        DEFAULT_MAX_TURN,
+        "안녕하세요, 만나서 반가워요! 오늘 어떻게 지내셨어요?",
+        "음, 그렇군요. 조금 더 이야기해주실 수 있어요?");
   }
 
   private static RehearsalConfigDefinition businessMeeting() {
     return new RehearsalConfigDefinition(
-        SituationType.BUSINESS_MEETING, DEFAULT_MAX_TURN, "안녕하세요, 오늘 미팅에 참석해주셔서 감사합니다.");
+        SituationType.BUSINESS_MEETING,
+        DEFAULT_MAX_TURN,
+        "안녕하세요, 오늘 미팅에 참석해주셔서 감사합니다.",
+        "네, 알겠습니다. 관련해서 조금 더 설명해주시겠어요?");
   }
 }
