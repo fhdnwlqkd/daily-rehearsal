@@ -7,8 +7,8 @@ class ClientSession <<Redis document>> {
   status: SessionStatus
   contextStatus: ContextStatus
   followUpAttempt: int
-  partialContext: Map<String, Object>
-  finalContext: Map<String, Object>
+  partialContext: SessionContext
+  finalContext: SessionContext
   missingSlotKeys: List<String>
   followUpQuestions: List<String>
   selectedOutfitId: String
@@ -28,6 +28,11 @@ class TurnEvaluation {
   success: boolean
   feedback: String
   fallback: boolean
+}
+
+class SessionContext {
+  situationType: SituationType
+  values: Map<String, Object>
 }
 
 enum SituationType {
@@ -65,6 +70,8 @@ class RehearsalConfigRegistry <<static config>>
 
 ClientSession "1" o-- "*" ConversationHistory
 ClientSession "1" o-- "*" TurnEvaluation
+ClientSession "1" o-- "0..1" SessionContext : partialContext
+ClientSession "1" o-- "0..1" SessionContext : finalContext
 ClientSession --> SituationType
 ClientSession --> SessionStatus
 ClientSession --> ContextStatus

@@ -5,6 +5,7 @@ import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +34,8 @@ public record ClientSessionRedisEntity(
         session.getStatus(),
         session.getContextStatus(),
         session.getFollowUpAttempt(),
-        session.getPartialContext(),
-        session.getFinalContext(),
+        contextValues(session.getPartialContext()),
+        contextValues(session.getFinalContext()),
         session.getMissingSlotKeys(),
         session.getFollowUpQuestions(),
         session.getSelectedOutfitId(),
@@ -46,14 +47,15 @@ public record ClientSessionRedisEntity(
   }
 
   public ClientSession toDomain() {
+    SituationType restoredSituationType = restoreSituationType();
     return ClientSession.builder()
         .sessionId(sessionId)
-        .situationType(restoreSituationType())
+        .situationType(restoredSituationType)
         .status(status)
         .contextStatus(contextStatus)
         .followUpAttempt(followUpAttempt)
-        .partialContext(partialContext)
-        .finalContext(finalContext)
+        .partialContext(restoreContext(restoredSituationType, partialContext))
+        .finalContext(restoreContext(restoredSituationType, finalContext))
         .missingSlotKeys(missingSlotKeys)
         .followUpQuestions(followUpQuestions)
         .selectedOutfitId(selectedOutfitId)
@@ -70,5 +72,14 @@ public record ClientSessionRedisEntity(
       return SituationType.DATE;
     }
     return SituationType.fromKey(situationType);
+  }
+
+  private static Map<String, Object> contextValues(SessionContext context) {
+    return context == null ? null : context.valuesWithSituationType();
+  }
+
+  private static SessionContext restoreContext(
+      SituationType situationType, Map<String, Object> context) {
+    return context == null ? null : SessionContext.from(situationType, context);
   }
 }
