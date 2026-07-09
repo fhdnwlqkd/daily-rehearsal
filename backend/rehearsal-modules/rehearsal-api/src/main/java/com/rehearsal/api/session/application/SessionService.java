@@ -8,11 +8,11 @@ import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.extraction.model.SlotExtractionMode;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -55,7 +55,7 @@ public class SessionService
                 SlotExtractionMode.INITIAL,
                 Map.of(),
                 List.of()));
-    Map<String, Object> context = contextWithSituationType(session, result.context());
+    SessionContext context = SessionContext.from(session.getSituationType(), result.context());
 
     completeOrRequireFollowUp(session, result, context);
     return sessionCache.save(session);
@@ -64,7 +64,7 @@ public class SessionService
   @Override
   public ClientSession submitFollowUp(String sessionId, String transcript) {
     ClientSession session = getSession(sessionId);
-    Map<String, Object> currentContext = safeContext(session.getPartialContext());
+    SessionContext currentContext = safeContext(session);
     List<String> targetSlotKeys = session.getMissingSlotKeys();
 
     session.startFollowUpMerge();
@@ -75,10 +75,9 @@ public class SessionService
                 transcript,
                 session.getFollowUpAttempt(),
                 SlotExtractionMode.FOLLOW_UP,
-                currentContext,
+                currentContext.valuesWithSituationType(),
                 targetSlotKeys));
-    Map<String, Object> mergedContext =
-        contextWithSituationType(session, mergeContext(currentContext, result.context()));
+    SessionContext mergedContext = currentContext.merge(result.context());
 
     completeOrRequireFollowUp(session, result, mergedContext);
     return sessionCache.save(session);
@@ -93,34 +92,14 @@ public class SessionService
     return sessionCache.save(session);
   }
 
-  private Map<String, Object> contextWithSituationType(
-      ClientSession session, Map<String, Object> extractedContext) {
-    Map<String, Object> context = new LinkedHashMap<>();
-    if (extractedContext != null) {
-      context.putAll(extractedContext);
-    }
-    context.put("situation_type", session.getSituationType().key());
-    return context;
-  }
-
-  private Map<String, Object> mergeContext(
-      Map<String, Object> currentContext, Map<String, Object> extractedContext) {
-    Map<String, Object> context = new LinkedHashMap<>();
-    if (currentContext != null) {
-      context.putAll(currentContext);
-    }
-    if (extractedContext != null) {
-      context.putAll(extractedContext);
-    }
-    return context;
-  }
-
-  private Map<String, Object> safeContext(Map<String, Object> context) {
-    return context == null ? Map.of() : new LinkedHashMap<>(context);
+  private SessionContext safeContext(ClientSession session) {
+    return session.getPartialContext() == null
+        ? SessionContext.empty(session.getSituationType())
+        : session.getPartialContext();
   }
 
   private void completeOrRequireFollowUp(
-      ClientSession session, ExtractContextSlotsResult result, Map<String, Object> context) {
+      ClientSession session, ExtractContextSlotsResult result, SessionContext context) {
     if (result.readyForSimulation()) {
       session.completeContext(context);
       return;

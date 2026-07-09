@@ -11,6 +11,7 @@ import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
@@ -232,7 +233,10 @@ class SessionControllerTest {
     public ClientSession submitBriefing(String sessionId, String transcript) {
       ClientSession session = getSession(sessionId);
       session.startContextExtraction();
-      session.completeContext(Map.of("situation_type", "date", "desired_persona", "warm_natural"));
+      session.completeContext(
+          SessionContext.from(
+              SituationType.DATE,
+              Map.of("situation_type", "date", "desired_persona", "warm_natural")));
       sessions.put(session.getSessionId(), session);
       return session;
     }
@@ -242,13 +246,15 @@ class SessionControllerTest {
       ClientSession session = getSession(sessionId);
       session.startFollowUpMerge();
       session.completeContext(
-          Map.of(
-              "situation_type",
-              "date",
-              "desired_persona",
-              "warm_natural",
-              "critical_moment",
-              "first greeting"));
+          SessionContext.from(
+              SituationType.DATE,
+              Map.of(
+                  "situation_type",
+                  "date",
+                  "desired_persona",
+                  "warm_natural",
+                  "critical_moment",
+                  "first greeting")));
       sessions.put(session.getSessionId(), session);
       return session;
     }
@@ -268,8 +274,9 @@ class SessionControllerTest {
               .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
               .status(com.rehearsal.domain.session.model.SessionStatus.TRANSFORMATION_READY)
               .contextStatus(ContextStatus.COMPLETED)
-              .partialContext(Map.of())
-              .finalContext(Map.of("situationType", "date"))
+              .partialContext(SessionContext.empty(SituationType.DATE))
+              .finalContext(
+                  SessionContext.from(SituationType.DATE, Map.of("situationType", "date")))
               .build();
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
@@ -279,7 +286,9 @@ class SessionControllerTest {
       ClientSession session = ClientSession.create(SituationType.DATE);
       session.startContextExtraction();
       session.requireFollowUp(
-          Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+          SessionContext.from(
+              SituationType.DATE,
+              Map.of("situation_type", "date", "desired_persona", "warm_natural")),
           java.util.List.of("critical_moment"),
           java.util.List.of("Which moment are you most worried about?"));
       sessions.put(session.getSessionId(), session);

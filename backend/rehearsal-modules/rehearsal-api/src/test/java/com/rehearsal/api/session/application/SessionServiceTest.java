@@ -39,7 +39,7 @@ class SessionServiceTest {
 
     assertThat(updated.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
     assertThat(updated.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
-    assertThat(updated.getFinalContext())
+    assertThat(updated.getFinalContext().valuesWithSituationType())
         .containsEntry("desired_persona", "warm_natural")
         .containsEntry("situation_type", "date");
     assertThat(updated.getFollowUpQuestions()).isEmpty();
@@ -70,7 +70,7 @@ class SessionServiceTest {
 
     assertThat(updated.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
     assertThat(updated.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
-    assertThat(updated.getPartialContext())
+    assertThat(updated.getPartialContext().valuesWithSituationType())
         .containsEntry("desired_persona", "warm_natural")
         .containsEntry("situation_type", "date");
     assertThat(updated.getMissingSlotKeys()).containsExactly("critical_moment");
@@ -94,7 +94,7 @@ class SessionServiceTest {
     assertThat(updated.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
     assertThat(updated.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
     assertThat(updated.getFollowUpAttempt()).isEqualTo(1);
-    assertThat(updated.getFinalContext())
+    assertThat(updated.getFinalContext().valuesWithSituationType())
         .containsEntry("desired_persona", "warm_natural")
         .containsEntry("critical_moment", "first greeting")
         .containsEntry("situation_type", "date");
@@ -132,7 +132,7 @@ class SessionServiceTest {
     assertThat(updated.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
     assertThat(updated.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
     assertThat(updated.getFollowUpAttempt()).isEqualTo(1);
-    assertThat(updated.getPartialContext())
+    assertThat(updated.getPartialContext().valuesWithSituationType())
         .containsEntry("desired_persona", "warm_natural")
         .containsEntry("critical_moment", "first greeting")
         .containsEntry("situation_type", "date");
@@ -170,7 +170,9 @@ class SessionServiceTest {
     ClientSession session = ClientSession.create(SituationType.DATE);
     session.startContextExtraction();
     session.requireFollowUp(
-        Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+        com.rehearsal.domain.session.model.SessionContext.from(
+            SituationType.DATE,
+            Map.of("situation_type", "date", "desired_persona", "warm_natural")),
         List.of("critical_moment"),
         List.of("Which moment are you most worried about?"));
     return session;
