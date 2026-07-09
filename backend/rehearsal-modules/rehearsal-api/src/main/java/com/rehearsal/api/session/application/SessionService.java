@@ -5,7 +5,14 @@ import com.rehearsal.api.slot.application.ContextSlotExtractionService;
 import com.rehearsal.api.slot.application.command.ExtractContextSlotsCommand;
 import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
 import com.rehearsal.domain.core.annotation.Description;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.extraction.model.ContextExtractionJob;
+import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
 import com.rehearsal.domain.extraction.model.SlotExtractionMode;
+import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
+import com.rehearsal.domain.extraction.usecase.GetContextExtractionUseCase;
+import com.rehearsal.domain.extraction.usecase.SubmitContextExtractionUseCase;
 import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionContext;
@@ -23,12 +30,18 @@ import org.springframework.stereotype.Service;
 @Service
 @RequiredArgsConstructor
 public class SessionService
-    implements CreateSessionUseCase, GetSessionUseCase, UpdateClientSessionUseCase {
+    implements CreateSessionUseCase,
+        GetSessionUseCase,
+        UpdateClientSessionUseCase,
+        SubmitContextExtractionUseCase,
+        GetContextExtractionUseCase {
 
   private final SessionCache sessionCache;
   private final SessionReader sessionReader;
   private final OutfitSpecResolver outfitSpecResolver;
   private final ContextSlotExtractionService contextSlotExtractionService;
+  private final ContextExtractionJobStore contextExtractionJobStore;
+  private final ContextExtractionWorker contextExtractionWorker;
 
   @Override
   public ClientSession createSession(SituationType situationType) {
@@ -62,6 +75,23 @@ public class SessionService
   }
 
   @Override
+  public ContextExtractionJob submitBriefingExtraction(String sessionId, String transcript) {
+    ClientSession session = getSession(sessionId);
+    ContextExtractionJob job =
+        ContextExtractionJob.pending(
+            session.getSessionId(), session.getSituationType(), ContextExtractionJobType.BRIEFING);
+    contextExtractionJobStore.save(job);
+    try {
+      contextExtractionWorker.extractBriefingAsync(job, transcript);
+    } catch (RuntimeException exception) {
+      ContextExtractionJob failedJob = job.fail("작업을 시작하지 못했습니다.");
+      contextExtractionJobStore.save(failedJob);
+      return failedJob;
+    }
+    return job;
+  }
+
+  @Override
   public ClientSession submitFollowUp(String sessionId, String transcript) {
     ClientSession session = getSession(sessionId);
     SessionContext currentContext = safeContext(session);
@@ -81,6 +111,30 @@ public class SessionService
 
     completeOrRequireFollowUp(session, result, mergedContext);
     return sessionCache.save(session);
+  }
+
+  @Override
+  public ContextExtractionJob submitFollowUpExtraction(String sessionId, String transcript) {
+    ClientSession session = getSession(sessionId);
+    ContextExtractionJob job =
+        ContextExtractionJob.pending(
+            session.getSessionId(), session.getSituationType(), ContextExtractionJobType.FOLLOW_UP);
+    contextExtractionJobStore.save(job);
+    try {
+      contextExtractionWorker.extractFollowUpAsync(job, transcript);
+    } catch (RuntimeException exception) {
+      ContextExtractionJob failedJob = job.fail("작업을 시작하지 못했습니다.");
+      contextExtractionJobStore.save(failedJob);
+      return failedJob;
+    }
+    return job;
+  }
+
+  @Override
+  public ContextExtractionJob get(String sessionId, String jobId) {
+    return contextExtractionJobStore
+        .findById(sessionId, jobId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.CONTEXT_EXTRACTION_JOB_NOT_FOUND));
   }
 
   @Override

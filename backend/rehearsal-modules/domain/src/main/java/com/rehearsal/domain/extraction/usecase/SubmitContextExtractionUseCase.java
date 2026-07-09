@@ -4,7 +4,7 @@ import com.rehearsal.domain.extraction.model.ContextExtractionJob;
 
 public interface SubmitContextExtractionUseCase {
 
-  ContextExtractionJob submitBriefing(String sessionId, String transcript);
+  ContextExtractionJob submitBriefingExtraction(String sessionId, String transcript);
 
-  ContextExtractionJob submitFollowUp(String sessionId, String transcript);
+  ContextExtractionJob submitFollowUpExtraction(String sessionId, String transcript);
 }
