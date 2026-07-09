@@ -13,10 +13,12 @@ class ContextExtractionJobTest {
   @Test
   void pendingCreatesJobIdAndPendingStatus() {
     ContextExtractionJob job =
-        ContextExtractionJob.pending("session-id", ContextExtractionJobType.BRIEFING);
+        ContextExtractionJob.pending(
+            "session-id", SituationType.DATE, ContextExtractionJobType.BRIEFING);
 
     assertThat(job.sessionId()).isEqualTo("session-id");
     assertThat(job.jobId()).isNotBlank();
+    assertThat(job.situationType()).isEqualTo(SituationType.DATE);
     assertThat(job.type()).isEqualTo(ContextExtractionJobType.BRIEFING);
     assertThat(job.status()).isEqualTo(ContextExtractionJobStatus.PENDING);
   }
@@ -24,7 +26,8 @@ class ContextExtractionJobTest {
   @Test
   void completeWithFinalContextStoresFinalContext() {
     ContextExtractionJob job =
-        ContextExtractionJob.pending("session-id", ContextExtractionJobType.BRIEFING);
+        ContextExtractionJob.pending(
+            "session-id", SituationType.DATE, ContextExtractionJobType.BRIEFING);
     SessionContext context =
         SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural"));
 
@@ -40,7 +43,8 @@ class ContextExtractionJobTest {
   @Test
   void completeWithFollowUpQuestionsStoresQuestions() {
     ContextExtractionJob job =
-        ContextExtractionJob.pending("session-id", ContextExtractionJobType.FOLLOW_UP);
+        ContextExtractionJob.pending(
+            "session-id", SituationType.DATE, ContextExtractionJobType.FOLLOW_UP);
 
     ContextExtractionJob completed =
         job.completeWithFollowUpQuestions(List.of("Which moment should we focus on?"));
