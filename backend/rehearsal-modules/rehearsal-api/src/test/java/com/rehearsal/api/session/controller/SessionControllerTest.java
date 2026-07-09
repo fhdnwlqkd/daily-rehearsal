@@ -1,5 +1,6 @@
 package com.rehearsal.api.session.controller;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -9,6 +10,10 @@ import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.extraction.model.ContextExtractionJob;
+import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
+import com.rehearsal.domain.extraction.usecase.GetContextExtractionUseCase;
+import com.rehearsal.domain.extraction.usecase.SubmitContextExtractionUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
@@ -89,37 +94,29 @@ class SessionControllerTest {
             post("/api/v1/sessions/{sessionId}/briefing", sessionId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"transcript\":\"tomorrow interview rehearsal\"}"))
-        .andExpect(status().isOk())
+        .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.finalContext.situation_type").value("date"))
-        .andExpect(jsonPath("$.data.finalContext.desired_persona").value("warm_natural"))
-        .andExpect(jsonPath("$.data.followUpQuestions").isEmpty())
-        .andExpect(jsonPath("$.data.status").doesNotExist())
-        .andExpect(jsonPath("$.data.contextStatus").doesNotExist())
+        .andExpect(jsonPath("$.data.jobId").isString())
+        .andExpect(jsonPath("$.data.type").value("BRIEFING"))
+        .andExpect(jsonPath("$.data.status").value("PENDING"))
+        .andExpect(jsonPath("$.data.finalContext").doesNotExist())
         .andExpect(jsonPath("$.data.briefingTranscript").doesNotExist());
   }
 
   @Test
-  void submitBriefingWhenInvalidSessionState() throws Exception {
+  void getContextExtraction() throws Exception {
     String sessionId = createSessionId();
+    String jobId = testSessionUseCase.seedCompletedContextExtractionJob(sessionId);
 
     mockMvc
         .perform(
-            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"transcript\":\"first briefing\"}"))
-        .andExpect(status().isOk());
-
-    mockMvc
-        .perform(
-            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"transcript\":\"second briefing\"}"))
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.code").value("S002"))
-        .andExpect(jsonPath("$.error.name").value("INVALID_SESSION_STATE"))
-        .andExpect(jsonPath("$.error.message").value("Invalid session state."));
+            get("/api/v1/sessions/{sessionId}/context-extractions/{jobId}", sessionId, jobId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.sessionId").value(sessionId))
+        .andExpect(jsonPath("$.data.jobId").value(jobId))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.data.finalContext.situation_type").value("date"))
+        .andExpect(jsonPath("$.data.finalContext.desired_persona").value("warm_natural"));
   }
 
   @Test
@@ -131,14 +128,12 @@ class SessionControllerTest {
             post("/api/v1/sessions/{sessionId}/follow-up", sessionId)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"transcript\":\"focus on first greeting\"}"))
-        .andExpect(status().isOk())
+        .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.finalContext.situation_type").value("date"))
-        .andExpect(jsonPath("$.data.finalContext.desired_persona").value("warm_natural"))
-        .andExpect(jsonPath("$.data.finalContext.critical_moment").value("first greeting"))
-        .andExpect(jsonPath("$.data.followUpQuestions").isEmpty())
-        .andExpect(jsonPath("$.data.status").doesNotExist())
-        .andExpect(jsonPath("$.data.contextStatus").doesNotExist());
+        .andExpect(jsonPath("$.data.jobId").isString())
+        .andExpect(jsonPath("$.data.type").value("FOLLOW_UP"))
+        .andExpect(jsonPath("$.data.status").value("PENDING"))
+        .andExpect(jsonPath("$.data.finalContext").doesNotExist());
   }
 
   @Test
@@ -206,12 +201,28 @@ class SessionControllerTest {
     UpdateClientSessionUseCase updateClientSessionUseCase(TestSessionUseCase testSessionUseCase) {
       return testSessionUseCase;
     }
+
+    @Bean
+    SubmitContextExtractionUseCase submitContextExtractionUseCase(
+        TestSessionUseCase testSessionUseCase) {
+      return testSessionUseCase;
+    }
+
+    @Bean
+    GetContextExtractionUseCase getContextExtractionUseCase(TestSessionUseCase testSessionUseCase) {
+      return testSessionUseCase;
+    }
   }
 
   static class TestSessionUseCase
-      implements CreateSessionUseCase, GetSessionUseCase, UpdateClientSessionUseCase {
+      implements CreateSessionUseCase,
+          GetSessionUseCase,
+          UpdateClientSessionUseCase,
+          SubmitContextExtractionUseCase,
+          GetContextExtractionUseCase {
 
     private final Map<String, ClientSession> sessions = new ConcurrentHashMap<>();
+    private final Map<String, ContextExtractionJob> jobs = new ConcurrentHashMap<>();
 
     @Override
     public ClientSession createSession(SituationType situationType) {
@@ -230,33 +241,36 @@ class SessionControllerTest {
     }
 
     @Override
-    public ClientSession submitBriefing(String sessionId, String transcript) {
+    public ContextExtractionJob submitBriefingExtraction(String sessionId, String transcript) {
       ClientSession session = getSession(sessionId);
-      session.startContextExtraction();
-      session.completeContext(
-          SessionContext.from(
-              SituationType.DATE,
-              Map.of("situation_type", "date", "desired_persona", "warm_natural")));
-      sessions.put(session.getSessionId(), session);
-      return session;
+      ContextExtractionJob job =
+          ContextExtractionJob.pending(
+              session.getSessionId(),
+              session.getSituationType(),
+              ContextExtractionJobType.BRIEFING);
+      jobs.put(jobKey(sessionId, job.jobId()), job);
+      return job;
     }
 
     @Override
-    public ClientSession submitFollowUp(String sessionId, String transcript) {
+    public ContextExtractionJob submitFollowUpExtraction(String sessionId, String transcript) {
       ClientSession session = getSession(sessionId);
-      session.startFollowUpMerge();
-      session.completeContext(
-          SessionContext.from(
-              SituationType.DATE,
-              Map.of(
-                  "situation_type",
-                  "date",
-                  "desired_persona",
-                  "warm_natural",
-                  "critical_moment",
-                  "first greeting")));
-      sessions.put(session.getSessionId(), session);
-      return session;
+      ContextExtractionJob job =
+          ContextExtractionJob.pending(
+              session.getSessionId(),
+              session.getSituationType(),
+              ContextExtractionJobType.FOLLOW_UP);
+      jobs.put(jobKey(sessionId, job.jobId()), job);
+      return job;
+    }
+
+    @Override
+    public ContextExtractionJob get(String sessionId, String jobId) {
+      ContextExtractionJob job = jobs.get(jobKey(sessionId, jobId));
+      if (job == null) {
+        throw new BusinessException(ErrorCode.CONTEXT_EXTRACTION_JOB_NOT_FOUND);
+      }
+      return job;
     }
 
     @Override
@@ -293,6 +307,22 @@ class SessionControllerTest {
           java.util.List.of("Which moment are you most worried about?"));
       sessions.put(session.getSessionId(), session);
       return session.getSessionId();
+    }
+
+    String seedCompletedContextExtractionJob(String sessionId) {
+      ClientSession session = getSession(sessionId);
+      ContextExtractionJob job =
+          ContextExtractionJob.pending(
+                  sessionId, session.getSituationType(), ContextExtractionJobType.BRIEFING)
+              .completeWithFinalContext(
+                  SessionContext.from(
+                      SituationType.DATE, Map.of("desired_persona", "warm_natural")));
+      jobs.put(jobKey(sessionId, job.jobId()), job);
+      return job.jobId();
+    }
+
+    private String jobKey(String sessionId, String jobId) {
+      return sessionId + ":" + jobId;
     }
   }
 }

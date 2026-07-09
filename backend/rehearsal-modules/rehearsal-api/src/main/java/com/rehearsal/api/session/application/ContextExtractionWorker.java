@@ -19,7 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
-@Description("briefing/follow-up context extraction을 백그라운드에서 실행하고 job store에 기록하는 워커")
+@Description("Worker that runs briefing/follow-up context extraction and records job results")
 @Component
 @RequiredArgsConstructor
 public class ContextExtractionWorker {

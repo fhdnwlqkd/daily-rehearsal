@@ -29,8 +29,7 @@ public class AsyncConfig {
     executor.setMaxPoolSize(8);
     executor.setQueueCapacity(50);
     executor.setThreadNamePrefix(threadNamePrefix);
-    // 큐/풀이 모두 찼을 때 호출 스레드(HTTP 요청 스레드)에서 직접 실행하는 CallerRunsPolicy는
-    // 이 비동기 전환으로 없애려는 블로킹을 그대로 재현하므로 사용하지 않는다.
+    // Abort instead of running heavy AI work on the HTTP request thread.
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
     executor.initialize();
     return executor;
