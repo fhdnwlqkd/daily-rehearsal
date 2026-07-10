@@ -83,9 +83,7 @@ public class ClientSession {
   }
 
   public void requireFollowUp(
-      SessionContext partialContext,
-      List<String> missingSlotKeys,
-      List<String> followUpQuestions) {
+      SessionContext partialContext, List<String> missingSlotKeys, List<String> followUpQuestions) {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
     validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
     this.status = SessionStatus.FOLLOW_UP_REQUIRED;
@@ -145,6 +143,11 @@ public class ClientSession {
     if (success) {
       currentTurn++;
     }
+  }
+
+  public void updateOpponentLine(String opponentLine) {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    this.currentOpponentLine = opponentLine;
   }
 
   public List<String> getMissingSlotKeys() {

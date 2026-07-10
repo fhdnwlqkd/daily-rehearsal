@@ -11,6 +11,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 public class AsyncConfig {
 
   public static final String TURN_EVALUATION_EXECUTOR = "turnEvaluationExecutor";
+  public static final String NEXT_LINE_EXECUTOR = "nextLineExecutor";
   public static final String CONTEXT_EXTRACTION_EXECUTOR = "contextExtractionExecutor";
 
   @Bean(TURN_EVALUATION_EXECUTOR)
@@ -30,6 +31,18 @@ public class AsyncConfig {
     executor.setQueueCapacity(50);
     executor.setThreadNamePrefix(threadNamePrefix);
     // Abort instead of running heavy AI work on the HTTP request thread.
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    executor.initialize();
+    return executor;
+  }
+
+  @Bean(NEXT_LINE_EXECUTOR)
+  public ThreadPoolTaskExecutor nextLineExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(20);
+    executor.setThreadNamePrefix("next-line-");
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
     executor.initialize();
     return executor;

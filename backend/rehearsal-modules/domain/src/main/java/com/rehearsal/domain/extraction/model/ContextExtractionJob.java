@@ -16,7 +16,8 @@ public record ContextExtractionJob(
     @Description("COMPLETED and context is complete when non-null") SessionContext finalContext,
     @Description("COMPLETED and follow-up is required when non-empty")
         List<String> followUpQuestions,
-    @Description("Server log/debug only. Do not expose directly to clients.") String failureReason) {
+    @Description("Server log/debug only. Do not expose directly to clients.")
+        String failureReason) {
 
   public ContextExtractionJob {
     followUpQuestions = followUpQuestions == null ? List.of() : List.copyOf(followUpQuestions);

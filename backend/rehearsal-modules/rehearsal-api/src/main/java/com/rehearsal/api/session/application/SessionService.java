@@ -29,8 +29,7 @@ public class SessionService
         SubmitContextExtractionUseCase,
         GetContextExtractionUseCase {
 
-  private static final String JOB_START_FAILURE_MESSAGE =
-      "Context extraction job could not start.";
+  private static final String JOB_START_FAILURE_MESSAGE = "Context extraction job could not start.";
 
   private final SessionCache sessionCache;
   private final SessionReader sessionReader;
