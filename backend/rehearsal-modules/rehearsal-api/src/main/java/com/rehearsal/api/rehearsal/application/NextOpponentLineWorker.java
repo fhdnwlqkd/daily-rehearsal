@@ -61,7 +61,7 @@ public class NextOpponentLineWorker {
     OpponentLineCommand command =
         new OpponentLineCommand(
             session.getSituationType(),
-            session.getFinalContext(),
+            session.getFinalContext().valuesWithSituationType(),
             session.getSelectedOutfitId(),
             session.getConversationHistory(),
             session.getCurrentTurn());

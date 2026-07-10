@@ -229,8 +229,7 @@ class SimulationServiceTest {
     session.startSimulation(3, FIRST_OPPONENT_LINE);
     RecordingNextOpponentLineWorker worker = new RecordingNextOpponentLineWorker();
     SimulationService service =
-        serviceWith(
-            new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(), worker);
+        serviceWith(new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(), worker);
 
     OpponentLineJob job = service.submitNextLine(session.getSessionId(), 1);
 
@@ -264,9 +263,7 @@ class SimulationServiceTest {
     RecordingNextOpponentLineWorker worker = new RecordingNextOpponentLineWorker();
     SimulationService service =
         serviceWith(
-            new InMemorySessionCache(session),
-            new InMemoryOpponentLineJobStore(failedJob),
-            worker);
+            new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(failedJob), worker);
 
     OpponentLineJob job = service.submitNextLine(session.getSessionId(), 1);
 
@@ -280,8 +277,7 @@ class SimulationServiceTest {
     session.startSimulation(3, FIRST_OPPONENT_LINE);
     RecordingNextOpponentLineWorker worker = new RecordingNextOpponentLineWorker();
     SimulationService service =
-        serviceWith(
-            new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(), worker);
+        serviceWith(new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(), worker);
 
     assertThatThrownBy(() -> service.submitNextLine(session.getSessionId(), 2))
         .isInstanceOf(BusinessException.class)
@@ -297,8 +293,7 @@ class SimulationServiceTest {
     session.recordTurn("네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
     RecordingNextOpponentLineWorker worker = new RecordingNextOpponentLineWorker();
     SimulationService service =
-        serviceWith(
-            new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(), worker);
+        serviceWith(new InMemorySessionCache(session), new InMemoryOpponentLineJobStore(), worker);
 
     assertThatThrownBy(() -> service.submitNextLine(session.getSessionId(), 2))
         .isInstanceOf(BusinessException.class)

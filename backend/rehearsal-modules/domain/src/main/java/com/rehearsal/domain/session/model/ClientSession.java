@@ -83,9 +83,7 @@ public class ClientSession {
   }
 
   public void requireFollowUp(
-      SessionContext partialContext,
-      List<String> missingSlotKeys,
-      List<String> followUpQuestions) {
+      SessionContext partialContext, List<String> missingSlotKeys, List<String> followUpQuestions) {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
     validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
     this.status = SessionStatus.FOLLOW_UP_REQUIRED;

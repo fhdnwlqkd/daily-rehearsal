@@ -24,8 +24,7 @@ class NextOpponentLineWorkerTest {
     session.startSimulation(3, FIRST_OPPONENT_LINE);
     InMemorySessionCache sessionCache = new InMemorySessionCache(session);
     InMemoryOpponentLineJobStore jobStore = new InMemoryOpponentLineJobStore();
-    NextOpponentLineWorker worker =
-        workerWith(sessionCache, jobStore, command -> "다음 발화입니다.");
+    NextOpponentLineWorker worker = workerWith(sessionCache, jobStore, command -> "다음 발화입니다.");
 
     worker.generateAsync(session.getSessionId(), 1);
 
@@ -79,8 +78,7 @@ class NextOpponentLineWorkerTest {
     ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
     InMemorySessionCache sessionCache = new InMemorySessionCache(session);
     InMemoryOpponentLineJobStore jobStore = new InMemoryOpponentLineJobStore();
-    NextOpponentLineWorker worker =
-        workerWith(sessionCache, jobStore, command -> "다음 발화입니다.");
+    NextOpponentLineWorker worker = workerWith(sessionCache, jobStore, command -> "다음 발화입니다.");
 
     worker.generateAsync(session.getSessionId(), 1);
 

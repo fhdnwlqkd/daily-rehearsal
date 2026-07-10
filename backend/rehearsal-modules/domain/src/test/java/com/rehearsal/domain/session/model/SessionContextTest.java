@@ -30,11 +30,7 @@ class SessionContextTest {
 
     SessionContext merged =
         context.merge(
-            Map.of(
-                "critical_moment",
-                "payment timing",
-                "relationship_context",
-                "first date"));
+            Map.of("critical_moment", "payment timing", "relationship_context", "first date"));
 
     assertThat(merged.valuesWithSituationType())
         .containsEntry("desired_persona", "warm_natural")

@@ -109,8 +109,7 @@ class SessionControllerTest {
     String jobId = testSessionUseCase.seedCompletedContextExtractionJob(sessionId);
 
     mockMvc
-        .perform(
-            get("/api/v1/sessions/{sessionId}/context-extractions/{jobId}", sessionId, jobId))
+        .perform(get("/api/v1/sessions/{sessionId}/context-extractions/{jobId}", sessionId, jobId))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.sessionId").value(sessionId))
         .andExpect(jsonPath("$.data.jobId").value(jobId))
