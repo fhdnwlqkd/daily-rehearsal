@@ -44,8 +44,8 @@
 | `status` | `SessionStatus` | Daily Rehearsal 전체 플로우 상태 |
 | `contextStatus` | `ContextStatus` | context 수집 과정의 세부 상태 |
 | `followUpAttempt` | `int` | context 수집 중 사용한 재질문 라운드 횟수 |
-| `partialContext` | `Map<String, Object>` | required slot이 아직 완성되지 않은 중간 context |
-| `finalContext` | `Map<String, Object>` | outfit, rehearsal, feedback, result 플로우에서 사용할 최종 context |
+| `partialContext` | `SessionContext` | required slot이 아직 완성되지 않은 중간 context |
+| `finalContext` | `SessionContext` | outfit, rehearsal, feedback, result 플로우에서 사용할 최종 context |
 | `missingSlotKeys` | `List<String>` | 추가 입력이 필요한 required slot key 목록 |
 | `followUpQuestions` | `List<String>` | 사용자에게 보여줄 고정 재질문 목록 |
 | `selectedOutfitId` | `String` | 사용자가 확정한 outfit id |

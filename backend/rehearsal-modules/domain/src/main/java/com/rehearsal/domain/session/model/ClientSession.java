@@ -8,7 +8,6 @@ import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Getter;
@@ -22,8 +21,8 @@ public class ClientSession {
   private SessionStatus status;
   private ContextStatus contextStatus;
   private int followUpAttempt;
-  private Map<String, Object> partialContext;
-  private Map<String, Object> finalContext;
+  private SessionContext partialContext;
+  private SessionContext finalContext;
   private List<String> missingSlotKeys;
   private List<String> followUpQuestions;
   private String selectedOutfitId;
@@ -40,8 +39,8 @@ public class ClientSession {
       SessionStatus status,
       ContextStatus contextStatus,
       int followUpAttempt,
-      Map<String, Object> partialContext,
-      Map<String, Object> finalContext,
+      SessionContext partialContext,
+      SessionContext finalContext,
       List<String> missingSlotKeys,
       List<String> followUpQuestions,
       String selectedOutfitId,
@@ -84,7 +83,7 @@ public class ClientSession {
   }
 
   public void requireFollowUp(
-      Map<String, Object> partialContext,
+      SessionContext partialContext,
       List<String> missingSlotKeys,
       List<String> followUpQuestions) {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
@@ -97,7 +96,7 @@ public class ClientSession {
     this.followUpQuestions = mutableList(followUpQuestions);
   }
 
-  public void completeContext(Map<String, Object> finalContext) {
+  public void completeContext(SessionContext finalContext) {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
     validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
     this.status = SessionStatus.TRANSFORMATION_READY;

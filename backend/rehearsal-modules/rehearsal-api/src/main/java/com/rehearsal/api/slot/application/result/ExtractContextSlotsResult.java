@@ -6,7 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Description("context slot 추출과 도메인 처리 결과를 API/session flow가 사용하기 좋은 형태로 담는 결과")
+@Description("Processed context slot extraction result for API/session flows")
 public record ExtractContextSlotsResult(
     String schemaKey,
     Map<String, Object> rawSlots,

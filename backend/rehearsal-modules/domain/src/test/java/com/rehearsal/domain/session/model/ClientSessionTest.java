@@ -91,13 +91,16 @@ class ClientSessionTest {
     session.startContextExtraction();
 
     session.requireFollowUp(
-        Map.of("situation_type", "date"),
+        SessionContext.from(
+            com.rehearsal.domain.situation.model.SituationType.DATE,
+            Map.of("situation_type", "date")),
         java.util.List.of("critical_moment"),
         java.util.List.of("Which moment are you most worried about?"));
 
     assertThat(session.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
     assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
-    assertThat(session.getPartialContext()).containsEntry("situation_type", "date");
+    assertThat(session.getPartialContext().valuesWithSituationType())
+        .containsEntry("situation_type", "date");
     assertThat(session.getMissingSlotKeys()).containsExactly("critical_moment");
     assertThat(session.getFollowUpQuestions())
         .containsExactly("Which moment are you most worried about?");
@@ -109,11 +112,14 @@ class ClientSessionTest {
         ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
     session.startContextExtraction();
 
-    session.completeContext(Map.of("situation_type", "date", "desired_persona", "warm_natural"));
+    session.completeContext(
+        SessionContext.from(
+            com.rehearsal.domain.situation.model.SituationType.DATE,
+            Map.of("situation_type", "date", "desired_persona", "warm_natural")));
 
     assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
     assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
-    assertThat(session.getFinalContext())
+    assertThat(session.getFinalContext().valuesWithSituationType())
         .containsEntry("situation_type", "date")
         .containsEntry("desired_persona", "warm_natural");
     assertThat(session.getMissingSlotKeys()).isEmpty();
@@ -146,11 +152,15 @@ class ClientSessionTest {
   void completeContextAllowsMergingContextStatus() {
     ClientSession session = mergingSession();
 
-    session.completeContext(Map.of("situation_type", "date", "critical_moment", "first greeting"));
+    session.completeContext(
+        SessionContext.from(
+            com.rehearsal.domain.situation.model.SituationType.DATE,
+            Map.of("situation_type", "date", "critical_moment", "first greeting")));
 
     assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
     assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
-    assertThat(session.getFinalContext()).containsEntry("critical_moment", "first greeting");
+    assertThat(session.getFinalContext().valuesWithSituationType())
+        .containsEntry("critical_moment", "first greeting");
   }
 
   @Test
@@ -158,13 +168,16 @@ class ClientSessionTest {
     ClientSession session = mergingSession();
 
     session.requireFollowUp(
-        Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+        SessionContext.from(
+            com.rehearsal.domain.situation.model.SituationType.DATE,
+            Map.of("situation_type", "date", "desired_persona", "warm_natural")),
         java.util.List.of("critical_moment"),
         java.util.List.of("Which moment should we focus on?"));
 
     assertThat(session.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
     assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
-    assertThat(session.getPartialContext()).containsEntry("desired_persona", "warm_natural");
+    assertThat(session.getPartialContext().valuesWithSituationType())
+        .containsEntry("desired_persona", "warm_natural");
     assertThat(session.getMissingSlotKeys()).containsExactly("critical_moment");
   }
 
@@ -206,8 +219,12 @@ class ClientSessionTest {
         .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
         .status(status)
         .contextStatus(ContextStatus.COMPLETED)
-        .partialContext(Map.of())
-        .finalContext(Map.of("situationType", "date"))
+        .partialContext(
+            SessionContext.empty(com.rehearsal.domain.situation.model.SituationType.DATE))
+        .finalContext(
+            SessionContext.from(
+                com.rehearsal.domain.situation.model.SituationType.DATE,
+                Map.of("situationType", "date")))
         .selectedOutfitId("test-outfit-id")
         .build();
   }
@@ -217,7 +234,9 @@ class ClientSessionTest {
         ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
     session.startContextExtraction();
     session.requireFollowUp(
-        Map.of("situation_type", "date", "desired_persona", "warm_natural"),
+        SessionContext.from(
+            com.rehearsal.domain.situation.model.SituationType.DATE,
+            Map.of("situation_type", "date", "desired_persona", "warm_natural")),
         java.util.List.of("critical_moment"),
         java.util.List.of("Which moment should we focus on?"));
     return session;
