@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rehearsal.domain.extraction.model.ContextSlotValue;
 import com.rehearsal.domain.extraction.service.ContextSlotValueNormalizer;
 import com.rehearsal.domain.extraction.service.MissingRequiredSlotResolver;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -16,24 +16,22 @@ class MissingRequiredSlotResolverTest {
 
   @Test
   void returnsOnlyRequiredMissingOrInvalidSlotsByPriority() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> slots =
         normalizer.normalize(
             schema,
-            Map.of("situation_type", "invalid", "desired_persona", "", "critical_moment", "첫 인사"));
+            Map.of("desired_persona", "invalid", "critical_moment", "첫 인사"));
 
-    assertThat(resolver.resolve(slots)).containsExactly("situation_type", "desired_persona");
+    assertThat(resolver.resolve(slots)).containsExactly("desired_persona");
   }
 
   @Test
   void softRequiredMissingDoesNotBlock() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> slots =
         normalizer.normalize(
             schema,
             Map.of(
-                "situation_type",
-                "date",
                 "desired_persona",
                 "calm_confident",
                 "critical_moment",

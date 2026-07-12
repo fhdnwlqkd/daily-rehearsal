@@ -6,7 +6,7 @@ import com.rehearsal.domain.extraction.model.ContextSlotValueStatus;
 import com.rehearsal.domain.extraction.model.SlotExtractionProcessingResult;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -16,15 +16,13 @@ class SlotExtractionProcessorTest {
 
   @Test
   void readyWhenRequiredSlotsAreFilled() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     SlotExtractionProcessingResult result =
         processor.process(
             schema,
             new SlotExtractionRawResult(
                 Map.of(
-                    "situation_type",
-                    "date",
                     "desired_persona",
                     "calm_confident",
                     "critical_moment",
@@ -38,29 +36,29 @@ class SlotExtractionProcessorTest {
 
   @Test
   void asksFollowUpWhenRequiredSlotsAreMissingAndAttemptRemains() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     SlotExtractionProcessingResult result =
-        processor.process(schema, new SlotExtractionRawResult(Map.of("situation_type", "date")), 0);
+        processor.process(schema, new SlotExtractionRawResult(Map.of("desired_persona", "calm_confident")), 0);
 
     assertThat(result.readyForSimulation()).isFalse();
     assertThat(result.missingRequiredSlotKeys())
-        .containsExactly("desired_persona", "critical_moment");
+        .containsExactly("critical_moment");
     assertThat(result.followUpQuestion()).isNotBlank();
-    assertThat(result.slots().get("desired_persona").status())
+    assertThat(result.slots().get("critical_moment").status())
         .isEqualTo(ContextSlotValueStatus.MISSING);
   }
 
   @Test
   void defaultsWhenRequiredSlotsAreMissingAndAttemptIsExhausted() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     SlotExtractionProcessingResult result =
-        processor.process(schema, new SlotExtractionRawResult(Map.of("situation_type", "date")), 1);
+        processor.process(schema, new SlotExtractionRawResult(Map.of()), 1);
 
     assertThat(result.readyForSimulation()).isTrue();
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
     assertThat(result.slots().get("desired_persona").value()).isEqualTo("calm_confident");
-    assertThat(result.slots().get("critical_moment").value()).isEqualTo("첫 반응을 말해야 하는 순간");
+    assertThat(result.slots().get("critical_moment").value()).isEqualTo("첫 인사와 가벼운 대화");
   }
 }

@@ -40,7 +40,7 @@ public class ContextExtractionWorker {
       ExtractContextSlotsResult result =
           contextSlotExtractionService.extract(
               new ExtractContextSlotsCommand(
-                  session.getSituationType().key(),
+                  session.getSituationType().getKey(),
                   transcript,
                   session.getFollowUpAttempt(),
                   SlotExtractionMode.INITIAL,
@@ -65,7 +65,7 @@ public class ContextExtractionWorker {
       ExtractContextSlotsResult result =
           contextSlotExtractionService.extract(
               new ExtractContextSlotsCommand(
-                  session.getSituationType().key(),
+                  session.getSituationType().getKey(),
                   transcript,
                   session.getFollowUpAttempt(),
                   SlotExtractionMode.FOLLOW_UP,

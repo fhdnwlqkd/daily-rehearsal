@@ -2,7 +2,7 @@ package com.rehearsal.api.situation.controller;
 
 import com.rehearsal.api.situation.controller.dto.SituationTypeBriefingResponse;
 import com.rehearsal.api.situation.controller.dto.SituationTypeResponse;
-import com.rehearsal.domain.situation.registry.SituationTypeBriefingDefinition;
+import com.rehearsal.domain.situation.model.SituationType;
 import com.rehearsal.domain.situation.usecase.GetSituationTypeBriefingUseCase;
 import com.rehearsal.domain.situation.usecase.GetSituationTypesUseCase;
 import jakarta.validation.constraints.NotBlank;
@@ -33,8 +33,8 @@ public class SituationTypeController {
   @GetMapping("/{situationType}/briefing")
   public SituationTypeBriefingResponse getSituationTypeBriefing(
       @PathVariable @NotBlank String situationType) {
-    SituationTypeBriefingDefinition definition =
+    SituationType situation =
         getSituationTypeBriefingUseCase.getSituationTypeBriefing(situationType);
-    return SituationTypeBriefingResponse.from(definition);
+    return SituationTypeBriefingResponse.from(situation);
   }
 }

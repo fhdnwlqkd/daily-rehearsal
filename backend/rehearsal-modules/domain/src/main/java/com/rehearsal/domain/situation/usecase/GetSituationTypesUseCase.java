@@ -1,9 +1,9 @@
 package com.rehearsal.domain.situation.usecase;
 
-import com.rehearsal.domain.situation.registry.SituationTypeDefinition;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 
 public interface GetSituationTypesUseCase {
 
-  List<SituationTypeDefinition> getSituationTypes();
+  List<SituationType> getSituationTypes();
 }

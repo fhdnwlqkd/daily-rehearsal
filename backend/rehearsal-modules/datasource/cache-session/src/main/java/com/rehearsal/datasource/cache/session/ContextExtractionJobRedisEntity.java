@@ -22,7 +22,7 @@ public record ContextExtractionJobRedisEntity(
     return new ContextExtractionJobRedisEntity(
         job.sessionId(),
         job.jobId(),
-        job.situationType().key(),
+        job.situationType().getKey(),
         job.type(),
         job.status(),
         contextValues(job.finalContext()),

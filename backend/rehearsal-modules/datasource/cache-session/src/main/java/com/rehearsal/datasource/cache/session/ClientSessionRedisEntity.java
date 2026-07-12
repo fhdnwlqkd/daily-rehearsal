@@ -30,7 +30,7 @@ public record ClientSessionRedisEntity(
   public static ClientSessionRedisEntity from(ClientSession session) {
     return new ClientSessionRedisEntity(
         session.getSessionId(),
-        session.getSituationType().key(),
+        session.getSituationType().getKey(),
         session.getStatus(),
         session.getContextStatus(),
         session.getFollowUpAttempt(),

@@ -4,8 +4,8 @@
 
 `ClientSession`은 한 사용자의 Daily Rehearsal 1회 실행 상태를 나타낸다.
 
-이 값은 `SessionCache`를 통해 저장되는 짧은 수명의 상태 객체이며, 현재 구현에서는 Redis에 저장된다.
-`ClientSession`은 RDB 엔티티가 아니고, 관리자 화면에서 CRUD로 관리하는 스키마도 아니다.
+이 값은 RDB 테이블(`rehearsal_session` 등)을 통해 영속화되며, 단일 진실 공급원(Single Source of Truth)으로 관리된다. 기존 구현의 Redis는 완전히 제거되었다.
+`ClientSession`은 이제 명확한 RDB 엔티티 구조와 1:1로 매핑되는 도메인 모델이다.
 
 세션은 사용자가 전시 플로우를 진행하는 동안 계속 바뀌는 값을 저장한다.
 
@@ -17,21 +17,21 @@
 
 ## 저장 경계
 
-세션 상태는 Redis에 저장한다.
+세션 상태는 MySQL(RDB)에 단일 진실 공급원(SSOT)으로 저장한다.
 
 | Layer | File | Role |
 | --- | --- | --- |
 | Domain model | `domain/session/model/ClientSession.java` | 세션 상태와 상태 전이 규칙 |
-| Domain port | `domain/session/cache/SessionCache.java` | application service가 사용하는 세션 저장소 계약 |
-| Cache adapter | `datasource/cache-session/.../RedisSessionCacheAdapter.java` | `SessionCache`의 Redis 구현체 |
-| Cache entity | `datasource/cache-session/.../ClientSessionRedisEntity.java` | Redis에 JSON으로 저장하기 위한 직렬화 형태 |
+| Domain port | `domain/session/repository/SessionRepository.java` | application service가 사용하는 세션 저장소 계약 |
+| Persistence adapter | `datasource/db-integrated/.../JpaSessionRepositoryAdapter.java` | `SessionRepository`의 JPA 구현체 |
+| Persistence entity | `datasource/db-integrated/.../RehearsalSessionEntity.java` | RDB 테이블과 매핑되는 JPA 엔티티 |
 
 정적 설정은 세션에 저장하지 않는다. 정적 설정은 코드 기반 registry 또는 resolver에서 조회한다.
 
 | Static component | Role |
 | --- | --- |
-| `SituationTypeRegistry` | 선택 가능한 상황 타입과 선택 화면 메타데이터 제공 |
-| `ContextSlotSchemaRegistry` | 상황별 slot 정의, 질문, default, option 제공 |
+| `SituationType` (Enum) | 선택 가능한 상황 타입과 선택 화면 메타데이터 제공 |
+| `ContextSlotSchemaType` (Enum) | 상황별 slot 정의, 질문, default, option 제공 |
 | `OutfitSpecResolver` | outfit id 검증 및 Decart VTON spec 제공 |
 | `RehearsalConfigRegistry` | 상황별 시뮬레이션 설정 제공. 예: 최대 턴 수, 첫 상대 발화 |
 

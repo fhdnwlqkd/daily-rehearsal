@@ -1,8 +1,8 @@
 package com.rehearsal.domain.situation.usecase;
 
-import com.rehearsal.domain.situation.registry.SituationTypeBriefingDefinition;
+import com.rehearsal.domain.situation.model.SituationType;
 
 public interface GetSituationTypeBriefingUseCase {
 
-  SituationTypeBriefingDefinition getSituationTypeBriefing(String situationType);
+  SituationType getSituationTypeBriefing(String situationType);
 }

@@ -18,7 +18,7 @@ rehearsal-modules
 - **역할**: 핵심 비즈니스 로직, 도메인 모델(Entity/VO), 비즈니스 규칙, 공통 예외 정의
 - **패키지 예시**:
     - `com.rehearsal.domain.core`: 공통 예외, 에러 코드
-    - `com.rehearsal.domain.slot`: slot 도메인 모델, repository port, usecase interface
+    - `com.rehearsal.domain.slot`: 상황 및 slot 관련 Enum 스키마 정의 (정적 설정)
 - **포트(Interface)**:
     - `rehearsal-api`가 호출할 **UseCase** 인터페이스
     - `datasource`가 구현할 **Port**(Repository 인터페이스, 외부 API 인터페이스 등)
@@ -58,7 +58,6 @@ docker compose up -d
 | 서비스 | 이미지 | 포트 | 용도 |
 | --- | --- | --- | --- |
 | MySQL | `mysql:8.0` | `3306` | 로컬 RDB (rehearsal), Flyway migration 대상 |
-| Redis | `redis:7.0-alpine` | `6379` | 세션 상태, 작업 ID, polling 상태 저장 |
 
 MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이터는 `docker/mysql_data`에 저장되며 git에는 포함하지 않습니다.
 
@@ -69,7 +68,7 @@ MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이
 | 파일 | 용도 |
 | --- | --- |
 | `application.yml` | 공통 설정, 서버 포트, 기본 active profile |
-| `application-local.yml` | 로컬 MySQL/Redis/Flyway 설정 |
+| `application-local.yml` | 로컬 MySQL/Flyway 설정 |
 | `application-test.yml` | 테스트용 H2 설정 |
 
 기본 active profile은 `local`입니다.

@@ -6,7 +6,7 @@ import com.rehearsal.domain.extraction.model.ContextSlotValue;
 import com.rehearsal.domain.extraction.model.ContextSlotValueSource;
 import com.rehearsal.domain.extraction.model.ContextSlotValueStatus;
 import com.rehearsal.domain.extraction.service.ContextSlotValueNormalizer;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -17,41 +17,39 @@ class ContextSlotValueNormalizerTest {
 
   @Test
   void normalizeBySchemaPriorityAndDropsUnknownRawKeys() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     Map<String, ContextSlotValue> values =
         normalizer.normalize(
             schema,
             Map.of(
-                "critical_moment", " 첫 인사 ", "situation_type", "date", "unknown_key", "ignored"));
+                "critical_moment", " 첫 인사 ", "desired_persona", "calm_confident", "unknown_key", "ignored"));
 
     assertThat(values.keySet())
         .containsExactly(
-            "situation_type",
             "desired_persona",
             "critical_moment",
-            "anxiety_point",
-            "place_context");
-    assertThat(values.get("situation_type").status()).isEqualTo(ContextSlotValueStatus.FILLED);
-    assertThat(values.get("situation_type").source()).isEqualTo(ContextSlotValueSource.EXTRACTED);
+            "outfit_direction");
+    assertThat(values.get("desired_persona").status()).isEqualTo(ContextSlotValueStatus.FILLED);
+    assertThat(values.get("desired_persona").source()).isEqualTo(ContextSlotValueSource.EXTRACTED);
     assertThat(values.get("critical_moment").value()).isEqualTo("첫 인사");
-    assertThat(values.get("desired_persona").status()).isEqualTo(ContextSlotValueStatus.MISSING);
+    assertThat(values.get("outfit_direction").status()).isEqualTo(ContextSlotValueStatus.MISSING);
   }
 
   @Test
   void invalidSingleSelectValueBecomesInvalid() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     Map<String, ContextSlotValue> values =
-        normalizer.normalize(schema, Map.of("situation_type", "not_allowed"));
+        normalizer.normalize(schema, Map.of("desired_persona", "not_allowed"));
 
-    assertThat(values.get("situation_type").status()).isEqualTo(ContextSlotValueStatus.INVALID);
-    assertThat(values.get("situation_type").value()).isEqualTo("not_allowed");
+    assertThat(values.get("desired_persona").status()).isEqualTo(ContextSlotValueStatus.INVALID);
+    assertThat(values.get("desired_persona").value()).isEqualTo("not_allowed");
   }
 
   @Test
   void emptyCollectionBecomesMissing() {
-    ContextSlotSchema schema = SlotExtractionTestFixtures.p1Schema();
+    ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     Map<String, ContextSlotValue> values =
         normalizer.normalize(schema, Map.of("critical_moment", List.of()));

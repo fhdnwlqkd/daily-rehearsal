@@ -6,7 +6,7 @@ import com.google.genai.types.Part;
 import com.google.genai.types.ThinkingConfig;
 import com.rehearsal.datasource.client.gemini.prompt.GeminiPromptMessages;
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 
 @Description("Gemini slot 추출 요청에 사용할 generateContent config를 생성하는 서비스")
 public class GeminiGenerateContentConfigBuilder {
@@ -36,7 +36,7 @@ public class GeminiGenerateContentConfigBuilder {
     this.thinkingBudget = thinkingBudget;
   }
 
-  public GenerateContentConfig build(ContextSlotSchema schema, GeminiPromptMessages messages) {
+  public GenerateContentConfig build(ContextSlotSchemaType schema, GeminiPromptMessages messages) {
     return GenerateContentConfig.builder()
         .systemInstruction(Content.fromParts(Part.fromText(messages.systemInstruction())))
         .responseMimeType(JSON_MIME_TYPE)

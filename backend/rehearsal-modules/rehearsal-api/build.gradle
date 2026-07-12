@@ -45,11 +45,20 @@ tasks.named('asciidoctor') {
 }
 
 task copyDocument(type: Copy) {
-    dependsOn asciidoctor
+    dependsOn asciidoctor, processResources
     from file("build/docs/asciidoc")
-    into file("src/main/resources/static/docs")
+    into file("build/resources/main/static/docs")
 }
 
 bootJar {
     dependsOn copyDocument
 }
+
+jar {
+    dependsOn copyDocument
+}
+
+tasks.named('resolveMainClassName') {
+    dependsOn copyDocument
+}
+

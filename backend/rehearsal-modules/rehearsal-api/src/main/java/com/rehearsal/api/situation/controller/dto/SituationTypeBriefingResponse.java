@@ -1,17 +1,12 @@
 package com.rehearsal.api.situation.controller.dto;
 
-import com.rehearsal.domain.situation.registry.SituationTypeBriefingDefinition;
-import java.util.List;
+import com.rehearsal.domain.situation.model.SituationType;
 
 public record SituationTypeBriefingResponse(
-    String situationType, String briefingTitle, List<String> exampleAnswers) {
+    String situationType, String briefingTitle, String exampleAnswer) {
 
-  public SituationTypeBriefingResponse {
-    exampleAnswers = exampleAnswers == null ? List.of() : List.copyOf(exampleAnswers);
-  }
-
-  public static SituationTypeBriefingResponse from(SituationTypeBriefingDefinition definition) {
+  public static SituationTypeBriefingResponse from(SituationType situation) {
     return new SituationTypeBriefingResponse(
-        definition.key(), definition.briefingTitle(), definition.exampleAnswers());
+        situation.getKey(), situation.getBriefingTitle(), situation.getExampleAnswer());
   }
 }
