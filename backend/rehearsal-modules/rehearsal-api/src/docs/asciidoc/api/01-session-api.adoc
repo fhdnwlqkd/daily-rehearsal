@@ -1,0 +1,6 @@
+[[Session-API]]
+== 1. Session API
+
+[[Session-Create]]
+=== 1.1. 세션 생성
+operation::session-create[snippets='http-request,http-response']
