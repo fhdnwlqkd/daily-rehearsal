@@ -3,17 +3,13 @@ package com.rehearsal.domain.session.model;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.rehearsal.model.ConversationHistory;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.situation.model.SituationType;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 import lombok.Builder;
 import lombok.Getter;
 
 @Getter
-@Description("P1 client rehearsal session state stored in Redis")
+@Description("RDB-backed P1 rehearsal session aggregate root")
 public class ClientSession {
 
   private String sessionId;
@@ -21,16 +17,9 @@ public class ClientSession {
   private SessionStatus status;
   private ContextStatus contextStatus;
   private int followUpAttempt;
-  private SessionContext partialContext;
-  private SessionContext finalContext;
-  private List<String> missingSlotKeys;
-  private List<String> followUpQuestions;
   private String selectedOutfitId;
   private int currentTurn;
   private int maxTurn;
-  private String currentOpponentLine;
-  private List<ConversationHistory> conversationHistory;
-  private List<TurnEvaluation> turnEvaluations;
 
   @Builder
   private ClientSession(
@@ -39,31 +28,17 @@ public class ClientSession {
       SessionStatus status,
       ContextStatus contextStatus,
       int followUpAttempt,
-      SessionContext partialContext,
-      SessionContext finalContext,
-      List<String> missingSlotKeys,
-      List<String> followUpQuestions,
       String selectedOutfitId,
       int currentTurn,
-      int maxTurn,
-      String currentOpponentLine,
-      List<ConversationHistory> conversationHistory,
-      List<TurnEvaluation> turnEvaluations) {
+      int maxTurn) {
     this.sessionId = sessionId;
     this.situationType = situationType;
     this.status = status;
     this.contextStatus = contextStatus;
     this.followUpAttempt = followUpAttempt;
-    this.partialContext = partialContext;
-    this.finalContext = finalContext;
-    this.missingSlotKeys = mutableList(missingSlotKeys);
-    this.followUpQuestions = mutableList(followUpQuestions);
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
     this.maxTurn = maxTurn;
-    this.currentOpponentLine = currentOpponentLine;
-    this.conversationHistory = mutableList(conversationHistory);
-    this.turnEvaluations = mutableList(turnEvaluations);
   }
 
   public static ClientSession create(SituationType situationType) {
@@ -82,28 +57,11 @@ public class ClientSession {
     this.contextStatus = ContextStatus.EXTRACTING;
   }
 
-  public void requireFollowUp(
-      SessionContext partialContext, List<String> missingSlotKeys, List<String> followUpQuestions) {
-    requireFollowUp();
-    this.partialContext = partialContext;
-    this.finalContext = null;
-    this.missingSlotKeys = mutableList(missingSlotKeys);
-    this.followUpQuestions = mutableList(followUpQuestions);
-  }
-
   public void requireFollowUp() {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
     validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
     this.status = SessionStatus.FOLLOW_UP_REQUIRED;
     this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
-  }
-
-  public void completeContext(SessionContext finalContext) {
-    completeContext();
-    this.partialContext = null;
-    this.finalContext = finalContext;
-    this.missingSlotKeys = new ArrayList<>();
-    this.followUpQuestions = new ArrayList<>();
   }
 
   public void completeContext() {
@@ -140,11 +98,6 @@ public class ClientSession {
     this.status = SessionStatus.REHEARSAL_READY;
   }
 
-  public void startSimulation(int maxTurn, String firstOpponentLine) {
-    startSimulation(maxTurn);
-    this.currentOpponentLine = firstOpponentLine;
-  }
-
   public void startSimulation(int maxTurn) {
     validateStatus(SessionStatus.REHEARSAL_READY);
     this.status = SessionStatus.REHEARSAL_PLAYING;
@@ -152,43 +105,10 @@ public class ClientSession {
     this.maxTurn = maxTurn;
   }
 
-  public void recordTurn(
-      String userTranscript, boolean success, String feedback, boolean fallback) {
-    validateStatus(SessionStatus.REHEARSAL_PLAYING);
-    validateTurnLimit();
-    conversationHistory.add(
-        new ConversationHistory(currentTurn, currentOpponentLine, userTranscript));
-    turnEvaluations.add(new TurnEvaluation(currentTurn, success, feedback, fallback));
-    if (success) {
-      advanceTurn();
-    }
-  }
-
   public void advanceTurn() {
     validateStatus(SessionStatus.REHEARSAL_PLAYING);
     validateTurnLimit();
     this.currentTurn++;
-  }
-
-  public void updateOpponentLine(String opponentLine) {
-    validateStatus(SessionStatus.REHEARSAL_PLAYING);
-    this.currentOpponentLine = opponentLine;
-  }
-
-  public List<String> getMissingSlotKeys() {
-    return List.copyOf(missingSlotKeys);
-  }
-
-  public List<String> getFollowUpQuestions() {
-    return List.copyOf(followUpQuestions);
-  }
-
-  public List<ConversationHistory> getConversationHistory() {
-    return List.copyOf(conversationHistory);
-  }
-
-  public List<TurnEvaluation> getTurnEvaluations() {
-    return List.copyOf(turnEvaluations);
   }
 
   private void validateStatus(SessionStatus expected) {
@@ -222,9 +142,5 @@ public class ClientSession {
     if (contextStatus != ContextStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
-  }
-
-  private static <T> List<T> mutableList(List<T> values) {
-    return values == null ? new ArrayList<>() : new ArrayList<>(values);
   }
 }

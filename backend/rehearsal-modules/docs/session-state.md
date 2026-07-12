@@ -1,11 +1,11 @@
-# Client Session State - RDB Migration Target
+# Client Session State - RDB Architecture
 
 ## 목적
 
 `ClientSession`은 한 사용자의 Daily Rehearsal 1회 실행 상태를 나타낸다.
 
-이 문서는 Redis 기반 세션을 RDB 단일 진실 공급원(Single Source of Truth)으로 전환한 뒤의
-목표 구조를 정의한다. 마이그레이션이 완료되기 전까지 실제 코드는 Redis 구현을 포함할 수 있다.
+이 문서는 MySQL RDB를 세션의 단일 진실 공급원(Single Source of Truth)으로 사용하는
+현재 구조를 정의한다. 별도 Redis session/cache/job은 사용하지 않는다.
 
 `ClientSession`은 `rehearsal_session`에 대응하는 세션 root 도메인 모델이다. Context, simulation
 turn/attempt, 최종 결과는 별도 도메인 모델과 테이블로 관리한다.
@@ -118,7 +118,7 @@ repository query로 직접 조회한다.
 | `selectOutfit(selectedOutfitId)` | `TRANSFORMATION_READY` | 플로우를 진행하지 않고 선택 outfit id만 저장 |
 | `confirmOutfit(selectedOutfitId)` | `TRANSFORMATION_READY`이고 context 수집이 완료된 상태 | outfit id를 저장하고 `REHEARSAL_READY`로 이동 |
 | `startSimulation(maxTurn)` | `REHEARSAL_READY` | `REHEARSAL_PLAYING`으로 이동하고 `currentTurn = 1`, `maxTurn` 저장 |
-| `recordTurn(...)` | `REHEARSAL_PLAYING`이고 턴 제한 이내 | 성공 시 다음 턴으로 이동. 턴/평가 값은 별도 도메인 모델에 저장 |
+| `advanceTurn()` | `REHEARSAL_PLAYING`이고 턴 제한 이내 | 성공한 평가가 저장된 뒤 다음 턴으로 이동 |
 
 context 완료 관련 전이도 같은 패턴을 따라야 한다.
 

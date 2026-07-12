@@ -27,9 +27,9 @@ rehearsal-modules
 ### 2. `datasource` (Infrastructure & Adapters)
 `domain`에서 정의한 인터페이스를 실제로 구현하는 인프라스트럭처 영역입니다.
 - **역할**: 
-    - **Persistence**: JPA Repository 구현, Redis 데이터 저장 및 조회
+    - **Persistence**: JPA Repository와 MySQL 데이터 저장 및 조회
     - **External API**: `WebClient` 기반 외부 서비스(STT, 날씨, LLM, VTON 등) 호출 클라이언트 구현
-    - **Infrastructure Adapter**: DB/Redis 관련 adapter 구현
+    - **Infrastructure Adapter**: DB 관련 adapter 구현
 - **패키지 예시**:
     - `com.rehearsal.datasource.dbintegrated`: JPA 기반 DB adapter
 - **의존성**: `:domain`
@@ -46,7 +46,7 @@ rehearsal-modules
 
 ## 로컬 인프라 실행
 
-로컬 개발 환경은 Docker Compose로 MySQL과 Redis를 실행합니다.
+로컬 개발 환경은 Docker Compose로 MySQL을 실행합니다.
 
 ```bash
 cd docker
