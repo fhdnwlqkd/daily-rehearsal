@@ -84,25 +84,33 @@ public class ClientSession {
 
   public void requireFollowUp(
       SessionContext partialContext, List<String> missingSlotKeys, List<String> followUpQuestions) {
-    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
-    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
-    this.status = SessionStatus.FOLLOW_UP_REQUIRED;
-    this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
+    requireFollowUp();
     this.partialContext = partialContext;
     this.finalContext = null;
     this.missingSlotKeys = mutableList(missingSlotKeys);
     this.followUpQuestions = mutableList(followUpQuestions);
   }
 
-  public void completeContext(SessionContext finalContext) {
+  public void requireFollowUp() {
     validateStatus(SessionStatus.CONTEXT_EXTRACTING);
     validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
-    this.status = SessionStatus.TRANSFORMATION_READY;
-    this.contextStatus = ContextStatus.COMPLETED;
+    this.status = SessionStatus.FOLLOW_UP_REQUIRED;
+    this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
+  }
+
+  public void completeContext(SessionContext finalContext) {
+    completeContext();
     this.partialContext = null;
     this.finalContext = finalContext;
     this.missingSlotKeys = new ArrayList<>();
     this.followUpQuestions = new ArrayList<>();
+  }
+
+  public void completeContext() {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
+    this.status = SessionStatus.TRANSFORMATION_READY;
+    this.contextStatus = ContextStatus.COMPLETED;
   }
 
   public void startFollowUpMerge() {
@@ -126,11 +134,15 @@ public class ClientSession {
   }
 
   public void startSimulation(int maxTurn, String firstOpponentLine) {
+    startSimulation(maxTurn);
+    this.currentOpponentLine = firstOpponentLine;
+  }
+
+  public void startSimulation(int maxTurn) {
     validateStatus(SessionStatus.REHEARSAL_READY);
     this.status = SessionStatus.REHEARSAL_PLAYING;
     this.currentTurn = 1;
     this.maxTurn = maxTurn;
-    this.currentOpponentLine = firstOpponentLine;
   }
 
   public void recordTurn(
@@ -141,8 +153,14 @@ public class ClientSession {
         new ConversationHistory(currentTurn, currentOpponentLine, userTranscript));
     turnEvaluations.add(new TurnEvaluation(currentTurn, success, feedback, fallback));
     if (success) {
-      currentTurn++;
+      advanceTurn();
     }
+  }
+
+  public void advanceTurn() {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    validateTurnLimit();
+    this.currentTurn++;
   }
 
   public void updateOpponentLine(String opponentLine) {
