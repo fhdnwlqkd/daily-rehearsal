@@ -39,6 +39,8 @@ back --> front: sessionId 반환
 
 == 3. 브리핑 및 재질문 ==
 
+front -> back: GET /api/v1/situation-types/{situationType}/briefing
+back --> front: briefingTitle + exampleAnswers
 front --> user: 타입별 고정 브리핑 표시\n사용자 발화 유도
 user -> front: 내일 상황 브리핑 발화
 front -> front: STT로 transcript 확정

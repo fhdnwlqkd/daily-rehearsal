@@ -7,7 +7,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.situation.model.SituationType;
+import com.rehearsal.domain.situation.registry.SituationTypeBriefingDefinition;
 import com.rehearsal.domain.situation.registry.SituationTypeDefinition;
+import com.rehearsal.domain.situation.usecase.GetSituationTypeBriefingUseCase;
 import com.rehearsal.domain.situation.usecase.GetSituationTypesUseCase;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -34,12 +36,24 @@ class SituationTypeControllerTest {
         .perform(get("/api/v1/situation-types"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data[0].key").value("date"))
-        .andExpect(jsonPath("$.data[0].label").value("\uC18C\uAC1C\uD305"))
-        .andExpect(jsonPath("$.data[0].gestureOrder").value(1))
-        .andExpect(jsonPath("$.data[0].briefingTitle").isString())
-        .andExpect(jsonPath("$.data[0].exampleAnswers[0]").isString())
-        .andExpect(jsonPath("$.data[1].key").value("business_meeting"));
+        .andExpect(jsonPath("$.data[0].situationType").value("date"))
+        .andExpect(jsonPath("$.data[0].label").value("소개팅"))
+        .andExpect(jsonPath("$.data[0].gestureOrder").doesNotExist())
+        .andExpect(jsonPath("$.data[0].briefingTitle").doesNotExist())
+        .andExpect(jsonPath("$.data[0].exampleAnswers").doesNotExist())
+        .andExpect(jsonPath("$.data[1].situationType").value("business_meeting"));
+  }
+
+  @Test
+  void returnsSituationTypeBriefing() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/situation-types/date/briefing"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.situationType").value("date"))
+        .andExpect(jsonPath("$.data.briefingTitle").value("내일의 소개팅을 짧게 말해주세요"))
+        .andExpect(jsonPath("$.data.exampleAnswers[0]").isString())
+        .andExpect(jsonPath("$.data.label").doesNotExist());
   }
 
   @TestConfiguration
@@ -49,20 +63,17 @@ class SituationTypeControllerTest {
     GetSituationTypesUseCase getSituationTypesUseCase() {
       return () ->
           List.of(
-              new SituationTypeDefinition(
-                  SituationType.DATE,
-                  "\uC18C\uAC1C\uD305",
-                  1,
-                  "\uB0B4\uC77C\uC758 \uC18C\uAC1C\uD305\uC744 \uC9E7\uAC8C \uB9D0\uD574\uC8FC\uC138\uC694",
-                  List.of(
-                      "\uB0B4\uC77C \uC18C\uAC1C\uD305\uC774 \uC788\uB294\uB370 \uCCAB \uC778\uC0AC\uAC00 \uC5B4\uC0C9\uD560\uAE4C \uBD10 \uAC71\uC815\uB3FC\uC694.")),
-              new SituationTypeDefinition(
-                  SituationType.BUSINESS_MEETING,
-                  "\uBE44\uC988\uB2C8\uC2A4 \uBBF8\uD305",
-                  2,
-                  "\uB0B4\uC77C\uC758 \uBE44\uC988\uB2C8\uC2A4 \uBBF8\uD305\uC744 \uC9E7\uAC8C \uB9D0\uD574\uC8FC\uC138\uC694",
-                  List.of(
-                      "\uB0B4\uC77C \uACE0\uAC1D \uBBF8\uD305\uC5D0\uC11C \uD575\uC2EC \uB0B4\uC6A9\uC744 \uCC28\uBD84\uD558\uAC8C \uC804\uB2EC\uD558\uACE0 \uC2F6\uC5B4\uC694.")));
+              new SituationTypeDefinition(SituationType.DATE, "소개팅"),
+              new SituationTypeDefinition(SituationType.BUSINESS_MEETING, "비즈니스 미팅"));
+    }
+
+    @Bean
+    GetSituationTypeBriefingUseCase getSituationTypeBriefingUseCase() {
+      return situationType ->
+          new SituationTypeBriefingDefinition(
+              SituationType.DATE,
+              "내일의 소개팅을 짧게 말해주세요",
+              List.of("내일 소개팅이 있는데 첫 인사가 어색할까 봐 걱정돼요."));
     }
   }
 }

@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 class SituationTypeRegistryTest {
 
   @Test
-  void findsAllSituationTypesByGestureOrder() {
+  void findsAllSituationTypes() {
     assertThat(SituationTypeRegistry.findAll())
         .extracting(SituationTypeDefinition::situationType)
         .containsExactly(SituationType.DATE, SituationType.BUSINESS_MEETING);
@@ -20,8 +20,18 @@ class SituationTypeRegistryTest {
 
     assertThat(definition.situationType()).isEqualTo(SituationType.DATE);
     assertThat(definition.key()).isEqualTo("date");
-    assertThat(definition.label()).isEqualTo("\uC18C\uAC1C\uD305");
-    assertThat(definition.exampleAnswers()).isNotEmpty();
+    assertThat(definition.label()).isEqualTo("소개팅");
+  }
+
+  @Test
+  void findsSituationTypeBriefingDefinitionByKey() {
+    SituationTypeBriefingDefinition briefing =
+        SituationTypeRegistry.findBriefingByKey("date").orElseThrow();
+
+    assertThat(briefing.situationType()).isEqualTo(SituationType.DATE);
+    assertThat(briefing.key()).isEqualTo("date");
+    assertThat(briefing.briefingTitle()).isEqualTo("내일의 소개팅을 짧게 말해주세요");
+    assertThat(briefing.exampleAnswers()).isNotEmpty();
   }
 
   @Test
