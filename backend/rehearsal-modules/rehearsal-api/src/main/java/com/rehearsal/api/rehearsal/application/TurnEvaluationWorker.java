@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -35,7 +36,7 @@ public class TurnEvaluationWorker {
   private final TurnEvaluationClient turnEvaluationClient;
 
   @Async(AsyncConfig.TURN_EVALUATION_EXECUTOR)
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void evaluateAsync(TurnEvaluationRequested event) {
     evaluate(event);

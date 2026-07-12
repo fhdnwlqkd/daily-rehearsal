@@ -35,7 +35,7 @@ class SituationTypeControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data[0].situationType").value("date"))
-        .andExpect(jsonPath("$.data[0].label").value("소개팅"))
+        .andExpect(jsonPath("$.data[0].label").value(SituationType.DATE.getDisplayName()))
         .andExpect(jsonPath("$.data[0].gestureOrder").doesNotExist())
         .andExpect(jsonPath("$.data[0].briefingTitle").doesNotExist())
         .andExpect(jsonPath("$.data[0].exampleAnswer").doesNotExist())
@@ -49,7 +49,8 @@ class SituationTypeControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.situationType").value("date"))
-        .andExpect(jsonPath("$.data.briefingTitle").value("내일의 소개팅을 짧게 말해주세요"))
+        .andExpect(
+            jsonPath("$.data.briefingTitle").value(SituationType.DATE.getBriefingTitle()))
         .andExpect(jsonPath("$.data.exampleAnswer").isString())
         .andExpect(jsonPath("$.data.label").doesNotExist());
   }

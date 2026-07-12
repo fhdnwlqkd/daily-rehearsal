@@ -4,3 +4,11 @@
 [[Session-Create]]
 === 1.1. 세션 생성
 operation::session-create[snippets='http-request,http-response']
+
+[[Context-Submit-Briefing]]
+=== 1.2. 브리핑 제출
+operation::context-submit-briefing[snippets='http-request,http-response']
+
+[[Context-Poll]]
+=== 1.3. Context 상태 조회
+operation::context-poll[snippets='http-request,http-response']

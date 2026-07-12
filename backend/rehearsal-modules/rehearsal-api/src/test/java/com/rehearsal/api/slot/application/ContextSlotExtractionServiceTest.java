@@ -7,6 +7,7 @@ import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
+import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -14,11 +15,11 @@ class ContextSlotExtractionServiceTest {
 
   @Test
   void extractsAndProcessesContextSlotsFromStaticEnumSchema() {
-    SlotExtractorClient slotExtractorClient =
+    SlotExtractorClient client =
         command ->
             new SlotExtractionRawResult(
                 Map.of("desired_persona", "calm_confident", "critical_moment", "first greeting"));
-    ContextSlotExtractionService service = service(slotExtractorClient);
+    ContextSlotExtractionService service = service(client);
 
     ExtractContextSlotsResult result =
         service.extract(
@@ -37,11 +38,11 @@ class ContextSlotExtractionServiceTest {
 
   @Test
   void appliesStaticDefaultsWhenExtractorFails() {
-    SlotExtractorClient slotExtractorClient =
+    SlotExtractorClient client =
         command -> {
           throw new IllegalStateException("AI unavailable");
         };
-    ContextSlotExtractionService service = service(slotExtractorClient);
+    ContextSlotExtractionService service = service(client);
 
     ExtractContextSlotsResult result =
         service.extract(new ExtractContextSlotsCommand("tomorrow date rehearsal"));
@@ -52,11 +53,12 @@ class ContextSlotExtractionServiceTest {
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
     assertThat(result.context())
         .containsEntry("desired_persona", "calm_confident")
-        .containsEntry("critical_moment", "첫 인사와 가벼운 대화")
+        .containsEntry(
+            "critical_moment", ContextSlotType.CRITICAL_MOMENT.getDefaultLiteralValue())
         .containsEntry("outfit_direction", "neat_casual");
   }
 
-  private ContextSlotExtractionService service(SlotExtractorClient slotExtractorClient) {
-    return new ContextSlotExtractionService(slotExtractorClient, new SlotExtractionProcessor());
+  private ContextSlotExtractionService service(SlotExtractorClient client) {
+    return new ContextSlotExtractionService(client, new SlotExtractionProcessor());
   }
 }

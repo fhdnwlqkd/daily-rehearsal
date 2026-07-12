@@ -51,6 +51,23 @@ class SimulationServiceTest {
   }
 
   @Test
+  void duplicateEvaluationSubmissionReusesPendingAttempt() {
+    ClientSession session = playingSession(1);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    SimulationTurn turn =
+        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurnAttempt pending =
+        repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "answer"));
+    List<Object> events = new ArrayList<>();
+
+    SimulationTurnAttempt duplicated =
+        service(repository, events).submit(session.getSessionId(), 1, "answer", null);
+
+    assertThat(duplicated.getId()).isEqualTo(pending.getId());
+    assertThat(events).isEmpty();
+  }
+
+  @Test
   void failedEvaluationIsRetriedAsNextAttempt() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);

@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
@@ -34,7 +35,7 @@ public class ContextExtractionWorker {
   private final ContextSlotExtractionService contextSlotExtractionService;
 
   @Async(AsyncConfig.CONTEXT_EXTRACTION_EXECUTOR)
-  @Transactional
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
   @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
   public void extractAsync(ContextExtractionRequested event) {
     if (event.mode() == SlotExtractionMode.INITIAL) {
