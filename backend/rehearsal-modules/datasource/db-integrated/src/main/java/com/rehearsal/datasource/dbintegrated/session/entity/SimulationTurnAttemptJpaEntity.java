@@ -1,7 +1,10 @@
 package com.rehearsal.datasource.dbintegrated.session.entity;
 
+import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -39,8 +42,9 @@ public class SimulationTurnAttemptJpaEntity extends BaseJpaEntity {
   @Column(name = "user_transcript", nullable = false, columnDefinition = "TEXT")
   private String userTranscript;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "evaluation_status", nullable = false, length = 30)
-  private String evaluationStatus;
+  private EvaluationStatus evaluationStatus;
 
   @Column(name = "success")
   private Boolean success;
@@ -58,7 +62,7 @@ public class SimulationTurnAttemptJpaEntity extends BaseJpaEntity {
       SimulationTurnJpaEntity simulationTurn,
       int attemptNo,
       String userTranscript,
-      String evaluationStatus) {
+      EvaluationStatus evaluationStatus) {
     SimulationTurnAttemptJpaEntity entity = new SimulationTurnAttemptJpaEntity();
     entity.simulationTurn = simulationTurn;
     entity.attemptNo = attemptNo;
@@ -68,7 +72,7 @@ public class SimulationTurnAttemptJpaEntity extends BaseJpaEntity {
   }
 
   public void updateEvaluation(
-      String evaluationStatus,
+      EvaluationStatus evaluationStatus,
       Boolean success,
       String feedback,
       Boolean fallback,

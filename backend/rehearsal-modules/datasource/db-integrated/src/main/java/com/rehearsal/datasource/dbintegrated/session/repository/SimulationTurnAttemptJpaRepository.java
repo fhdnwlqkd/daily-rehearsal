@@ -13,4 +13,8 @@ public interface SimulationTurnAttemptJpaRepository
 
   List<SimulationTurnAttemptJpaEntity> findAllBySimulationTurnIdOrderByAttemptNoAsc(
       Long simulationTurnId);
+
+  Optional<SimulationTurnAttemptJpaEntity>
+      findTopBySimulationTurnSessionSessionIdAndSimulationTurnTurnNoOrderByAttemptNoDesc(
+          String sessionId, int turnNo);
 }

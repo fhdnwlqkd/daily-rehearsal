@@ -1,7 +1,10 @@
 package com.rehearsal.datasource.dbintegrated.session.entity;
 
+import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -36,8 +39,9 @@ public class SimulationTurnJpaEntity extends BaseJpaEntity {
   @Column(name = "turn_no", nullable = false)
   private int turnNo;
 
+  @Enumerated(EnumType.STRING)
   @Column(name = "opponent_line_status", nullable = false, length = 30)
-  private String opponentLineStatus;
+  private OpponentLineStatus opponentLineStatus;
 
   @Column(name = "opponent_line", columnDefinition = "TEXT")
   private String opponentLine;
@@ -48,7 +52,7 @@ public class SimulationTurnJpaEntity extends BaseJpaEntity {
   public static SimulationTurnJpaEntity create(
       RehearsalSessionJpaEntity session,
       int turnNo,
-      String opponentLineStatus,
+      OpponentLineStatus opponentLineStatus,
       String opponentLine) {
     SimulationTurnJpaEntity entity = new SimulationTurnJpaEntity();
     entity.session = session;
@@ -59,7 +63,7 @@ public class SimulationTurnJpaEntity extends BaseJpaEntity {
   }
 
   public void updateOpponentLine(
-      String opponentLineStatus, String opponentLine, String failureReason) {
+      OpponentLineStatus opponentLineStatus, String opponentLine, String failureReason) {
     this.opponentLineStatus = opponentLineStatus;
     this.opponentLine = opponentLine;
     this.opponentLineFailureReason = failureReason;
