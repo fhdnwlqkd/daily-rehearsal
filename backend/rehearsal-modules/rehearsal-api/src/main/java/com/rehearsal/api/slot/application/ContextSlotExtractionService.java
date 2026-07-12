@@ -12,7 +12,6 @@ import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
 import com.rehearsal.domain.situation.model.SituationType;
 import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.LinkedHashMap;
-import java.util.Locale;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,8 +25,7 @@ public class ContextSlotExtractionService {
   private final SlotExtractionProcessor slotExtractionProcessor;
 
   public ExtractContextSlotsResult extract(ExtractContextSlotsCommand command) {
-    SituationType situationType =
-        SituationType.valueOf(command.schemaKey().toUpperCase(Locale.ROOT));
+    SituationType situationType = SituationType.fromKey(command.schemaKey());
     ContextSlotSchemaType schema =
         ContextSlotSchemaType.findBySituationType(situationType)
             .orElseThrow(
@@ -42,7 +40,7 @@ public class ContextSlotExtractionService {
         slotExtractionProcessor.process(schema, rawResult, processingAttempt);
 
     return new ExtractContextSlotsResult(
-        situationType.name(),
+        situationType.getKey(),
         rawResult.rawSlots(),
         processingResult.slots(),
         context(processingResult.slots()),

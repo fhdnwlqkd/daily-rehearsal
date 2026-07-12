@@ -94,6 +94,15 @@ package "RDB (MySQL) - Single Source of Truth" <<Database>> {
     동시 갱신 충돌을 감지한다.
   end note
 
+  note left of session
+    JPA mapping policy:
+    - child entity owns the FK association
+    - child -> parent uses LAZY reference
+    - parent has no OneToMany collection
+    - child rows are queried explicitly
+    - one domain port: SessionRepository
+  end note
+
   note right of context_value
     실제로 수집된 context key/value만 저장한다.
     Partial/Final 여부는 contextStatus로 판단한다.
@@ -125,6 +134,7 @@ note bottom
   Context normalize
   POST briefing/follow-up
     -> rehearsal_session.context_status 변경
+    -> RDB transaction commit
     -> worker 실행
     -> context value 저장과 context_status 완료를 한 transaction으로 처리
   GET context
@@ -144,6 +154,8 @@ note bottom
 
   Polling 상태와 실제 결과가 같은 row에 있으므로
   별도 job/result 동기화가 필요하지 않다.
+  여러 row 변경은 application service의
+  transaction 경계 안에서 처리한다.
 end note
 
 @enduml
