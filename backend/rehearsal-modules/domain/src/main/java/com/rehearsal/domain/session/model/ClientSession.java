@@ -20,6 +20,9 @@ public class ClientSession {
   private String selectedOutfitId;
   private int currentTurn;
   private int maxTurn;
+  private String videoUrl;
+  private VideoUploadStatus videoUploadStatus;
+  private String videoUploadFailureReason;
 
   @Builder
   private ClientSession(
@@ -30,7 +33,10 @@ public class ClientSession {
       int followUpAttempt,
       String selectedOutfitId,
       int currentTurn,
-      int maxTurn) {
+      int maxTurn,
+      String videoUrl,
+      VideoUploadStatus videoUploadStatus,
+      String videoUploadFailureReason) {
     this.sessionId = sessionId;
     this.situationType = situationType;
     this.status = status;
@@ -39,6 +45,9 @@ public class ClientSession {
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
     this.maxTurn = maxTurn;
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = videoUploadStatus == null ? VideoUploadStatus.NONE : videoUploadStatus;
+    this.videoUploadFailureReason = videoUploadFailureReason;
   }
 
   public static ClientSession create(SituationType situationType) {
@@ -104,6 +113,21 @@ public class ClientSession {
     validateStatus(SessionStatus.REHEARSAL_PLAYING);
     validateTurnLimit();
     this.currentTurn++;
+  }
+
+  public void assignVideoUrl(String videoUrl) {
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = VideoUploadStatus.PENDING;
+    this.videoUploadFailureReason = null;
+  }
+
+  public void completeVideoUpload() {
+    this.videoUploadStatus = VideoUploadStatus.COMPLETED;
+  }
+
+  public void failVideoUpload(String reason) {
+    this.videoUploadStatus = VideoUploadStatus.FAILED;
+    this.videoUploadFailureReason = reason;
   }
 
   private void validateStatus(SessionStatus expected) {

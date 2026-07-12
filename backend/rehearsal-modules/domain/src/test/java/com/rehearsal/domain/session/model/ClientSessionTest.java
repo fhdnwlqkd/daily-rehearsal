@@ -95,6 +95,47 @@ class ClientSessionTest {
         .isEqualTo(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
   }
 
+  @Test
+  void newSessionHasNoneVideoUploadStatusByDefault() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+
+    assertThat(session.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.NONE);
+    assertThat(session.getVideoUrl()).isNull();
+  }
+
+  @Test
+  void assignVideoUrlSetsUrlAndPendingStatus() {
+    ClientSession session = playingSessionAtTurn(1);
+
+    session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
+
+    assertThat(session.getVideoUrl())
+        .isEqualTo("http://localhost/mock-videos/test-session-id.webm");
+    assertThat(session.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.PENDING);
+    assertThat(session.getVideoUploadFailureReason()).isNull();
+  }
+
+  @Test
+  void completeVideoUploadMarksStatusCompleted() {
+    ClientSession session = playingSessionAtTurn(1);
+    session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
+
+    session.completeVideoUpload();
+
+    assertThat(session.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.COMPLETED);
+  }
+
+  @Test
+  void failVideoUploadRecordsFailureReason() {
+    ClientSession session = playingSessionAtTurn(1);
+    session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
+
+    session.failVideoUpload("storage unavailable");
+
+    assertThat(session.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.FAILED);
+    assertThat(session.getVideoUploadFailureReason()).isEqualTo("storage unavailable");
+  }
+
   private ClientSession rehearsalReadySession() {
     return ClientSession.builder()
         .sessionId("session-id")
@@ -103,5 +144,14 @@ class ClientSessionTest {
         .contextStatus(ContextStatus.COMPLETED)
         .selectedOutfitId("outfit-1")
         .build();
+  }
+
+  private ClientSession playingSessionAtTurn(int currentTurn) {
+    ClientSession session = rehearsalReadySession();
+    session.startSimulation(currentTurn);
+    for (int i = 1; i < currentTurn; i++) {
+      session.advanceTurn();
+    }
+    return session;
   }
 }

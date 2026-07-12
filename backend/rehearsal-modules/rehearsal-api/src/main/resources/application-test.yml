@@ -24,3 +24,5 @@ rehearsal:
   ai:
     defaults:
       provider: fake
+  video-storage:
+    local-root: ${java.io.tmpdir}/rehearsal-test-videos

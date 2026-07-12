@@ -13,6 +13,7 @@ public class AsyncConfig {
   public static final String TURN_EVALUATION_EXECUTOR = "turnEvaluationExecutor";
   public static final String NEXT_LINE_EXECUTOR = "nextLineExecutor";
   public static final String CONTEXT_EXTRACTION_EXECUTOR = "contextExtractionExecutor";
+  public static final String VIDEO_UPLOAD_EXECUTOR = "videoUploadExecutor";
 
   @Bean(TURN_EVALUATION_EXECUTOR)
   public ThreadPoolTaskExecutor turnEvaluationExecutor() {
@@ -43,6 +44,18 @@ public class AsyncConfig {
     executor.setMaxPoolSize(4);
     executor.setQueueCapacity(20);
     executor.setThreadNamePrefix("next-line-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    executor.initialize();
+    return executor;
+  }
+
+  @Bean(VIDEO_UPLOAD_EXECUTOR)
+  public ThreadPoolTaskExecutor videoUploadExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(20);
+    executor.setThreadNamePrefix("video-upload-");
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
     executor.initialize();
     return executor;

@@ -8,6 +8,10 @@ spring:
     active: local
   main:
     allow-bean-definition-overriding: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 management:
   endpoints:
@@ -34,3 +38,6 @@ rehearsal:
     model: ${DECART_MODEL:lucy-vton-latest}
     token-endpoint: ${DECART_TOKEN_ENDPOINT:https://api.decart.ai/v1/tokens}
     outfits: {}
+  video-storage:
+    local-root: ${VIDEO_STORAGE_LOCAL_ROOT:./data/videos}
+    public-base-url: ${VIDEO_STORAGE_PUBLIC_BASE_URL:http://localhost:8080/mock-videos}
