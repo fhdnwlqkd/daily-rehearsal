@@ -128,7 +128,7 @@ public class ClientSession {
 
   public void confirmOutfit(String selectedOutfitId) {
     validateStatus(SessionStatus.TRANSFORMATION_READY);
-    validateFinalContextCompleted();
+    validateContextCompleted();
     this.selectedOutfitId = selectedOutfitId;
     this.status = SessionStatus.REHEARSAL_READY;
   }
@@ -211,10 +211,8 @@ public class ClientSession {
     }
   }
 
-  private void validateFinalContextCompleted() {
-    if (contextStatus != ContextStatus.COMPLETED
-        || finalContext == null
-        || finalContext.isEmpty()) {
+  private void validateContextCompleted() {
+    if (contextStatus != ContextStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
   }

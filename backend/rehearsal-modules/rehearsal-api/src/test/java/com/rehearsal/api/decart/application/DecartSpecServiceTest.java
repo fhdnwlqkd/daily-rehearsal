@@ -5,7 +5,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.rehearsal.api.config.decart.DecartProperties;
 import com.rehearsal.api.session.application.SessionReader;
-import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
@@ -31,7 +31,7 @@ class DecartSpecServiceTest {
 
   @Test
   void issueTokenThrowsSessionNotFound() {
-    DecartSpecService service = serviceWith(new InMemorySessionCache());
+    DecartSpecService service = serviceWith(new InMemorySessionRepository());
 
     assertThatThrownBy(() -> service.issueDecartToken("unknown-session-id"))
         .isInstanceOf(BusinessException.class)
@@ -74,7 +74,7 @@ class DecartSpecServiceTest {
 
   @Test
   void getOutfitSpecThrowsSessionNotFound() {
-    DecartSpecService service = serviceWith(new InMemorySessionCache());
+    DecartSpecService service = serviceWith(new InMemorySessionRepository());
 
     assertThatThrownBy(() -> service.getOutfitSpec("unknown-session-id", OUTFIT_ID))
         .isInstanceOf(BusinessException.class)
@@ -105,12 +105,15 @@ class DecartSpecServiceTest {
   }
 
   private DecartSpecService serviceWith(ClientSession session) {
-    return serviceWith(new InMemorySessionCache(session));
+    return serviceWith(new InMemorySessionRepository(session));
   }
 
-  private DecartSpecService serviceWith(InMemorySessionCache sessionCache) {
+  private DecartSpecService serviceWith(InMemorySessionRepository sessionRepository) {
     return new DecartSpecService(
-        sessionCache, new SessionReader(sessionCache), () -> CLIENT_TOKEN, resolverWithOutfit());
+        sessionRepository,
+        new SessionReader(sessionRepository),
+        () -> CLIENT_TOKEN,
+        resolverWithOutfit());
   }
 
   private OutfitSpecResolver resolverWithOutfit() {

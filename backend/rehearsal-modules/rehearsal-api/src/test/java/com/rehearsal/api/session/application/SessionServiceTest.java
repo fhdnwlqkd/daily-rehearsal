@@ -5,15 +5,15 @@ import static org.mockito.Mockito.mock;
 
 import com.rehearsal.api.decart.application.OutfitSpecResolver;
 import com.rehearsal.api.support.InMemoryContextExtractionJobStore;
-import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.RecordingContextExtractionWorker;
 import com.rehearsal.domain.extraction.model.ContextExtractionJob;
 import com.rehearsal.domain.extraction.model.ContextExtractionJobStatus;
 import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
 import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionContext;
+import com.rehearsal.domain.session.repository.SessionRepository;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -24,10 +24,10 @@ class SessionServiceTest {
   @Test
   void submitBriefingExtractionCreatesPendingJobAndDispatchesWorker() {
     ClientSession session = ClientSession.create(SituationType.DATE);
-    SessionCache sessionCache = new InMemorySessionCache(session);
+    SessionRepository sessionRepository = new InMemorySessionRepository(session);
     ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
     RecordingContextExtractionWorker worker = new RecordingContextExtractionWorker();
-    SessionService service = service(sessionCache, jobStore, worker);
+    SessionService service = service(sessionRepository, jobStore, worker);
 
     ContextExtractionJob job =
         service.submitBriefingExtraction(session.getSessionId(), "briefing transcript");
@@ -41,10 +41,10 @@ class SessionServiceTest {
   @Test
   void submitFollowUpExtractionCreatesPendingJobAndDispatchesWorker() {
     ClientSession session = followUpRequiredSession();
-    SessionCache sessionCache = new InMemorySessionCache(session);
+    SessionRepository sessionRepository = new InMemorySessionRepository(session);
     ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
     RecordingContextExtractionWorker worker = new RecordingContextExtractionWorker();
-    SessionService service = service(sessionCache, jobStore, worker);
+    SessionService service = service(sessionRepository, jobStore, worker);
 
     ContextExtractionJob job =
         service.submitFollowUpExtraction(session.getSessionId(), "follow-up transcript");
@@ -62,7 +62,8 @@ class SessionServiceTest {
             "session-id", SituationType.DATE, ContextExtractionJobType.BRIEFING);
     ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore(job);
     SessionService service =
-        service(new InMemorySessionCache(ClientSession.create(SituationType.DATE)), jobStore, null);
+        service(
+            new InMemorySessionRepository(ClientSession.create(SituationType.DATE)), jobStore, null);
 
     ContextExtractionJob found = service.get("session-id", job.jobId());
 
@@ -70,12 +71,12 @@ class SessionServiceTest {
   }
 
   private SessionService service(
-      SessionCache sessionCache,
+      SessionRepository sessionRepository,
       ContextExtractionJobStore jobStore,
       RecordingContextExtractionWorker worker) {
     return new SessionService(
-        sessionCache,
-        new SessionReader(sessionCache),
+        sessionRepository,
+        new SessionReader(sessionRepository),
         mock(OutfitSpecResolver.class),
         jobStore,
         worker);

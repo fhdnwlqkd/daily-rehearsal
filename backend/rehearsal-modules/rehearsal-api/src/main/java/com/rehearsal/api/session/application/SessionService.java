@@ -9,14 +9,15 @@ import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
 import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
 import com.rehearsal.domain.extraction.usecase.GetContextExtractionUseCase;
 import com.rehearsal.domain.extraction.usecase.SubmitContextExtractionUseCase;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.repository.SessionRepository;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Description(
     "Application service for P1 client session create, context extraction job, and outfit flow")
@@ -31,16 +32,17 @@ public class SessionService
 
   private static final String JOB_START_FAILURE_MESSAGE = "Context extraction job could not start.";
 
-  private final SessionCache sessionCache;
+  private final SessionRepository sessionRepository;
   private final SessionReader sessionReader;
   private final OutfitSpecResolver outfitSpecResolver;
   private final ContextExtractionJobStore contextExtractionJobStore;
   private final ContextExtractionWorker contextExtractionWorker;
 
   @Override
+  @Transactional
   public ClientSession createSession(SituationType situationType) {
     ClientSession session = ClientSession.create(situationType);
-    return sessionCache.save(session);
+    return sessionRepository.saveSession(session);
   }
 
   @Override
@@ -90,11 +92,12 @@ public class SessionService
   }
 
   @Override
+  @Transactional
   public ClientSession confirmOutfit(String sessionId, String selectedOutfitId) {
     ClientSession session = getSession(sessionId);
 
     outfitSpecResolver.resolve(selectedOutfitId);
     session.confirmOutfit(selectedOutfitId);
-    return sessionCache.save(session);
+    return sessionRepository.saveSession(session);
   }
 }

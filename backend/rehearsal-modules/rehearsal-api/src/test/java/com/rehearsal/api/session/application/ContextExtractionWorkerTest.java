@@ -14,7 +14,6 @@ import com.rehearsal.domain.extraction.model.ContextExtractionJobStatus;
 import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
 import com.rehearsal.domain.extraction.model.ContextSlotValue;
 import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
@@ -29,7 +28,7 @@ class ContextExtractionWorkerTest {
   @Test
   void extractBriefingAsyncCompletesContextAndJob() {
     ClientSession session = ClientSession.create(SituationType.DATE);
-    SessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
     ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
     ContextSlotExtractionService extractionService = mock(ContextSlotExtractionService.class);
     ContextExtractionWorker worker = worker(sessionCache, jobStore, extractionService);
@@ -60,7 +59,7 @@ class ContextExtractionWorkerTest {
   @Test
   void extractFollowUpAsyncMergesContextAndCompletesJob() {
     ClientSession session = followUpRequiredSession();
-    SessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
     ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
     ContextSlotExtractionService extractionService = mock(ContextSlotExtractionService.class);
     ContextExtractionWorker worker = worker(sessionCache, jobStore, extractionService);
@@ -90,7 +89,7 @@ class ContextExtractionWorkerTest {
   }
 
   private ContextExtractionWorker worker(
-      SessionCache sessionCache,
+      InMemorySessionCache sessionCache,
       ContextExtractionJobStore jobStore,
       ContextSlotExtractionService extractionService) {
     return new ContextExtractionWorker(
