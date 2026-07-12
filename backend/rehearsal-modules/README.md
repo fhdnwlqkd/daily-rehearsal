@@ -84,7 +84,7 @@ AI provider는 Gemini 하나로 고정합니다. OpenAI/Gemini 혼용이나 task
 
 - `context-normalize`: 사용자 transcript를 slot 값으로 정규화
 - `simulation-evaluation`: 현재 turn 성공/실패와 피드백 JSON 생성
-- `simulation-next-line`: 다음 상대 발화 생성, SSE 스트리밍 대상
+- `simulation-next-line`: 다음 상대 발화 생성, 폴링(polling) 조회 대상
 - `ticket-generation`: 최종 티켓 문구 생성
 
 `rehearsal.ai.defaults.provider`가 가질 수 있는 값은 다음 둘뿐입니다.
