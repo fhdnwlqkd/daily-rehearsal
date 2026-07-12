@@ -2,25 +2,27 @@ package com.rehearsal.api.session.application;
 
 import com.rehearsal.api.decart.application.OutfitSpecResolver;
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.core.exception.BusinessException;
-import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.extraction.model.ContextExtractionJob;
-import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
-import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
+import com.rehearsal.domain.extraction.model.SlotExtractionMode;
 import com.rehearsal.domain.extraction.usecase.GetContextExtractionUseCase;
 import com.rehearsal.domain.extraction.usecase.SubmitContextExtractionUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.ContextCollectionState;
+import com.rehearsal.domain.session.model.ContextStatus;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.repository.SessionRepository;
+import com.rehearsal.domain.slot.model.RequiredLevel;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-@Description(
-    "Application service for P1 client session create, context extraction job, and outfit flow")
+@Description("Application service for P1 session, RDB context polling, and outfit flow")
 @Service
 @RequiredArgsConstructor
 public class SessionService
@@ -30,13 +32,10 @@ public class SessionService
         SubmitContextExtractionUseCase,
         GetContextExtractionUseCase {
 
-  private static final String JOB_START_FAILURE_MESSAGE = "Context extraction job could not start.";
-
   private final SessionRepository sessionRepository;
   private final SessionReader sessionReader;
   private final OutfitSpecResolver outfitSpecResolver;
-  private final ContextExtractionJobStore contextExtractionJobStore;
-  private final ContextExtractionWorker contextExtractionWorker;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Override
   @Transactional
@@ -51,44 +50,39 @@ public class SessionService
   }
 
   @Override
-  public ContextExtractionJob submitBriefingExtraction(String sessionId, String transcript) {
+  @Transactional
+  public ClientSession submitBriefingExtraction(String sessionId, String transcript) {
     ClientSession session = getSession(sessionId);
-    ContextExtractionJob job =
-        ContextExtractionJob.pending(
-            session.getSessionId(), session.getSituationType(), ContextExtractionJobType.BRIEFING);
-    contextExtractionJobStore.save(job);
-    try {
-      contextExtractionWorker.extractBriefingAsync(job, transcript);
-    } catch (RuntimeException exception) {
-      ContextExtractionJob failedJob = job.fail(JOB_START_FAILURE_MESSAGE);
-      contextExtractionJobStore.save(failedJob);
-      return failedJob;
-    }
-    return job;
+    session.startContextExtraction();
+    ClientSession saved = sessionRepository.saveSession(session);
+    eventPublisher.publishEvent(
+        new ContextExtractionRequested(sessionId, transcript, SlotExtractionMode.INITIAL));
+    return saved;
   }
 
   @Override
-  public ContextExtractionJob submitFollowUpExtraction(String sessionId, String transcript) {
+  @Transactional
+  public ClientSession submitFollowUpExtraction(String sessionId, String transcript) {
     ClientSession session = getSession(sessionId);
-    ContextExtractionJob job =
-        ContextExtractionJob.pending(
-            session.getSessionId(), session.getSituationType(), ContextExtractionJobType.FOLLOW_UP);
-    contextExtractionJobStore.save(job);
-    try {
-      contextExtractionWorker.extractFollowUpAsync(job, transcript);
-    } catch (RuntimeException exception) {
-      ContextExtractionJob failedJob = job.fail(JOB_START_FAILURE_MESSAGE);
-      contextExtractionJobStore.save(failedJob);
-      return failedJob;
-    }
-    return job;
+    session.startFollowUpMerge();
+    ClientSession saved = sessionRepository.saveSession(session);
+    eventPublisher.publishEvent(
+        new ContextExtractionRequested(sessionId, transcript, SlotExtractionMode.FOLLOW_UP));
+    return saved;
   }
 
   @Override
-  public ContextExtractionJob get(String sessionId, String jobId) {
-    return contextExtractionJobStore
-        .findById(sessionId, jobId)
-        .orElseThrow(() -> new BusinessException(ErrorCode.CONTEXT_EXTRACTION_JOB_NOT_FOUND));
+  @Transactional(readOnly = true)
+  public ContextCollectionState getContext(String sessionId) {
+    ClientSession session = getSession(sessionId);
+    SessionContext context =
+        sessionRepository
+            .findContext(sessionId)
+            .orElseGet(() -> SessionContext.empty(session.getSituationType()));
+    List<String> missingSlotKeys = missingRequiredSlotKeys(session, context);
+    List<String> followUpQuestions = followUpQuestions(session, missingSlotKeys);
+    return new ContextCollectionState(
+        sessionId, session.getContextStatus(), context, missingSlotKeys, followUpQuestions);
   }
 
   @Override
@@ -99,5 +93,39 @@ public class SessionService
     outfitSpecResolver.resolve(selectedOutfitId);
     session.confirmOutfit(selectedOutfitId);
     return sessionRepository.saveSession(session);
+  }
+
+  private List<String> missingRequiredSlotKeys(
+      ClientSession session, SessionContext context) {
+    if (session.getContextStatus() != ContextStatus.FOLLOW_UP_REQUIRED) {
+      return List.of();
+    }
+    ContextSlotSchemaType schema = schema(session);
+    return schema.getItems().stream()
+        .filter(item -> item.requiredLevel() == RequiredLevel.REQUIRED)
+        .map(item -> item.slotType().getKey())
+        .filter(key -> isMissing(context.values().get(key)))
+        .toList();
+  }
+
+  private List<String> followUpQuestions(
+      ClientSession session, List<String> missingSlotKeys) {
+    if (missingSlotKeys.isEmpty()) {
+      return List.of();
+    }
+    return schema(session).getItems().stream()
+        .filter(item -> missingSlotKeys.contains(item.slotType().getKey()))
+        .map(item -> item.slotType().getFollowUpHint())
+        .filter(question -> question != null && !question.isBlank())
+        .toList();
+  }
+
+  private ContextSlotSchemaType schema(ClientSession session) {
+    return ContextSlotSchemaType.findBySituationType(session.getSituationType())
+        .orElseThrow(() -> new IllegalArgumentException("Unsupported situation type"));
+  }
+
+  private boolean isMissing(Object value) {
+    return value == null || value.toString().isBlank();
   }
 }

@@ -121,6 +121,13 @@ public class ClientSession {
     this.followUpAttempt++;
   }
 
+  public void failContext() {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
+    this.status = SessionStatus.FAILED;
+    this.contextStatus = ContextStatus.FAILED;
+  }
+
   public void selectOutfit(String selectedOutfitId) {
     validateStatus(SessionStatus.TRANSFORMATION_READY);
     this.selectedOutfitId = selectedOutfitId;

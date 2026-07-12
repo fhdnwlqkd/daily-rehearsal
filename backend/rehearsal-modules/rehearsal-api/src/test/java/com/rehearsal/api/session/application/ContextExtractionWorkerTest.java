@@ -2,22 +2,16 @@ package com.rehearsal.api.session.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.rehearsal.api.slot.application.ContextSlotExtractionService;
 import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
-import com.rehearsal.api.support.InMemoryContextExtractionJobStore;
-import com.rehearsal.api.support.InMemorySessionCache;
-import com.rehearsal.domain.extraction.model.ContextExtractionJob;
-import com.rehearsal.domain.extraction.model.ContextExtractionJobStatus;
-import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.domain.extraction.model.ContextSlotValue;
-import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
-import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -26,98 +20,61 @@ import org.junit.jupiter.api.Test;
 class ContextExtractionWorkerTest {
 
   @Test
-  void extractBriefingAsyncCompletesContextAndJob() {
+  void briefingCompletionPersistsContextAndSessionState() {
     ClientSession session = ClientSession.create(SituationType.DATE);
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
-    ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
+    session.startContextExtraction();
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
     ContextSlotExtractionService extractionService = mock(ContextSlotExtractionService.class);
-    ContextExtractionWorker worker = worker(sessionCache, jobStore, extractionService);
-    ContextExtractionJob job =
-        ContextExtractionJob.pending(
-            session.getSessionId(), session.getSituationType(), ContextExtractionJobType.BRIEFING);
-    jobStore.save(job);
+    given(extractionService.extract(any()))
+        .willReturn(result(Map.of("desired_persona", "warm_natural"), List.of(), true));
 
-    when(extractionService.extract(any()))
-        .thenReturn(result(Map.of("desired_persona", "warm_natural"), List.of(), null, true));
+    worker(repository, extractionService).extractBriefing(session.getSessionId(), "transcript");
 
-    worker.extractBriefingAsync(job, "briefing transcript");
-
-    ClientSession updated = sessionCache.findById(session.getSessionId()).orElseThrow();
-    ContextExtractionJob completed =
-        jobStore.findById(session.getSessionId(), job.jobId()).orElseThrow();
-
-    assertThat(updated.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
-    assertThat(updated.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
-    assertThat(updated.getFinalContext().valuesWithSituationType())
-        .containsEntry("desired_persona", "warm_natural")
-        .containsEntry("situation_type", "date");
-    assertThat(completed.status()).isEqualTo(ContextExtractionJobStatus.COMPLETED);
-    assertThat(completed.finalContext().valuesWithSituationType())
+    assertThat(repository.findSession(session.getSessionId()).orElseThrow().getContextStatus())
+        .isEqualTo(ContextStatus.COMPLETED);
+    assertThat(repository.findContext(session.getSessionId()).orElseThrow().values())
         .containsEntry("desired_persona", "warm_natural");
   }
 
   @Test
-  void extractFollowUpAsyncMergesContextAndCompletesJob() {
-    ClientSession session = followUpRequiredSession();
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
-    ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
+  void followUpResultCanRequireAnotherRound() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    session.startContextExtraction();
+    session.requireFollowUp();
+    session.startFollowUpMerge();
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    repository.saveContext(
+        session.getSessionId(),
+        SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural")));
     ContextSlotExtractionService extractionService = mock(ContextSlotExtractionService.class);
-    ContextExtractionWorker worker = worker(sessionCache, jobStore, extractionService);
-    ContextExtractionJob job =
-        ContextExtractionJob.pending(
-            session.getSessionId(), session.getSituationType(), ContextExtractionJobType.FOLLOW_UP);
-    jobStore.save(job);
+    given(extractionService.extract(any()))
+        .willReturn(
+            result(
+                Map.of("desired_persona", "warm_natural"),
+                List.of("critical_moment"),
+                false));
 
-    when(extractionService.extract(any()))
-        .thenReturn(result(Map.of("critical_moment", "first greeting"), List.of(), null, true));
+    worker(repository, extractionService).extractFollowUp(session.getSessionId(), "transcript");
 
-    worker.extractFollowUpAsync(job, "follow-up transcript");
-
-    ClientSession updated = sessionCache.findById(session.getSessionId()).orElseThrow();
-    ContextExtractionJob completed =
-        jobStore.findById(session.getSessionId(), job.jobId()).orElseThrow();
-
-    assertThat(updated.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
-    assertThat(updated.getFollowUpAttempt()).isEqualTo(1);
-    assertThat(updated.getFinalContext().valuesWithSituationType())
-        .containsEntry("desired_persona", "warm_natural")
-        .containsEntry("critical_moment", "first greeting")
-        .containsEntry("situation_type", "date");
-    assertThat(completed.status()).isEqualTo(ContextExtractionJobStatus.COMPLETED);
-    assertThat(completed.finalContext().valuesWithSituationType())
-        .containsEntry("critical_moment", "first greeting");
+    assertThat(repository.findSession(session.getSessionId()).orElseThrow().getContextStatus())
+        .isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
   }
 
   private ContextExtractionWorker worker(
-      InMemorySessionCache sessionCache,
-      ContextExtractionJobStore jobStore,
-      ContextSlotExtractionService extractionService) {
+      InMemorySessionRepository repository, ContextSlotExtractionService extractionService) {
     return new ContextExtractionWorker(
-        new SessionReader(sessionCache), sessionCache, extractionService, jobStore);
+        new SessionReader(repository), repository, extractionService);
   }
 
   private ExtractContextSlotsResult result(
-      Map<String, Object> context,
-      List<String> missingSlotKeys,
-      String followUpQuestion,
-      boolean readyForSimulation) {
+      Map<String, Object> context, List<String> missingSlotKeys, boolean ready) {
     return new ExtractContextSlotsResult(
         "date",
         Map.of(),
         Map.<String, ContextSlotValue>of(),
         context,
         missingSlotKeys,
-        followUpQuestion,
-        readyForSimulation);
-  }
-
-  private ClientSession followUpRequiredSession() {
-    ClientSession session = ClientSession.create(SituationType.DATE);
-    session.startContextExtraction();
-    session.requireFollowUp(
-        SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural")),
-        List.of("critical_moment"),
-        List.of("Which moment are you most worried about?"));
-    return session;
+        missingSlotKeys.isEmpty() ? null : "follow-up question",
+        ready);
   }
 }

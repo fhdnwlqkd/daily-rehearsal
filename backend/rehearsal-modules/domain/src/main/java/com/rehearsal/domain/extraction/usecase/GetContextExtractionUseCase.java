@@ -1,8 +1,8 @@
 package com.rehearsal.domain.extraction.usecase;
 
-import com.rehearsal.domain.extraction.model.ContextExtractionJob;
+import com.rehearsal.domain.session.model.ContextCollectionState;
 
 public interface GetContextExtractionUseCase {
 
-  ContextExtractionJob get(String sessionId, String jobId);
+  ContextCollectionState getContext(String sessionId);
 }
