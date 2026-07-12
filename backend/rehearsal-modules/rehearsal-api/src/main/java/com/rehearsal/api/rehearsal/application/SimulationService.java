@@ -4,144 +4,116 @@ import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.rehearsal.model.OpponentLineJob;
-import com.rehearsal.domain.rehearsal.model.OpponentLineJobStatus;
+import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
+import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationJobStatus;
+import com.rehearsal.domain.rehearsal.model.SimulationTurn;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
-import com.rehearsal.domain.rehearsal.port.OpponentLineJobStore;
-import com.rehearsal.domain.rehearsal.port.TurnEvaluationJobStore;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
-import com.rehearsal.domain.rehearsal.usecase.RecordTurnResultUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
-import java.util.Optional;
+import com.rehearsal.domain.session.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-@Description("고정 N턴 리허설 시뮬레이션 시작, turn 판정/다음 상대 발화 job 제출·조회, turn 결과 누적을 처리하는 application service")
+@Description("Application service for RDB-backed simulation turns and attempts")
 @Service
 @RequiredArgsConstructor
 public class SimulationService
     implements StartSimulationUseCase,
-        RecordTurnResultUseCase,
         SubmitTurnEvaluationUseCase,
         GetTurnEvaluationUseCase,
         SubmitNextOpponentLineUseCase,
         GetNextOpponentLineUseCase {
 
-  private static final Logger log = LoggerFactory.getLogger(SimulationService.class);
-
-  private final SessionCache sessionCache;
+  private final SessionRepository sessionRepository;
   private final SessionReader sessionReader;
-  private final TurnEvaluationJobStore turnEvaluationJobStore;
-  private final TurnEvaluationWorker turnEvaluationWorker;
-  private final OpponentLineJobStore opponentLineJobStore;
-  private final NextOpponentLineWorker nextOpponentLineWorker;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Override
+  @Transactional
   public SimulationStart startSimulation(String sessionId) {
-    ClientSession session = getValidSession(sessionId);
-    RehearsalConfigDefinition config = getConfig(session);
+    ClientSession session = sessionReader.get(sessionId);
+    RehearsalConfigDefinition config = config(session);
 
-    session.startSimulation(config.maxTurn(), config.firstOpponentLine());
-    sessionCache.save(session);
+    session.startSimulation(config.maxTurn());
+    sessionRepository.saveSession(session);
+    sessionRepository.saveTurn(
+        SimulationTurn.completed(sessionId, session.getCurrentTurn(), config.firstOpponentLine()));
 
     return new SimulationStart(
-        session.getSessionId(),
-        session.getCurrentTurn(),
-        config.maxTurn(),
-        config.firstOpponentLine());
+        sessionId, session.getCurrentTurn(), config.maxTurn(), config.firstOpponentLine());
   }
 
   @Override
-  public void recordTurnResult(
-      String sessionId, String userTranscript, boolean success, String feedback, boolean fallback) {
-    ClientSession session = getValidSession(sessionId);
-    session.recordTurn(userTranscript, success, feedback, fallback);
-    sessionCache.save(session);
-  }
-
-  @Override
-  public TurnEvaluationJob submit(
+  @Transactional
+  public SimulationTurnAttempt submit(
       String sessionId, int turnNo, String userTranscript, TurnMetrics metrics) {
-    ClientSession session = getValidSession(sessionId);
+    ClientSession session = sessionReader.get(sessionId);
     validateTurnNo(session, turnNo);
-
-    Optional<TurnEvaluationJob> existing = turnEvaluationJobStore.findById(sessionId, turnNo);
-    if (existing.isPresent() && existing.get().status() != TurnEvaluationJobStatus.FAILED) {
-      // 클라이언트의 네트워크 재시도로 인한 중복 제출은 Gemini를 다시 호출하지 않고 기존 job을 그대로 돌려준다.
-      return existing.get();
+    SimulationTurn turn = requiredTurn(sessionId, turnNo);
+    if (turn.getOpponentLineStatus() != OpponentLineStatus.COMPLETED) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
 
-    TurnEvaluationJob pendingJob = TurnEvaluationJob.pending(sessionId, turnNo);
-    turnEvaluationJobStore.save(pendingJob);
-    try {
-      turnEvaluationWorker.evaluateAsync(sessionId, turnNo, userTranscript, metrics);
-    } catch (RuntimeException exception) {
-      // 스레드풀+큐가 모두 찬 경우 AbortPolicy가 dispatch 시점에 동기적으로 예외를 던진다.
-      log.error(
-          "Failed to dispatch turn evaluation job for session {} turn {}",
-          sessionId,
-          turnNo,
-          exception);
-      TurnEvaluationJob failedJob = pendingJob.fail("작업을 시작하지 못했습니다.");
-      turnEvaluationJobStore.save(failedJob);
-      return failedJob;
+    SimulationTurnAttempt latest = sessionRepository.findLatestAttempt(sessionId, turnNo).orElse(null);
+    if (latest != null && latest.getEvaluationStatus() != EvaluationStatus.FAILED) {
+      return latest;
     }
-    return pendingJob;
+
+    int attemptNo = latest == null ? 1 : latest.getAttemptNo() + 1;
+    SimulationTurnAttempt pending =
+        sessionRepository.saveAttempt(
+            SimulationTurnAttempt.pending(turn.getId(), attemptNo, userTranscript));
+    eventPublisher.publishEvent(
+        new TurnEvaluationRequested(sessionId, turnNo, attemptNo, metrics));
+    return pending;
   }
 
   @Override
-  public TurnEvaluationJob get(String sessionId, int turnNo) {
-    return turnEvaluationJobStore
-        .findById(sessionId, turnNo)
+  @Transactional(readOnly = true)
+  public SimulationTurnAttempt get(String sessionId, int turnNo) {
+    sessionReader.get(sessionId);
+    return sessionRepository
+        .findLatestAttempt(sessionId, turnNo)
         .orElseThrow(() -> new BusinessException(ErrorCode.TURN_EVALUATION_JOB_NOT_FOUND));
   }
 
   @Override
-  public OpponentLineJob submitNextLine(String sessionId, int turnNo) {
-    ClientSession session = getValidSession(sessionId);
+  @Transactional
+  public SimulationTurn submitNextLine(String sessionId, int turnNo) {
+    ClientSession session = sessionReader.get(sessionId);
     validateTurnNo(session, turnNo);
     validateTurnLimit(session, turnNo);
 
-    Optional<OpponentLineJob> existing = opponentLineJobStore.findById(sessionId, turnNo);
-    if (existing.isPresent() && existing.get().status() != OpponentLineJobStatus.FAILED) {
-      // 클라이언트의 네트워크 재시도로 인한 중복 제출은 Gemini를 다시 호출하지 않고 기존 job을 그대로 돌려준다.
-      return existing.get();
+    SimulationTurn existing = sessionRepository.findTurn(sessionId, turnNo).orElse(null);
+    if (existing != null && existing.getOpponentLineStatus() != OpponentLineStatus.FAILED) {
+      return existing;
     }
 
-    OpponentLineJob pendingJob = OpponentLineJob.pending(sessionId, turnNo);
-    opponentLineJobStore.save(pendingJob);
-    try {
-      nextOpponentLineWorker.generateAsync(sessionId, turnNo);
-    } catch (RuntimeException exception) {
-      // 스레드풀+큐가 모두 찬 경우 AbortPolicy가 dispatch 시점에 동기적으로 예외를 던진다.
-      log.error(
-          "Failed to dispatch next opponent line job for session {} turn {}",
-          sessionId,
-          turnNo,
-          exception);
-      OpponentLineJob failedJob = pendingJob.fail("작업을 시작하지 못했습니다.");
-      opponentLineJobStore.save(failedJob);
-      return failedJob;
-    }
-    return pendingJob;
+    SimulationTurn pending = sessionRepository.saveTurn(SimulationTurn.pending(sessionId, turnNo));
+    eventPublisher.publishEvent(new OpponentLineRequested(sessionId, turnNo));
+    return pending;
   }
 
   @Override
-  public OpponentLineJob getNextLine(String sessionId, int turnNo) {
-    return opponentLineJobStore
-        .findById(sessionId, turnNo)
+  @Transactional(readOnly = true)
+  public SimulationTurn getNextLine(String sessionId, int turnNo) {
+    sessionReader.get(sessionId);
+    return requiredTurn(sessionId, turnNo);
+  }
+
+  private SimulationTurn requiredTurn(String sessionId, int turnNo) {
+    return sessionRepository
+        .findTurn(sessionId, turnNo)
         .orElseThrow(() -> new BusinessException(ErrorCode.NEXT_LINE_JOB_NOT_FOUND));
   }
 
@@ -157,11 +129,7 @@ public class SimulationService
     }
   }
 
-  private ClientSession getValidSession(String sessionId) {
-    return sessionReader.get(sessionId);
-  }
-
-  private RehearsalConfigDefinition getConfig(ClientSession session) {
+  private RehearsalConfigDefinition config(ClientSession session) {
     return RehearsalConfigRegistry.findByType(session.getSituationType())
         .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
   }

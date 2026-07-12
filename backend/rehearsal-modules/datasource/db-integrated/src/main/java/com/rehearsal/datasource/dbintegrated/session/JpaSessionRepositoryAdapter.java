@@ -122,6 +122,14 @@ public class JpaSessionRepositoryAdapter implements SessionRepository {
   }
 
   @Override
+  @Transactional(readOnly = true)
+  public List<SimulationTurn> findTurns(String sessionId) {
+    return turnJpaRepository.findAllBySessionSessionIdOrderByTurnNoAsc(sessionId).stream()
+        .map(simulationMapper::toDomain)
+        .toList();
+  }
+
+  @Override
   @Transactional
   public SimulationTurnAttempt saveAttempt(SimulationTurnAttempt attempt) {
     SimulationTurnJpaEntity turn = requiredTurn(attempt.getSimulationTurnId());

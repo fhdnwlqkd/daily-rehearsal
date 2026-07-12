@@ -22,6 +22,8 @@ public interface SessionRepository {
 
   Optional<SimulationTurn> findTurn(String sessionId, int turnNo);
 
+  List<SimulationTurn> findTurns(String sessionId);
+
   SimulationTurnAttempt saveAttempt(SimulationTurnAttempt attempt);
 
   Optional<SimulationTurnAttempt> findAttempt(Long turnId, int attemptNo);

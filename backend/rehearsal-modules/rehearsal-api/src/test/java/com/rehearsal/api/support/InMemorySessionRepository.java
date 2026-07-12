@@ -15,6 +15,9 @@ import java.util.Optional;
 
 public class InMemorySessionRepository implements SessionRepository {
 
+  private long turnSequence = 1L;
+  private long attemptSequence = 1L;
+
   private final Map<String, ClientSession> sessions = new HashMap<>();
   private final Map<String, SessionContext> contexts = new HashMap<>();
   private final Map<String, SimulationTurn> turns = new HashMap<>();
@@ -51,8 +54,18 @@ public class InMemorySessionRepository implements SessionRepository {
 
   @Override
   public SimulationTurn saveTurn(SimulationTurn turn) {
-    turns.put(turnKey(turn.getSessionId(), turn.getTurnNo()), turn);
-    return turn;
+    SimulationTurn saved =
+        turn.getId() == null
+            ? SimulationTurn.restore(
+                turnSequence++,
+                turn.getSessionId(),
+                turn.getTurnNo(),
+                turn.getOpponentLineStatus(),
+                turn.getOpponentLine(),
+                turn.getFailureReason())
+            : turn;
+    turns.put(turnKey(saved.getSessionId(), saved.getTurnNo()), saved);
+    return saved;
   }
 
   @Override
@@ -61,9 +74,30 @@ public class InMemorySessionRepository implements SessionRepository {
   }
 
   @Override
+  public List<SimulationTurn> findTurns(String sessionId) {
+    return turns.values().stream()
+        .filter(turn -> turn.getSessionId().equals(sessionId))
+        .sorted(Comparator.comparingInt(SimulationTurn::getTurnNo))
+        .toList();
+  }
+
+  @Override
   public SimulationTurnAttempt saveAttempt(SimulationTurnAttempt attempt) {
-    attempts.put(attemptKey(attempt.getSimulationTurnId(), attempt.getAttemptNo()), attempt);
-    return attempt;
+    SimulationTurnAttempt saved =
+        attempt.getId() == null
+            ? SimulationTurnAttempt.restore(
+                attemptSequence++,
+                attempt.getSimulationTurnId(),
+                attempt.getAttemptNo(),
+                attempt.getUserTranscript(),
+                attempt.getEvaluationStatus(),
+                attempt.getSuccess(),
+                attempt.getFeedback(),
+                attempt.getFallback(),
+                attempt.getFailureReason())
+            : attempt;
+    attempts.put(attemptKey(saved.getSimulationTurnId(), saved.getAttemptNo()), saved);
+    return saved;
   }
 
   @Override
