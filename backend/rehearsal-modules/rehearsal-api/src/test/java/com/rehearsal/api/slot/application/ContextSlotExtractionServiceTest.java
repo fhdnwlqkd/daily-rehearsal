@@ -5,9 +5,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rehearsal.api.slot.application.command.ExtractContextSlotsCommand;
 import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
+import com.rehearsal.domain.extraction.model.SlotExtractionMode;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
 import com.rehearsal.domain.slot.registry.ContextSlotType;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -56,6 +59,32 @@ class ContextSlotExtractionServiceTest {
         .containsEntry(
             "critical_moment", ContextSlotType.CRITICAL_MOMENT.getDefaultLiteralValue())
         .containsEntry("outfit_direction", "neat_casual");
+  }
+
+  @Test
+  void acceptsMissingCurrentSlotValuesDuringFollowUpExtraction() {
+    SlotExtractorClient client =
+        command ->
+            new SlotExtractionRawResult(
+                Map.of("desired_persona", "warm_natural", "critical_moment", "first greeting"));
+    Map<String, Object> currentSlots = new LinkedHashMap<>();
+    currentSlots.put("desired_persona", null);
+    currentSlots.put("critical_moment", "first greeting");
+    currentSlots.put("outfit_direction", null);
+
+    ExtractContextSlotsResult result =
+        service(client)
+            .extract(
+                new ExtractContextSlotsCommand(
+                    "date",
+                    "warm_natural",
+                    1,
+                    SlotExtractionMode.FOLLOW_UP,
+                    currentSlots,
+                    List.of("desired_persona")));
+
+    assertThat(result.readyForSimulation()).isTrue();
+    assertThat(result.context()).containsEntry("desired_persona", "warm_natural");
   }
 
   private ContextSlotExtractionService service(SlotExtractorClient client) {
