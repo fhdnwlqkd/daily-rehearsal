@@ -9,6 +9,10 @@ operation::session-create[snippets='http-request,http-response']
 === 2.2. 브리핑 제출
 operation::context-submit-briefing[snippets='http-request,http-response']
 
+[[Context-Submit-Follow-Up]]
+=== 2.3. Follow-up 응답 제출
+operation::context-submit-follow-up[snippets='http-request,http-response']
+
 [[Context-Poll]]
-=== 2.3. Context 상태 조회
+=== 2.4. Context 상태 조회
 operation::context-poll[snippets='http-request,http-response']

@@ -79,9 +79,37 @@ class SessionControllerDocsTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"transcript\":\"briefing transcript\"}"))
         .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value(session.getSessionId()))
+        .andExpect(jsonPath("$.data.status").value("EXTRACTING"))
         .andDo(
             document(
                 "context-submit-briefing",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint())));
+  }
+
+  @Test
+  void submitFollowUp() throws Exception {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    session.startContextExtraction();
+    session.requireFollowUp();
+    session.startFollowUpMerge();
+    given(submitContextExtractionUseCase.submitFollowUpExtraction(any(), any()))
+        .willReturn(session);
+
+    mockMvc
+        .perform(
+            post("/api/v1/sessions/{sessionId}/follow-up", session.getSessionId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"transcript\":\"warm_natural\"}"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value(session.getSessionId()))
+        .andExpect(jsonPath("$.data.status").value("MERGING"))
+        .andDo(
+            document(
+                "context-submit-follow-up",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint())));
   }
@@ -100,6 +128,12 @@ class SessionControllerDocsTest {
     mockMvc
         .perform(get("/api/v1/sessions/{sessionId}/context", "session-id"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value("session-id"))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.data.context.situation_type").value("date"))
+        .andExpect(jsonPath("$.data.context.desired_persona").value("warm_natural"))
+        .andExpect(jsonPath("$.data.missingSlotKeys").doesNotExist())
         .andDo(
             document(
                 "context-poll",
