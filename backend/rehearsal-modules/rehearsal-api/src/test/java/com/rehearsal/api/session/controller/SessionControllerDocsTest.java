@@ -6,8 +6,9 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
@@ -55,6 +56,9 @@ class SessionControllerDocsTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"situationType\":\"date\"}"))
         .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").isNotEmpty())
+        .andExpect(jsonPath("$.data.situationType").value("date"))
         .andDo(
             document(
                 "session-create",
