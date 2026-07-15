@@ -14,6 +14,7 @@ public class AsyncConfig {
   public static final String NEXT_LINE_EXECUTOR = "nextLineExecutor";
   public static final String CONTEXT_EXTRACTION_EXECUTOR = "contextExtractionExecutor";
   public static final String VIDEO_UPLOAD_EXECUTOR = "videoUploadExecutor";
+  public static final String TICKET_GENERATION_EXECUTOR = "ticketGenerationExecutor";
 
   @Bean(TURN_EVALUATION_EXECUTOR)
   public ThreadPoolTaskExecutor turnEvaluationExecutor() {
@@ -56,6 +57,18 @@ public class AsyncConfig {
     executor.setMaxPoolSize(4);
     executor.setQueueCapacity(20);
     executor.setThreadNamePrefix("video-upload-");
+    executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+    executor.initialize();
+    return executor;
+  }
+
+  @Bean(TICKET_GENERATION_EXECUTOR)
+  public ThreadPoolTaskExecutor ticketGenerationExecutor() {
+    ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+    executor.setCorePoolSize(2);
+    executor.setMaxPoolSize(4);
+    executor.setQueueCapacity(20);
+    executor.setThreadNamePrefix("ticket-generation-");
     executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
     executor.initialize();
     return executor;

@@ -115,6 +115,12 @@ public class ClientSession {
     this.currentTurn++;
   }
 
+  public void completeSimulation() {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    validateSimulationCompleted();
+    this.status = SessionStatus.COMPLETED;
+  }
+
   public void assignVideoUrl(String videoUrl) {
     this.videoUrl = videoUrl;
     this.videoUploadStatus = VideoUploadStatus.PENDING;
@@ -160,6 +166,12 @@ public class ClientSession {
   private void validateContextCompleted() {
     if (contextStatus != ContextStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateSimulationCompleted() {
+    if (currentTurn <= maxTurn) {
+      throw new BusinessException(ErrorCode.SIMULATION_NOT_COMPLETED);
     }
   }
 }

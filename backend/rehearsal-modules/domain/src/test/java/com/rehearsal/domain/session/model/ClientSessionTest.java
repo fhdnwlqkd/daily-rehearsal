@@ -136,6 +136,35 @@ class ClientSessionTest {
     assertThat(session.getVideoUploadFailureReason()).isEqualTo("storage unavailable");
   }
 
+  @Test
+  void completeSimulationMovesPlayingSessionPastMaxTurnToCompleted() {
+    ClientSession session = playingSessionAtTurn(4, 3);
+
+    session.completeSimulation();
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+  }
+
+  @Test
+  void completeSimulationThrowsInvalidSessionStateWhenNotPlaying() {
+    ClientSession session = rehearsalReadySession();
+
+    assertThatThrownBy(session::completeSimulation)
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  @Test
+  void completeSimulationThrowsSimulationNotCompletedWhenTurnsRemain() {
+    ClientSession session = playingSessionAtTurn(1, 3);
+
+    assertThatThrownBy(session::completeSimulation)
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.SIMULATION_NOT_COMPLETED);
+  }
+
   private ClientSession rehearsalReadySession() {
     return ClientSession.builder()
         .sessionId("session-id")
@@ -147,8 +176,12 @@ class ClientSessionTest {
   }
 
   private ClientSession playingSessionAtTurn(int currentTurn) {
+    return playingSessionAtTurn(currentTurn, currentTurn);
+  }
+
+  private ClientSession playingSessionAtTurn(int currentTurn, int maxTurn) {
     ClientSession session = rehearsalReadySession();
-    session.startSimulation(currentTurn);
+    session.startSimulation(maxTurn);
     for (int i = 1; i < currentTurn; i++) {
       session.advanceTurn();
     }
