@@ -45,7 +45,8 @@ class SessionControllerTest {
 
   @Test
   void createSession() throws Exception {
-    given(createSessionUseCase.createSession(any())).willReturn(ClientSession.create(SituationType.DATE));
+    given(createSessionUseCase.createSession(any()))
+        .willReturn(ClientSession.create(SituationType.DATE));
 
     mockMvc
         .perform(

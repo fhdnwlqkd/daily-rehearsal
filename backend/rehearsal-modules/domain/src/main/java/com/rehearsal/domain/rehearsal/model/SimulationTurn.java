@@ -32,8 +32,7 @@ public class SimulationTurn {
   }
 
   public static SimulationTurn pending(String sessionId, int turnNo) {
-    return new SimulationTurn(
-        null, sessionId, turnNo, OpponentLineStatus.PENDING, null, null);
+    return new SimulationTurn(null, sessionId, turnNo, OpponentLineStatus.PENDING, null, null);
   }
 
   public static SimulationTurn completed(String sessionId, int turnNo, String opponentLine) {

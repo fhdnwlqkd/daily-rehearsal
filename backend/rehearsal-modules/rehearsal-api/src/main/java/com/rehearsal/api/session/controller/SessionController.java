@@ -65,8 +65,7 @@ public class SessionController {
   }
 
   @GetMapping("/{sessionId}/context")
-  public ContextExtractionResponse getContextExtraction(
-      @PathVariable @NotBlank String sessionId) {
+  public ContextExtractionResponse getContextExtraction(@PathVariable @NotBlank String sessionId) {
     ContextCollectionState state = getContextExtractionUseCase.getContext(sessionId);
     return ContextExtractionResponse.from(state);
   }

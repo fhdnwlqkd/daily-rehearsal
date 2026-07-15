@@ -49,8 +49,7 @@ class SituationTypeControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.situationType").value("date"))
-        .andExpect(
-            jsonPath("$.data.briefingTitle").value(SituationType.DATE.getBriefingTitle()))
+        .andExpect(jsonPath("$.data.briefingTitle").value(SituationType.DATE.getBriefingTitle()))
         .andExpect(jsonPath("$.data.exampleAnswer").isString())
         .andExpect(jsonPath("$.data.label").doesNotExist());
   }

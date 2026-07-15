@@ -62,7 +62,8 @@ class SessionServiceTest {
         session.getSessionId(),
         SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural")));
 
-    ContextCollectionState state = service(repository, new ArrayList<>()).getContext(session.getSessionId());
+    ContextCollectionState state =
+        service(repository, new ArrayList<>()).getContext(session.getSessionId());
 
     assertThat(state.status()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
     assertThat(state.context().values()).containsEntry("desired_persona", "warm_natural");
@@ -72,10 +73,7 @@ class SessionServiceTest {
 
   private SessionService service(InMemorySessionRepository repository, List<Object> events) {
     return new SessionService(
-        repository,
-        new SessionReader(repository),
-        mock(OutfitSpecResolver.class),
-        events::add);
+        repository, new SessionReader(repository), mock(OutfitSpecResolver.class), events::add);
   }
 
   private ClientSession followUpRequiredSession() {

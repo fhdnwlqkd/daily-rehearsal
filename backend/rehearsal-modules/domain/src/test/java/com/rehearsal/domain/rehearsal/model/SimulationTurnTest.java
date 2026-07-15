@@ -23,7 +23,6 @@ class SimulationTurnTest {
   void rejectsCompletingAnAlreadyCompletedTurn() {
     SimulationTurn turn = SimulationTurn.completed("session-id", 1, "first line");
 
-    assertThatThrownBy(() -> turn.complete("another line"))
-        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(() -> turn.complete("another line")).isInstanceOf(BusinessException.class);
   }
 }

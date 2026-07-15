@@ -24,7 +24,8 @@ class SimulationServiceTest {
     ClientSession session = readySession();
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
 
-    SimulationStart result = service(repository, new ArrayList<>()).startSimulation(session.getSessionId());
+    SimulationStart result =
+        service(repository, new ArrayList<>()).startSimulation(session.getSessionId());
 
     assertThat(result.currentTurn()).isEqualTo(1);
     assertThat(repository.findSession(session.getSessionId()).orElseThrow().getStatus())
@@ -73,7 +74,8 @@ class SimulationServiceTest {
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
     SimulationTurn turn =
         repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
-    SimulationTurnAttempt failed = repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "first"));
+    SimulationTurnAttempt failed =
+        repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "first"));
     failed.fail("failed");
     repository.saveAttempt(failed);
 
@@ -90,15 +92,13 @@ class SimulationServiceTest {
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
     List<Object> events = new ArrayList<>();
 
-    SimulationTurn turn =
-        service(repository, events).submitNextLine(session.getSessionId(), 2);
+    SimulationTurn turn = service(repository, events).submitNextLine(session.getSessionId(), 2);
 
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.PENDING);
     assertThat(events).containsExactly(new OpponentLineRequested(session.getSessionId(), 2));
   }
 
-  private SimulationService service(
-      InMemorySessionRepository repository, List<Object> events) {
+  private SimulationService service(InMemorySessionRepository repository, List<Object> events) {
     return new SimulationService(repository, new SessionReader(repository), events::add);
   }
 

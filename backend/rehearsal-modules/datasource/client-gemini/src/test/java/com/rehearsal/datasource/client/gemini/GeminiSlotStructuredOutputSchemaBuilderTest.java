@@ -23,9 +23,11 @@ class GeminiSlotStructuredOutputSchemaBuilderTest {
   private Map<String, Object> expectedRootSchema() {
     Map<String, Object> slots = objectSchema();
     Map<String, Object> slotProperties = new LinkedHashMap<>();
-    slotProperties.put("desired_persona", singleSelectSchema("calm_confident", "warm_natural", "sharp_prepared"));
+    slotProperties.put(
+        "desired_persona", singleSelectSchema("calm_confident", "warm_natural", "sharp_prepared"));
     slotProperties.put("critical_moment", nullableStringSchema());
-    slotProperties.put("outfit_direction", singleSelectSchema("neat_casual", "formal_clean", "soft_friendly"));
+    slotProperties.put(
+        "outfit_direction", singleSelectSchema("neat_casual", "formal_clean", "soft_friendly"));
     slots.put("properties", slotProperties);
     slots.put("required", List.of("desired_persona", "critical_moment", "outfit_direction"));
 

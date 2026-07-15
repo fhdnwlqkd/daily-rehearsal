@@ -25,7 +25,6 @@ class SimulationTurnAttemptTest {
     SimulationTurnAttempt attempt = SimulationTurnAttempt.pending(1L, 1, "user answer");
     attempt.complete(new TurnEvaluationResult(true, "good", false));
 
-    assertThatThrownBy(() -> attempt.fail("late failure"))
-        .isInstanceOf(BusinessException.class);
+    assertThatThrownBy(() -> attempt.fail("late failure")).isInstanceOf(BusinessException.class);
   }
 }

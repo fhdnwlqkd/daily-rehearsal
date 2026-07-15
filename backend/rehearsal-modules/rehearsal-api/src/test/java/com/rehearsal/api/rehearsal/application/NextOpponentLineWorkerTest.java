@@ -32,7 +32,11 @@ class NextOpponentLineWorkerTest {
   void AIErrorUsesConfiguredFallbackLine() {
     InMemorySessionRepository repository = repositoryWithPendingTurn();
     NextOpponentLineWorker worker =
-        worker(repository, command -> { throw new IllegalStateException("AI down"); });
+        worker(
+            repository,
+            command -> {
+              throw new IllegalStateException("AI down");
+            });
 
     worker.generate(new OpponentLineRequested("session-id", 2));
 
@@ -45,10 +49,7 @@ class NextOpponentLineWorkerTest {
       InMemorySessionRepository repository,
       com.rehearsal.domain.rehearsal.port.OpponentLineGeneratorClient client) {
     return new NextOpponentLineWorker(
-        new SessionReader(repository),
-        repository,
-        new SimulationContextReader(repository),
-        client);
+        new SessionReader(repository), repository, new SimulationContextReader(repository), client);
   }
 
   private InMemorySessionRepository repositoryWithPendingTurn() {

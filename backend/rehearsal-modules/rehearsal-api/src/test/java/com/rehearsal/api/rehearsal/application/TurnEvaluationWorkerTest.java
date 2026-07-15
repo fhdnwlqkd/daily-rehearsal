@@ -37,7 +37,11 @@ class TurnEvaluationWorkerTest {
   void AIErrorUsesCompletedFallbackResult() {
     InMemorySessionRepository repository = repositoryWithPendingAttempt();
     TurnEvaluationWorker worker =
-        worker(repository, command -> { throw new IllegalStateException("AI down"); });
+        worker(
+            repository,
+            command -> {
+              throw new IllegalStateException("AI down");
+            });
 
     worker.evaluate(new TurnEvaluationRequested("session-id", 1, 1, null));
 
@@ -52,10 +56,7 @@ class TurnEvaluationWorkerTest {
       InMemorySessionRepository repository,
       com.rehearsal.domain.rehearsal.port.TurnEvaluationClient client) {
     return new TurnEvaluationWorker(
-        new SessionReader(repository),
-        repository,
-        new SimulationContextReader(repository),
-        client);
+        new SessionReader(repository), repository, new SimulationContextReader(repository), client);
   }
 
   private InMemorySessionRepository repositoryWithPendingAttempt() {

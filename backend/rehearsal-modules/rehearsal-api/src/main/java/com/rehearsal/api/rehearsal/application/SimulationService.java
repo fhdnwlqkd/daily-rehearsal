@@ -64,7 +64,8 @@ public class SimulationService
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
 
-    SimulationTurnAttempt latest = sessionRepository.findLatestAttempt(sessionId, turnNo).orElse(null);
+    SimulationTurnAttempt latest =
+        sessionRepository.findLatestAttempt(sessionId, turnNo).orElse(null);
     if (latest != null && latest.getEvaluationStatus() != EvaluationStatus.FAILED) {
       return latest;
     }
@@ -73,8 +74,7 @@ public class SimulationService
     SimulationTurnAttempt pending =
         sessionRepository.saveAttempt(
             SimulationTurnAttempt.pending(turn.getId(), attemptNo, userTranscript));
-    eventPublisher.publishEvent(
-        new TurnEvaluationRequested(sessionId, turnNo, attemptNo, metrics));
+    eventPublisher.publishEvent(new TurnEvaluationRequested(sessionId, turnNo, attemptNo, metrics));
     return pending;
   }
 
