@@ -2,11 +2,11 @@ package com.rehearsal.datasource.client.gemini;
 
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.extraction.service.utils.SlotSchemaItems;
-import com.rehearsal.domain.slot.model.ContextSlot;
-import com.rehearsal.domain.slot.model.ContextSlotOption;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
-import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
 import com.rehearsal.domain.slot.model.SlotType;
+import com.rehearsal.domain.slot.registry.ContextSlotOptionType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType.SchemaItemDef;
+import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -16,7 +16,7 @@ import java.util.Map;
     "slot schema를 Gemini responseJsonSchema에서 사용할 JSON Schema map으로 변환하는 client adapter 서비스")
 public class GeminiSlotStructuredOutputSchemaBuilder {
 
-  public Map<String, Object> build(ContextSlotSchema schema) {
+  public Map<String, Object> build(ContextSlotSchemaType schema) {
     Map<String, Object> root = objectSchema();
     Map<String, Object> rootProperties = new LinkedHashMap<>();
 
@@ -24,10 +24,10 @@ public class GeminiSlotStructuredOutputSchemaBuilder {
     Map<String, Object> slotProperties = new LinkedHashMap<>();
     List<String> slotRequired = new ArrayList<>();
 
-    for (ContextSlotSchemaItem item : SlotSchemaItems.activeItemsByPriority(schema)) {
-      ContextSlot slot = item.slot();
-      slotProperties.put(slot.slotKey(), slotValueSchema(slot));
-      slotRequired.add(slot.slotKey());
+    for (SchemaItemDef item : SlotSchemaItems.activeItemsByPriority(schema)) {
+      ContextSlotType slot = item.slotType();
+      slotProperties.put(slot.getKey(), slotValueSchema(slot));
+      slotRequired.add(slot.getKey());
     }
 
     slots.put("properties", slotProperties);
@@ -39,18 +39,18 @@ public class GeminiSlotStructuredOutputSchemaBuilder {
     return root;
   }
 
-  private Map<String, Object> slotValueSchema(ContextSlot slot) {
-    if (slot.slotType() == SlotType.SINGLE_SELECT) {
+  private Map<String, Object> slotValueSchema(ContextSlotType slot) {
+    if (slot.getSlotType() == SlotType.SINGLE_SELECT) {
       return singleSelectSchema(slot);
     }
 
     return nullableStringSchema();
   }
 
-  private Map<String, Object> singleSelectSchema(ContextSlot slot) {
+  private Map<String, Object> singleSelectSchema(ContextSlotType slot) {
     Map<String, Object> schema = nullableStringSchema();
     List<String> enumValues = new ArrayList<>();
-    slot.options().stream().map(ContextSlotOption::optionKey).forEach(enumValues::add);
+    slot.getOptions().stream().map(ContextSlotOptionType::getKey).forEach(enumValues::add);
     enumValues.add(null);
     schema.put("enum", enumValues);
     return schema;

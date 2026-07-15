@@ -29,8 +29,8 @@ class GeminiSlotExtractionPromptBuilderTest {
     assertThat(messages.userMessage())
         .contains("EXTRACTION_MODE:")
         .contains("INITIAL")
-        .contains("slotKey: situation_type")
-        .contains("options: [presentation, date]")
+        .contains("slotKey: desired_persona")
+        .contains("options: [calm_confident, warm_natural, sharp_prepared]")
         .doesNotContain("followUpHint");
   }
 
@@ -42,14 +42,14 @@ class GeminiSlotExtractionPromptBuilderTest {
             "예상 질문을 받는 순간이 걱정돼.",
             1,
             SlotExtractionMode.FOLLOW_UP,
-            Map.of("situation_type", "presentation"),
+            Map.of("desired_persona", "calm_confident"),
             List.of("critical_moment"));
 
     GeminiPromptMessages messages = builder.build(command);
 
     assertThat(messages.userMessage())
         .contains("FOLLOW_UP")
-        .contains("situation_type=presentation")
+        .contains("desired_persona=calm_confident")
         .contains("critical_moment");
   }
 }

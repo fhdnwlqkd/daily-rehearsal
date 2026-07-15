@@ -17,7 +17,3 @@ spring:
     url: jdbc:mysql://localhost:3306/rehearsal?createDatabaseIfNotExist=true&serverTimezone=UTC&characterEncoding=UTF-8
     user: root
     password: password
-  data:
-    redis:
-      host: localhost
-      port: 6379

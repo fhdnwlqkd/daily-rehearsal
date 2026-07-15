@@ -2,9 +2,9 @@ package com.rehearsal.domain.extraction.service;
 
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.extraction.service.utils.SlotSchemaItems;
-import com.rehearsal.domain.slot.model.ContextSlot;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
-import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType.SchemaItemDef;
+import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -15,20 +15,20 @@ public class FollowUpQuestionResolver {
   private static final String DEFAULT_PREFIX = "내일의 장면이 거의 완성됐어요. 마지막으로 ";
 
   public String resolve(
-      ContextSlotSchema schema, List<String> missingRequiredSlotKeys, int followUpAttempt) {
+      ContextSlotSchemaType schema, List<String> missingRequiredSlotKeys, int followUpAttempt) {
     if (missingRequiredSlotKeys == null || missingRequiredSlotKeys.isEmpty()) {
       return null;
     }
 
-    if (followUpAttempt >= schema.maxFollowUpAttempt()) {
+    if (followUpAttempt >= schema.getMaxFollowUpAttempt()) {
       return null;
     }
 
     String fallbackQuestion =
         SlotSchemaItems.activeItemsByPriority(schema).stream()
-            .map(ContextSlotSchemaItem::slot)
-            .filter(slot -> missingRequiredSlotKeys.contains(slot.slotKey()))
-            .map(ContextSlot::followUpHint)
+            .map(SchemaItemDef::slotType)
+            .filter(slot -> missingRequiredSlotKeys.contains(slot.getKey()))
+            .map(ContextSlotType::getFollowUpHint)
             .filter(Objects::nonNull)
             .map(String::trim)
             .filter(hint -> !hint.isBlank())

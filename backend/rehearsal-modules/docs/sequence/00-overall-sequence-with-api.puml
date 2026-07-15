@@ -19,7 +19,7 @@ participant "외부 API\n(LLM / Decart / Storage)" as external
 
 note over front, back
 Overall sequence에 구체적인 API 엔드포인트를 매핑했습니다.
-- 비동기 작업(AI)은 POST(요청) -> GET(폴링) 패턴을 사용합니다.
+- 비동기 작업(AI)은 POST로 RDB 상태를 만든 뒤 GET으로 해당 row를 폴링합니다.
 - 미구현된 티켓 발급 API는 (예상) 경로로 표기했습니다.
 end note
 
@@ -34,23 +34,25 @@ back --> front: situation type 목록 반환
 
 user -> front: 제스처로 situation type 선택
 front -> back: POST /api/v1/sessions\n{"situationType": "..."}
-back -> back: 세션 생성\n선택 타입을 초기 context로 저장
+back -> back: 세션 생성\n선택 타입을 session에 저장
 back --> front: sessionId 반환
 
 == 3. 브리핑 및 재질문 ==
 
+front -> back: GET /api/v1/situation-types/{situationType}/briefing
+back --> front: briefingTitle + exampleAnswers
 front --> user: 타입별 고정 브리핑 표시\n사용자 발화 유도
 user -> front: 내일 상황 브리핑 발화
 front -> front: STT로 transcript 확정
 front -> back: POST /api/v1/sessions/{sessionId}/briefing\n{"transcript": "..."}
-back --> front: 202 Accepted (jobId)
+back --> front: 202 Accepted (status=EXTRACTING)
 back -> external: slot 답변 정규화 요청
 external --> back: 정규화 JSON
 back -> back: context 누적\n빈 slot 판단\nAI 실패 시 default fallback
 
 loop 처리 완료까지 Polling
-    front -> back: GET /api/v1/sessions/{sessionId}/context-extractions/{jobId}
-    back --> front: 상태(PENDING/COMPLETED) 및 추출 결과
+    front -> back: GET /api/v1/sessions/{sessionId}/context
+    back --> front: contextStatus 및 현재 context
 end
 
 loop 빈 slot 존재 + max_attempt 미만
@@ -58,14 +60,14 @@ loop 빈 slot 존재 + max_attempt 미만
     user -> front: 추가 답변 발화
     front -> front: STT로 follow-up transcript 확정
     front -> back: POST /api/v1/sessions/{sessionId}/follow-up\n{"transcript": "..."}
-    back --> front: 202 Accepted (jobId)
+    back --> front: 202 Accepted (status=MERGING)
     back -> external: target slot 정규화 요청
     external --> back: 정규화 JSON 또는 실패
     back -> back: context 병합\n빈 slot 재판단\n실패 slot default 처리
     
     loop 처리 완료까지 Polling
-        front -> back: GET /api/v1/sessions/{sessionId}/context-extractions/{jobId}
-        back --> front: 상태(PENDING/COMPLETED) 및 결과
+        front -> back: GET /api/v1/sessions/{sessionId}/context
+        back --> front: contextStatus 및 현재 context
     end
 end
 
@@ -106,7 +108,7 @@ loop N턴 완료 전
     user -> front: 응답 발화
     front -> front: STT + 간단 지표 계산
     front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
-    back --> front: 202 Accepted (jobId)
+    back --> front: 202 Accepted (attemptNo + status=PENDING)
     
     loop 평가 완료까지 Polling
         front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
@@ -116,11 +118,11 @@ loop N턴 완료 전
     end
     
     alt 성공
-        front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line
-        back --> front: 202 Accepted (jobId)
+        front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+        back --> front: 202 Accepted (status=PENDING)
         
         loop 다음 발화 생성 완료까지 Polling
-            front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line
+            front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
             back -> external: 다음 상대 발화 생성
             external --> back: text 또는 실패
             back --> front: 다음 발화 결과\n실패 시 고정 발화

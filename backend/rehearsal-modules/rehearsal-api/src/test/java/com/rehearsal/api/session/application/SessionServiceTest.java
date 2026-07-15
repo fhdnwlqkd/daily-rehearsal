@@ -4,17 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
 import com.rehearsal.api.decart.application.OutfitSpecResolver;
-import com.rehearsal.api.support.InMemoryContextExtractionJobStore;
-import com.rehearsal.api.support.InMemorySessionCache;
-import com.rehearsal.api.support.RecordingContextExtractionWorker;
-import com.rehearsal.domain.extraction.model.ContextExtractionJob;
-import com.rehearsal.domain.extraction.model.ContextExtractionJobStatus;
-import com.rehearsal.domain.extraction.model.ContextExtractionJobType;
-import com.rehearsal.domain.extraction.port.ContextExtractionJobStore;
-import com.rehearsal.domain.session.cache.SessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
+import com.rehearsal.domain.extraction.model.SlotExtractionMode;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.ContextCollectionState;
+import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.situation.model.SituationType;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -22,74 +19,67 @@ import org.junit.jupiter.api.Test;
 class SessionServiceTest {
 
   @Test
-  void submitBriefingExtractionCreatesPendingJobAndDispatchesWorker() {
+  void submitBriefingPersistsExtractingStateAndPublishesRequest() {
     ClientSession session = ClientSession.create(SituationType.DATE);
-    SessionCache sessionCache = new InMemorySessionCache(session);
-    ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
-    RecordingContextExtractionWorker worker = new RecordingContextExtractionWorker();
-    SessionService service = service(sessionCache, jobStore, worker);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    List<Object> events = new ArrayList<>();
+    SessionService service = service(repository, events);
 
-    ContextExtractionJob job =
+    ClientSession submitted =
         service.submitBriefingExtraction(session.getSessionId(), "briefing transcript");
 
-    assertThat(job.status()).isEqualTo(ContextExtractionJobStatus.PENDING);
-    assertThat(job.type()).isEqualTo(ContextExtractionJobType.BRIEFING);
-    assertThat(jobStore.findById(session.getSessionId(), job.jobId())).contains(job);
-    assertThat(worker.briefingInvocationCount()).isEqualTo(1);
+    assertThat(submitted.getContextStatus()).isEqualTo(ContextStatus.EXTRACTING);
+    assertThat(repository.findSession(session.getSessionId())).contains(submitted);
+    assertThat(events)
+        .containsExactly(
+            new ContextExtractionRequested(
+                session.getSessionId(), "briefing transcript", SlotExtractionMode.INITIAL));
   }
 
   @Test
-  void submitFollowUpExtractionCreatesPendingJobAndDispatchesWorker() {
+  void submitFollowUpPersistsMergingStateAndIncreasesAttempt() {
     ClientSession session = followUpRequiredSession();
-    SessionCache sessionCache = new InMemorySessionCache(session);
-    ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore();
-    RecordingContextExtractionWorker worker = new RecordingContextExtractionWorker();
-    SessionService service = service(sessionCache, jobStore, worker);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    List<Object> events = new ArrayList<>();
+    SessionService service = service(repository, events);
 
-    ContextExtractionJob job =
+    ClientSession submitted =
         service.submitFollowUpExtraction(session.getSessionId(), "follow-up transcript");
 
-    assertThat(job.status()).isEqualTo(ContextExtractionJobStatus.PENDING);
-    assertThat(job.type()).isEqualTo(ContextExtractionJobType.FOLLOW_UP);
-    assertThat(jobStore.findById(session.getSessionId(), job.jobId())).contains(job);
-    assertThat(worker.followUpInvocationCount()).isEqualTo(1);
+    assertThat(submitted.getContextStatus()).isEqualTo(ContextStatus.MERGING);
+    assertThat(submitted.getFollowUpAttempt()).isEqualTo(1);
+    assertThat(events)
+        .containsExactly(
+            new ContextExtractionRequested(
+                session.getSessionId(), "follow-up transcript", SlotExtractionMode.FOLLOW_UP));
   }
 
   @Test
-  void getReturnsContextExtractionJob() {
-    ContextExtractionJob job =
-        ContextExtractionJob.pending(
-            "session-id", SituationType.DATE, ContextExtractionJobType.BRIEFING);
-    ContextExtractionJobStore jobStore = new InMemoryContextExtractionJobStore(job);
-    SessionService service =
-        service(new InMemorySessionCache(ClientSession.create(SituationType.DATE)), jobStore, null);
+  void getContextReadsSessionStatusAndPersistedValues() {
+    ClientSession session = followUpRequiredSession();
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    repository.saveContext(
+        session.getSessionId(),
+        SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural")));
 
-    ContextExtractionJob found = service.get("session-id", job.jobId());
+    ContextCollectionState state =
+        service(repository, new ArrayList<>()).getContext(session.getSessionId());
 
-    assertThat(found).isEqualTo(job);
+    assertThat(state.status()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
+    assertThat(state.context().values()).containsEntry("desired_persona", "warm_natural");
+    assertThat(state.missingSlotKeys()).contains("critical_moment");
+    assertThat(state.followUpQuestions()).isNotEmpty();
   }
 
-  private SessionService service(
-      SessionCache sessionCache,
-      ContextExtractionJobStore jobStore,
-      RecordingContextExtractionWorker worker) {
+  private SessionService service(InMemorySessionRepository repository, List<Object> events) {
     return new SessionService(
-        sessionCache,
-        new SessionReader(sessionCache),
-        mock(OutfitSpecResolver.class),
-        jobStore,
-        worker);
+        repository, new SessionReader(repository), mock(OutfitSpecResolver.class), events::add);
   }
 
   private ClientSession followUpRequiredSession() {
     ClientSession session = ClientSession.create(SituationType.DATE);
     session.startContextExtraction();
-    session.requireFollowUp(
-        SessionContext.from(
-            SituationType.DATE,
-            Map.of("situation_type", "date", "desired_persona", "warm_natural")),
-        List.of("critical_moment"),
-        List.of("Which moment are you most worried about?"));
+    session.requireFollowUp();
     return session;
   }
 }

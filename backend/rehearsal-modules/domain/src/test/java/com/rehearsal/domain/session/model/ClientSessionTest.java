@@ -5,131 +5,25 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.rehearsal.model.ConversationHistory;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
-import java.util.Map;
+import com.rehearsal.domain.situation.model.SituationType;
 import org.junit.jupiter.api.Test;
 
 class ClientSessionTest {
 
-  private static final String FIRST_OPPONENT_LINE = "오는 길 괜찮으셨어요?";
-
   @Test
-  void recordTurnIncrementsCurrentTurnOnSuccess() {
-    ClientSession session = playingSessionAtTurn(1);
+  void createStartsAtBriefing() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
 
-    session.recordTurn("네, 여유 있게 도착했어요.", true, "자연스럽습니다.", false);
-
-    assertThat(session.getCurrentTurn()).isEqualTo(2);
-    assertThat(session.getConversationHistory())
-        .containsExactly(new ConversationHistory(1, FIRST_OPPONENT_LINE, "네, 여유 있게 도착했어요."));
-    assertThat(session.getTurnEvaluations())
-        .containsExactly(new TurnEvaluation(1, true, "자연스럽습니다.", false));
+    assertThat(session.getSessionId()).isNotBlank();
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.BRIEFING);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.NOT_STARTED);
   }
 
   @Test
-  void recordTurnKeepsCurrentTurnOnFailure() {
-    ClientSession session = playingSessionAtTurn(1);
-
-    session.recordTurn("...", false, "다시 시도해보세요.", true);
-
-    assertThat(session.getCurrentTurn()).isEqualTo(1);
-    assertThat(session.getConversationHistory()).hasSize(1);
-    assertThat(session.getTurnEvaluations())
-        .containsExactly(new TurnEvaluation(1, false, "다시 시도해보세요.", true));
-  }
-
-  @Test
-  void updateOpponentLineReplacesCurrentOpponentLine() {
-    ClientSession session = playingSessionAtTurn(1);
-
-    session.updateOpponentLine("다음 발화입니다.");
-
-    assertThat(session.getCurrentOpponentLine()).isEqualTo("다음 발화입니다.");
-  }
-
-  @Test
-  void updateOpponentLineThrowsInvalidSessionStateWhenNotPlaying() {
-    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
-
-    assertThatThrownBy(() -> session.updateOpponentLine("다음 발화입니다."))
-        .isInstanceOf(BusinessException.class)
-        .extracting(e -> ((BusinessException) e).getErrorCode())
-        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
-  }
-
-  @Test
-  void recordTurnThrowsInvalidSessionStateWhenNotPlaying() {
-    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
-
-    assertThatThrownBy(() -> session.recordTurn("transcript", true, "feedback", false))
-        .isInstanceOf(BusinessException.class)
-        .extracting(e -> ((BusinessException) e).getErrorCode())
-        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
-  }
-
-  @Test
-  void startContextExtractionRequiresContextNotStarted() {
-    ClientSession session =
-        ClientSession.builder()
-            .sessionId("test-session-id")
-            .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
-            .status(SessionStatus.BRIEFING)
-            .contextStatus(ContextStatus.COMPLETED)
-            .build();
-
-    assertThatThrownBy(session::startContextExtraction)
-        .isInstanceOf(BusinessException.class)
-        .extracting(e -> ((BusinessException) e).getErrorCode())
-        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
-  }
-
-  @Test
-  void requireFollowUpStoresPartialContextAndMovesToFollowUpRequired() {
-    ClientSession session =
-        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
+  void contextCanRequireFollowUpAndStartMerge() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
     session.startContextExtraction();
-
-    session.requireFollowUp(
-        SessionContext.from(
-            com.rehearsal.domain.situation.model.SituationType.DATE,
-            Map.of("situation_type", "date")),
-        java.util.List.of("critical_moment"),
-        java.util.List.of("Which moment are you most worried about?"));
-
-    assertThat(session.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
-    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
-    assertThat(session.getPartialContext().valuesWithSituationType())
-        .containsEntry("situation_type", "date");
-    assertThat(session.getMissingSlotKeys()).containsExactly("critical_moment");
-    assertThat(session.getFollowUpQuestions())
-        .containsExactly("Which moment are you most worried about?");
-  }
-
-  @Test
-  void completeContextStoresFinalContextAndMovesToTransformationReady() {
-    ClientSession session =
-        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
-    session.startContextExtraction();
-
-    session.completeContext(
-        SessionContext.from(
-            com.rehearsal.domain.situation.model.SituationType.DATE,
-            Map.of("situation_type", "date", "desired_persona", "warm_natural")));
-
-    assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
-    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
-    assertThat(session.getFinalContext().valuesWithSituationType())
-        .containsEntry("situation_type", "date")
-        .containsEntry("desired_persona", "warm_natural");
-    assertThat(session.getMissingSlotKeys()).isEmpty();
-    assertThat(session.getFollowUpQuestions()).isEmpty();
-  }
-
-  @Test
-  void startFollowUpMergeMovesFollowUpRequiredToMergingAndIncreasesAttempt() {
-    ClientSession session = followUpRequiredSession();
-
+    session.requireFollowUp();
     session.startFollowUpMerge();
 
     assertThat(session.getStatus()).isEqualTo(SessionStatus.CONTEXT_EXTRACTING);
@@ -138,113 +32,76 @@ class ClientSessionTest {
   }
 
   @Test
-  void startFollowUpMergeThrowsInvalidSessionStateWhenFollowUpIsNotRequired() {
-    ClientSession session =
-        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
+  void contextCanCompleteFromInitialExtraction() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    session.startContextExtraction();
+    session.completeContext();
 
-    assertThatThrownBy(session::startFollowUpMerge)
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
+  }
+
+  @Test
+  void contextCanFailWhileExtracting() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    session.startContextExtraction();
+    session.failContext();
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.FAILED);
+    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FAILED);
+  }
+
+  @Test
+  void confirmOutfitRequiresCompletedContext() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    session.startContextExtraction();
+    session.completeContext();
+    session.confirmOutfit("outfit-1");
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.REHEARSAL_READY);
+    assertThat(session.getSelectedOutfitId()).isEqualTo("outfit-1");
+  }
+
+  @Test
+  void simulationStartsAndAdvancesTurn() {
+    ClientSession session = rehearsalReadySession();
+    session.startSimulation(3);
+    session.advanceTurn();
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.REHEARSAL_PLAYING);
+    assertThat(session.getCurrentTurn()).isEqualTo(2);
+    assertThat(session.getMaxTurn()).isEqualTo(3);
+  }
+
+  @Test
+  void invalidTransitionThrowsBusinessException() {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+
+    assertThatThrownBy(session::completeContext)
         .isInstanceOf(BusinessException.class)
-        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .extracting(error -> ((BusinessException) error).getErrorCode())
         .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
   }
 
   @Test
-  void completeContextAllowsMergingContextStatus() {
-    ClientSession session = mergingSession();
+  void advancingPastTurnLimitIsRejected() {
+    ClientSession session = rehearsalReadySession();
+    session.startSimulation(1);
+    session.advanceTurn();
 
-    session.completeContext(
-        SessionContext.from(
-            com.rehearsal.domain.situation.model.SituationType.DATE,
-            Map.of("situation_type", "date", "critical_moment", "first greeting")));
-
-    assertThat(session.getStatus()).isEqualTo(SessionStatus.TRANSFORMATION_READY);
-    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.COMPLETED);
-    assertThat(session.getFinalContext().valuesWithSituationType())
-        .containsEntry("critical_moment", "first greeting");
-  }
-
-  @Test
-  void requireFollowUpAllowsMergingContextStatus() {
-    ClientSession session = mergingSession();
-
-    session.requireFollowUp(
-        SessionContext.from(
-            com.rehearsal.domain.situation.model.SituationType.DATE,
-            Map.of("situation_type", "date", "desired_persona", "warm_natural")),
-        java.util.List.of("critical_moment"),
-        java.util.List.of("Which moment should we focus on?"));
-
-    assertThat(session.getStatus()).isEqualTo(SessionStatus.FOLLOW_UP_REQUIRED);
-    assertThat(session.getContextStatus()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
-    assertThat(session.getPartialContext().valuesWithSituationType())
-        .containsEntry("desired_persona", "warm_natural");
-    assertThat(session.getMissingSlotKeys()).containsExactly("critical_moment");
-  }
-
-  @Test
-  void recordTurnAllowsFinalTurnAtMaxTurn() {
-    ClientSession session = playingSessionAtTurn(3, 3);
-
-    session.recordTurn("마지막 답변", true, "잘하셨습니다.", false);
-
-    assertThat(session.getCurrentTurn()).isEqualTo(4);
-  }
-
-  @Test
-  void recordTurnThrowsTurnLimitExceededPastMaxTurn() {
-    ClientSession session = playingSessionAtTurn(4, 3);
-
-    assertThatThrownBy(() -> session.recordTurn("transcript", true, "feedback", false))
+    assertThatThrownBy(session::advanceTurn)
         .isInstanceOf(BusinessException.class)
-        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .extracting(error -> ((BusinessException) error).getErrorCode())
         .isEqualTo(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
   }
 
-  private ClientSession playingSessionAtTurn(int currentTurn) {
-    return playingSessionAtTurn(currentTurn, currentTurn);
-  }
-
-  private ClientSession playingSessionAtTurn(int currentTurn, int maxTurn) {
-    ClientSession session = sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(maxTurn, FIRST_OPPONENT_LINE);
-    for (int i = 1; i < currentTurn; i++) {
-      session.recordTurn("transcript-" + i, true, "feedback-" + i, false);
-    }
-    return session;
-  }
-
-  private ClientSession sessionWith(SessionStatus status) {
+  private ClientSession rehearsalReadySession() {
     return ClientSession.builder()
-        .sessionId("test-session-id")
-        .situationType(com.rehearsal.domain.situation.model.SituationType.DATE)
-        .status(status)
+        .sessionId("session-id")
+        .situationType(SituationType.DATE)
+        .status(SessionStatus.REHEARSAL_READY)
         .contextStatus(ContextStatus.COMPLETED)
-        .partialContext(
-            SessionContext.empty(com.rehearsal.domain.situation.model.SituationType.DATE))
-        .finalContext(
-            SessionContext.from(
-                com.rehearsal.domain.situation.model.SituationType.DATE,
-                Map.of("situationType", "date")))
-        .selectedOutfitId("test-outfit-id")
+        .selectedOutfitId("outfit-1")
         .build();
-  }
-
-  private ClientSession followUpRequiredSession() {
-    ClientSession session =
-        ClientSession.create(com.rehearsal.domain.situation.model.SituationType.DATE);
-    session.startContextExtraction();
-    session.requireFollowUp(
-        SessionContext.from(
-            com.rehearsal.domain.situation.model.SituationType.DATE,
-            Map.of("situation_type", "date", "desired_persona", "warm_natural")),
-        java.util.List.of("critical_moment"),
-        java.util.List.of("Which moment should we focus on?"));
-    return session;
-  }
-
-  private ClientSession mergingSession() {
-    ClientSession session = followUpRequiredSession();
-    session.startFollowUpMerge();
-    return session;
   }
 }

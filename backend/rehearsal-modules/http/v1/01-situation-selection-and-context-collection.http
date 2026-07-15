@@ -1,0 +1,125 @@
+@host = http://localhost:8080
+@situationType = date
+
+### 1-1. Selectable situation types
+# Expected data fields: situationType, label
+GET {{host}}/api/v1/situation-types
+Accept: application/json
+
+> {%
+  client.test("situation type list returns success", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(Array.isArray(response.body.data), "Expected a list");
+    client.assert(response.body.data.some(function (type) {
+      return type.situationType === "date";
+    }), "Expected date situation type");
+  });
+%}
+
+### 2. Create a session after the user confirms a situation type
+# Expected data fields: sessionId, situationType
+POST {{host}}/api/v1/sessions
+Content-Type: application/json
+Accept: application/json
+
+{
+  "situationType": "{{situationType}}"
+}
+
+> {%
+  client.test("session is created for selected situation type", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId, "Expected session id");
+    client.assert(response.body.data.situationType === "date", "Expected selected situation type");
+  });
+  client.global.set("sessionId", response.body.data.sessionId);
+%}
+
+### 3-1. Get briefing content for the selected situation type
+# Expected data fields: situationType, briefingTitle, exampleAnswer
+GET {{host}}/api/v1/situation-types/{{situationType}}/briefing
+Accept: application/json
+
+> {%
+  client.test("briefing content returns selected type", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.situationType === "date", "Expected date briefing");
+    client.assert(response.body.data.briefingTitle, "Expected briefing title");
+    client.assert(response.body.data.exampleAnswer, "Expected example answer");
+  });
+%}
+
+### 3-2. Submit an initial briefing transcript
+# This transcript intentionally omits the desired_persona option key.
+# The fake extractor fills critical_moment but leaves desired_persona empty,
+# so the following polling response should require a follow-up question.
+POST {{host}}/api/v1/sessions/{{sessionId}}/briefing
+Content-Type: application/json
+Accept: application/json
+
+{
+  "transcript": "I am worried that my first greeting will be awkward tomorrow."
+}
+
+> {%
+  client.test("briefing submission starts asynchronous extraction", function () {
+    client.assert(response.status === 202, "Expected 202 Accepted");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert(response.body.data.status === "EXTRACTING", "Expected extracting context status");
+  });
+%}
+
+### 3-3. Poll initial context until a follow-up is required
+# Run this request again after a short moment if the worker has not completed yet.
+GET {{host}}/api/v1/sessions/{{sessionId}}/context
+Accept: application/json
+
+> {%
+  client.test("initial extraction requests the missing required slot", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.status === "FOLLOW_UP_REQUIRED", "Expected follow-up requirement");
+    client.assert(response.body.data.context.situation_type === "date", "Expected date context");
+    client.assert(response.body.data.missingSlotKeys.includes("desired_persona"), "Expected desired_persona to be missing");
+    client.assert(response.body.data.followUpQuestions.length > 0, "Expected a follow-up question");
+  });
+%}
+
+### 3-4. Submit a follow-up transcript for the missing desired_persona slot
+# The fake extractor recognizes the option key warm_natural deterministically.
+POST {{host}}/api/v1/sessions/{{sessionId}}/follow-up
+Content-Type: application/json
+Accept: application/json
+
+{
+  "transcript": "warm_natural"
+}
+
+> {%
+  client.test("follow-up submission starts context merge", function () {
+    client.assert(response.status === 202, "Expected 202 Accepted");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert(response.body.data.status === "MERGING", "Expected merging context status");
+  });
+%}
+
+### 3-5. Poll merged context until it is complete
+# Run this request again after a short moment if the worker has not completed yet.
+GET {{host}}/api/v1/sessions/{{sessionId}}/context
+Accept: application/json
+
+> {%
+  client.test("follow-up completes the required context", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.status === "COMPLETED", "Expected completed context status");
+    client.assert(response.body.data.context.situation_type === "date", "Expected date context");
+    client.assert(response.body.data.context.desired_persona === "warm_natural", "Expected merged desired persona");
+    client.assert(response.body.data.missingSlotKeys.length === 0, "Expected no missing required slots");
+  });
+%}

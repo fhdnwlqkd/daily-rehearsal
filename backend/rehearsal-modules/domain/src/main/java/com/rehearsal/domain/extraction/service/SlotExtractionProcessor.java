@@ -4,7 +4,7 @@ import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.extraction.model.ContextSlotValue;
 import com.rehearsal.domain.extraction.model.SlotExtractionProcessingResult;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.List;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +27,7 @@ public class SlotExtractionProcessor {
   }
 
   public SlotExtractionProcessingResult process(
-      ContextSlotSchema schema, SlotExtractionRawResult rawResult, int followUpAttempt) {
+      ContextSlotSchemaType schema, SlotExtractionRawResult rawResult, int followUpAttempt) {
     Map<String, ContextSlotValue> normalizedSlots =
         normalizer.normalize(schema, rawResult.rawSlots());
     List<String> missingRequiredSlotKeys = missingRequiredSlotResolver.resolve(normalizedSlots);

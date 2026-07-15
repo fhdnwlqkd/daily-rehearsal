@@ -2,7 +2,6 @@ rootProject.name = 'rehearsal-modules'
 
 include 'rehearsal-api'
 include 'datasource:db-integrated'
-include 'datasource:cache-session'
 include 'datasource:client-gemini'
 include 'datasource:client-decart'
 include 'domain'
