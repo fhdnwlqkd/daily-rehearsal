@@ -1,3 +1,5 @@
+import type { GestureRecognizer } from "@mediapipe/tasks-vision";
+
 /**
  * API 호출 훅이 공통으로 쓰는 상태.
  * IDLE은 사용자 액션으로 시작하는 훅(use-create-* 등)의 초기 상태 —
@@ -71,4 +73,23 @@ export interface ExperienceData {
   changeAction: string;
   changeAttitude: string;
   ifThen: string;
+}
+
+// --- 제스처 (이슈 #9) ---
+
+export type GestureAction = "NEXT" | "PREV" | "CONFIRM";
+
+export interface GestureActionEvent {
+  action: GestureAction;
+  /** 어느 입력에서 왔는지 (로깅/디버깅용) */
+  source: "hand" | "keyboard";
+}
+
+export type GestureEngineStatus = "LOADING" | "READY" | "ERROR";
+
+/** useGestureEngine(세션 루트 소유)이 만들어 스테이지로 내려주는 핸들 */
+export interface GestureEngineHandle {
+  status: GestureEngineStatus;
+  /** READY 전에는 null */
+  recognizer: GestureRecognizer | null;
 }
