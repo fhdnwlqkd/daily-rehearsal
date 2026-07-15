@@ -65,3 +65,7 @@ jar {
     dependsOn copyDocument
 }
 
+tasks.named('resolveMainClassName') {
+    dependsOn copyDocument
+}
+
