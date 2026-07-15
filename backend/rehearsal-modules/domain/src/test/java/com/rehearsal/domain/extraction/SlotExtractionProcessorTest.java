@@ -22,11 +22,7 @@ class SlotExtractionProcessorTest {
         processor.process(
             schema,
             new SlotExtractionRawResult(
-                Map.of(
-                    "desired_persona",
-                    "calm_confident",
-                    "critical_moment",
-                    "첫 인사")),
+                Map.of("desired_persona", "calm_confident", "critical_moment", "첫 인사")),
             0);
 
     assertThat(result.readyForSimulation()).isTrue();
@@ -39,11 +35,11 @@ class SlotExtractionProcessorTest {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     SlotExtractionProcessingResult result =
-        processor.process(schema, new SlotExtractionRawResult(Map.of("desired_persona", "calm_confident")), 0);
+        processor.process(
+            schema, new SlotExtractionRawResult(Map.of("desired_persona", "calm_confident")), 0);
 
     assertThat(result.readyForSimulation()).isFalse();
-    assertThat(result.missingRequiredSlotKeys())
-        .containsExactly("critical_moment");
+    assertThat(result.missingRequiredSlotKeys()).containsExactly("critical_moment");
     assertThat(result.followUpQuestion()).isNotBlank();
     assertThat(result.slots().get("critical_moment").status())
         .isEqualTo(ContextSlotValueStatus.MISSING);

@@ -10,12 +10,12 @@ import com.rehearsal.domain.session.model.ContextCollectionState;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.repository.SessionRepository;
-import com.rehearsal.domain.slot.model.RequiredLevel;
-import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
+import com.rehearsal.domain.slot.model.RequiredLevel;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -95,8 +95,7 @@ public class SessionService
     return sessionRepository.saveSession(session);
   }
 
-  private List<String> missingRequiredSlotKeys(
-      ClientSession session, SessionContext context) {
+  private List<String> missingRequiredSlotKeys(ClientSession session, SessionContext context) {
     if (session.getContextStatus() != ContextStatus.FOLLOW_UP_REQUIRED) {
       return List.of();
     }
@@ -108,8 +107,7 @@ public class SessionService
         .toList();
   }
 
-  private List<String> followUpQuestions(
-      ClientSession session, List<String> missingSlotKeys) {
+  private List<String> followUpQuestions(ClientSession session, List<String> missingSlotKeys) {
     if (missingSlotKeys.isEmpty()) {
       return List.of();
     }

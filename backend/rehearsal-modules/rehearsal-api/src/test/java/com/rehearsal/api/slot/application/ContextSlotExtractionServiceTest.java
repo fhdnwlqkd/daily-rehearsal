@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rehearsal.api.slot.application.command.ExtractContextSlotsCommand;
 import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
-import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.model.SlotExtractionMode;
+import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
 import com.rehearsal.domain.slot.registry.ContextSlotType;
@@ -56,8 +56,7 @@ class ContextSlotExtractionServiceTest {
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
     assertThat(result.context())
         .containsEntry("desired_persona", "calm_confident")
-        .containsEntry(
-            "critical_moment", ContextSlotType.CRITICAL_MOMENT.getDefaultLiteralValue())
+        .containsEntry("critical_moment", ContextSlotType.CRITICAL_MOMENT.getDefaultLiteralValue())
         .containsEntry("outfit_direction", "neat_casual");
   }
 

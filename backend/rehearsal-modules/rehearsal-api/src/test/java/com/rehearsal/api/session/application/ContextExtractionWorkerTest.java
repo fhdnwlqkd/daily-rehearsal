@@ -49,10 +49,7 @@ class ContextExtractionWorkerTest {
     ContextSlotExtractionService extractionService = mock(ContextSlotExtractionService.class);
     given(extractionService.extract(any()))
         .willReturn(
-            result(
-                Map.of("desired_persona", "warm_natural"),
-                List.of("critical_moment"),
-                false));
+            result(Map.of("desired_persona", "warm_natural"), List.of("critical_moment"), false));
 
     worker(repository, extractionService).extractFollowUp(session.getSessionId(), "transcript");
 

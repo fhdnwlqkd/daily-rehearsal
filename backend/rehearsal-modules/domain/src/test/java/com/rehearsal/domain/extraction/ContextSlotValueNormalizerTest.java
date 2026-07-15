@@ -23,13 +23,15 @@ class ContextSlotValueNormalizerTest {
         normalizer.normalize(
             schema,
             Map.of(
-                "critical_moment", " 첫 인사 ", "desired_persona", "calm_confident", "unknown_key", "ignored"));
+                "critical_moment",
+                " 첫 인사 ",
+                "desired_persona",
+                "calm_confident",
+                "unknown_key",
+                "ignored"));
 
     assertThat(values.keySet())
-        .containsExactly(
-            "desired_persona",
-            "critical_moment",
-            "outfit_direction");
+        .containsExactly("desired_persona", "critical_moment", "outfit_direction");
     assertThat(values.get("desired_persona").status()).isEqualTo(ContextSlotValueStatus.FILLED);
     assertThat(values.get("desired_persona").source()).isEqualTo(ContextSlotValueSource.EXTRACTED);
     assertThat(values.get("critical_moment").value()).isEqualTo("첫 인사");

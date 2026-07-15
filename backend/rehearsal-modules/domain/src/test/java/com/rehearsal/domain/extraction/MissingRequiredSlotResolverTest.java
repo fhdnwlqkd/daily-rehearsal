@@ -19,8 +19,7 @@ class MissingRequiredSlotResolverTest {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> slots =
         normalizer.normalize(
-            schema,
-            Map.of("desired_persona", "invalid", "critical_moment", "첫 인사"));
+            schema, Map.of("desired_persona", "invalid", "critical_moment", "첫 인사"));
 
     assertThat(resolver.resolve(slots)).containsExactly("desired_persona");
   }
@@ -30,12 +29,7 @@ class MissingRequiredSlotResolverTest {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> slots =
         normalizer.normalize(
-            schema,
-            Map.of(
-                "desired_persona",
-                "calm_confident",
-                "critical_moment",
-                "첫 인사"));
+            schema, Map.of("desired_persona", "calm_confident", "critical_moment", "첫 인사"));
 
     assertThat(resolver.resolve(slots)).isEmpty();
   }

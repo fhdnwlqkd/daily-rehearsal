@@ -62,7 +62,11 @@ class JpaSessionRepositoryIntegrationTest {
     assertThat(sessionRepository.findSession(session.getSessionId())).isPresent();
     assertThat(sessionRepository.findContext(session.getSessionId()).orElseThrow().values())
         .containsEntry("desired_persona", "warm_natural");
-    assertThat(sessionRepository.findTurn(session.getSessionId(), 1).orElseThrow().getOpponentLineStatus())
+    assertThat(
+            sessionRepository
+                .findTurn(session.getSessionId(), 1)
+                .orElseThrow()
+                .getOpponentLineStatus())
         .isEqualTo(OpponentLineStatus.COMPLETED);
     assertThat(sessionRepository.findAttempt(turn.getId(), 1).orElseThrow().getEvaluationStatus())
         .isEqualTo(EvaluationStatus.COMPLETED);
