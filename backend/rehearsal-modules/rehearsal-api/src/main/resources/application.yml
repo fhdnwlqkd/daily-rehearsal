@@ -16,6 +16,11 @@ management:
         include: health,info,metrics
 
 rehearsal:
+  security:
+    api-key:
+      enabled: ${API_KEY_AUTH_ENABLED:true}
+      key: ${API_KEY:}
+      header-name: X-API-KEY
   ai:
     defaults:
       provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:gemini}
