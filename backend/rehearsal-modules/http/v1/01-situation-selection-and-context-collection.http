@@ -120,6 +120,6 @@ Accept: application/json
     client.assert(response.body.data.status === "COMPLETED", "Expected completed context status");
     client.assert(response.body.data.context.situation_type === "date", "Expected date context");
     client.assert(response.body.data.context.desired_persona === "warm_natural", "Expected merged desired persona");
-    client.assert(response.body.data.missingSlotKeys.length === 0, "Expected no missing required slots");
+    client.assert(response.body.data.missingSlotKeys === undefined, "Expected no missing required slot field");
   });
 %}
