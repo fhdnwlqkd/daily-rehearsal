@@ -61,11 +61,10 @@ bootJar {
     dependsOn copyDocument
 }
 
-jar {
-    dependsOn copyDocument
-}
-
 tasks.named('resolveMainClassName') {
     dependsOn copyDocument
 }
 
+jar {
+    dependsOn copyDocument
+}
