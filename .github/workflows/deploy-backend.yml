@@ -70,7 +70,18 @@ jobs:
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
               | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
             cd /opt/daily-rehearsal
-            export IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}
+            umask 077
+            cat > .env <<'EOF'
+            API_KEY=${{ secrets.API_KEY }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            DECART_API_KEY=${{ secrets.DECART_API_KEY }}
+            VIDEO_STORAGE_PUBLIC_BASE_URL=${{ secrets.VIDEO_STORAGE_PUBLIC_BASE_URL }}
+            ECR_IMAGE=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}
+            IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}
+            EOF
+            chmod 600 .env
             docker compose -f docker-compose.prod.yml pull app
             docker compose -f docker-compose.prod.yml up -d app
             docker image prune -f
