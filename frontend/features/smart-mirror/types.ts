@@ -61,3 +61,30 @@ export interface GestureEngineHandle {
   /** READY 전에는 null */
   recognizer: GestureRecognizer | null;
 }
+
+// --- STT (이슈 #31) ---
+
+/**
+ * IDLE       대기 (start() 호출 전/확정·취소 후)
+ * LISTENING  인식 중 — transcript가 실시간으로 누적된다
+ * CANDIDATE  침묵 감지로 발화가 끝났다고 판단 — 확정/재발화 대기
+ * ERROR      복구 필요 — errorType으로 원인 구분
+ */
+export type SttStatus = "IDLE" | "LISTENING" | "CANDIDATE" | "ERROR";
+
+/**
+ * UNSUPPORTED 브라우저에 SpeechRecognition 없음 (비복구 → 키보드 fallback)
+ * PERMISSION  마이크 권한 거부 (비복구 → 키보드 fallback)
+ * NETWORK     인식 서버 연결 실패 (retry 대상)
+ * UNKNOWN     그 외 (retry 대상)
+ */
+export type SttErrorType = "UNSUPPORTED" | "PERMISSION" | "NETWORK" | "UNKNOWN";
+
+/** SttController가 매 변화마다 통지하는 불변 스냅샷. 훅은 이걸 그대로 상태로 쓴다. */
+export interface SttSnapshot {
+  status: SttStatus;
+  transcript: string;
+  errorType: SttErrorType | null;
+  /** 소비처가 "N회 실패 → 키보드 전환"을 판단하는 근거. confirm 성공 시 0으로 리셋. */
+  failCount: number;
+}
