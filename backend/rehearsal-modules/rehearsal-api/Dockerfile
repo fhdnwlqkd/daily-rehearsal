@@ -9,7 +9,7 @@ COPY datasource ./datasource
 COPY rehearsal-api ./rehearsal-api
 
 RUN chmod +x gradlew \
-    && ./gradlew :rehearsal-api:bootJar -x test --no-daemon \
+    && ./gradlew :rehearsal-api:bootJar -x test -x asciidoctor --no-daemon \
     && rm -f rehearsal-api/build/libs/*-plain.jar
 
 FROM eclipse-temurin:21-jre-alpine
