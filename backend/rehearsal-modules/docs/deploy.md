@@ -50,20 +50,16 @@ sudo chown $USER:$USER /opt/daily-rehearsal
 
 레포의 `backend/rehearsal-modules/docker/docker-compose.prod.yml`을 `/opt/daily-rehearsal/docker-compose.prod.yml`로 복사한다 (scp 또는 직접 붙여넣기).
 
-같은 디렉토리에 `.env` 파일을 만든다 (git에는 없음, EC2에만 존재). 레포의 [`docker/.env.example`](../docker/.env.example)을 `/opt/daily-rehearsal/.env`로 복사한 뒤 값을 채운다.
-
-```bash
-cp docker/.env.example /opt/daily-rehearsal/.env
-# /opt/daily-rehearsal/.env 를 열어서 DB_PASSWORD, GEMINI_API_KEY, API_KEY, ECR_IMAGE 등 값을 채운다
-# API_KEY는 클라이언트가 X-API-KEY 헤더로 보내야 하는 값이다. 비워두면 /api/** 전체가 401을 반환한다.
-```
+`.env` 파일은 GitHub Actions가 배포할 때 GitHub Secrets 값으로 `/opt/daily-rehearsal/.env`에 생성한다.
+서버에서 직접 `.env`를 수정하지 않는다.
 
 ### 5. 최초 수동 기동으로 확인
 
 ```bash
 cd /opt/daily-rehearsal
 aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <ECR_REGISTRY>
-docker compose -f docker-compose.prod.yml up -d
+# 첫 배포 전 수동 기동이 필요하면 docker/.env.example을 참고해 임시 .env를 만든다.
+# 일반적으로는 release/backend 배포 workflow가 .env를 생성하고 컨테이너를 기동한다.
 curl http://localhost:8080/actuator/health   # {"status":"UP"} 확인
 ```
 
@@ -80,6 +76,12 @@ ECR push 권한(`AmazonEC2ContainerRegistryPowerUser`)을 가진 IAM 사용자�
 | `EC2_HOST` | EC2 퍼블릭 IP 또는 도메인 |
 | `EC2_SSH_USER` | 보통 `ubuntu` |
 | `EC2_SSH_KEY` | EC2 접속용 private key(PEM) 전체 내용 |
+| `API_KEY` | 클라이언트가 `X-API-KEY` 헤더로 보낼 백엔드 API key |
+| `DB_NAME` | MySQL database 이름. 예: `rehearsal` |
+| `DB_PASSWORD` | MySQL root password이자 앱 datasource password |
+| `GEMINI_API_KEY` | Gemini API key. 없으면 앱이 기동 실패할 수 있음 |
+| `DECART_API_KEY` | Decart API key. Decart 기능을 사용하지 않으면 생략 가능 |
+| `VIDEO_STORAGE_PUBLIC_BASE_URL` | 영상/다운로드 URL의 외부 base URL. 필요 없으면 생략 가능. 예: `http://<EC2_HOST>:8080` |
 
 > 보안 강화(나중에): access key 대신 GitHub OIDC + IAM Role로 바꾸면 장기 자격증명을 GitHub에 저장하지 않아도 된다. 지금은 access key로 시작하고 익숙해진 뒤 전환을 권장.
 
