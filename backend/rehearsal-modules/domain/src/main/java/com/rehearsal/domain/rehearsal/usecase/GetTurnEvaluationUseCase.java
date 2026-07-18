@@ -1,8 +1,8 @@
 package com.rehearsal.domain.rehearsal.usecase;
 
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 
 public interface GetTurnEvaluationUseCase {
 
-  TurnEvaluationJob get(String sessionId, int turnNo);
+  SimulationTurnAttempt get(String sessionId, int turnNo);
 }

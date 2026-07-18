@@ -1,0 +1,10 @@
+[[Situation-Type-API]]
+== 1. Situation Type API
+
+[[Situation-Type-List]]
+=== 1.1. List selectable situation types
+operation::situation-types-list[snippets='http-request,http-response']
+
+[[Situation-Type-Briefing]]
+=== 1.2. Get briefing content for a situation type
+operation::situation-type-briefing[snippets='http-request,http-response']

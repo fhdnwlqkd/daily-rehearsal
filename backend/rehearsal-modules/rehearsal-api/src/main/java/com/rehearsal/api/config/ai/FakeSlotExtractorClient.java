@@ -5,9 +5,9 @@ import com.rehearsal.domain.extraction.model.SlotExtractionCommand;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.utils.SlotSchemaItems;
-import com.rehearsal.domain.slot.model.ContextSlot;
-import com.rehearsal.domain.slot.model.ContextSlotOption;
-import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
+import com.rehearsal.domain.slot.registry.ContextSlotOptionType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType.SchemaItemDef;
+import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -20,29 +20,29 @@ public class FakeSlotExtractorClient implements SlotExtractorClient {
     Map<String, Object> rawSlots = new LinkedHashMap<>(command.currentSlots());
     String transcript = command.transcript().strip();
 
-    for (ContextSlotSchemaItem item : SlotSchemaItems.activeItemsByPriority(command.schema())) {
-      ContextSlot slot = item.slot();
-      Object value = extractValue(slot, transcript, rawSlots.get(slot.slotKey()));
-      rawSlots.put(slot.slotKey(), value);
+    for (SchemaItemDef item : SlotSchemaItems.activeItemsByPriority(command.schema())) {
+      ContextSlotType slot = item.slotType();
+      Object value = extractValue(slot, transcript, rawSlots.get(slot.getKey()));
+      rawSlots.put(slot.getKey(), value);
     }
 
     return new SlotExtractionRawResult(rawSlots);
   }
 
-  private Object extractValue(ContextSlot slot, String transcript, Object currentValue) {
-    return switch (slot.slotType()) {
+  private Object extractValue(ContextSlotType slot, String transcript, Object currentValue) {
+    return switch (slot.getSlotType()) {
       case SINGLE_SELECT -> extractSingleSelectValue(slot, transcript, currentValue);
       case TEXT -> currentValue == null ? textValue(transcript) : currentValue;
     };
   }
 
   private Object extractSingleSelectValue(
-      ContextSlot slot, String transcript, Object currentValue) {
+      ContextSlotType slot, String transcript, Object currentValue) {
     String normalizedTranscript = normalize(transcript);
-    for (ContextSlotOption option : slot.options()) {
-      if (contains(normalizedTranscript, option.optionKey())
-          || contains(normalizedTranscript, option.label())) {
-        return option.optionKey();
+    for (ContextSlotOptionType option : slot.getOptions()) {
+      if (contains(normalizedTranscript, option.getKey())
+          || contains(normalizedTranscript, option.getLabel())) {
+        return option.getKey();
       }
     }
     return currentValue;

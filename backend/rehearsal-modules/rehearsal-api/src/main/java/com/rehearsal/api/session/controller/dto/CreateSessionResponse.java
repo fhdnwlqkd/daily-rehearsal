@@ -7,6 +7,6 @@ import com.rehearsal.domain.session.model.ClientSession;
 public record CreateSessionResponse(String sessionId, String situationType) {
 
   public static CreateSessionResponse from(ClientSession session) {
-    return new CreateSessionResponse(session.getSessionId(), session.getSituationType().key());
+    return new CreateSessionResponse(session.getSessionId(), session.getSituationType().getKey());
   }
 }

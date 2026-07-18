@@ -1,8 +1,8 @@
 package com.rehearsal.domain.extraction.service.utils;
 
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
-import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType.SchemaItemDef;
 import java.util.Comparator;
 import java.util.List;
 import lombok.AccessLevel;
@@ -12,10 +12,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public final class SlotSchemaItems {
 
-  public static List<ContextSlotSchemaItem> activeItemsByPriority(ContextSlotSchema schema) {
-    return schema.items().stream()
-        .filter(ContextSlotSchemaItem::active)
-        .sorted(Comparator.comparingInt(ContextSlotSchemaItem::priority))
+  public static List<SchemaItemDef> activeItemsByPriority(ContextSlotSchemaType schema) {
+    return schema.getItems().stream()
+        .sorted(Comparator.comparingInt(SchemaItemDef::priority))
         .toList();
   }
 }

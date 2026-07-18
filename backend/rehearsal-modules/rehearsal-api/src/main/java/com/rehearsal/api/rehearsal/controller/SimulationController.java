@@ -1,12 +1,12 @@
 package com.rehearsal.api.rehearsal.controller;
 
 import com.rehearsal.api.rehearsal.controller.dto.EvaluationRequest;
-import com.rehearsal.api.rehearsal.controller.dto.NextOpponentLineJobResponse;
+import com.rehearsal.api.rehearsal.controller.dto.OpponentLineResponse;
 import com.rehearsal.api.rehearsal.controller.dto.SimulationStartResponse;
-import com.rehearsal.api.rehearsal.controller.dto.TurnEvaluationJobResponse;
-import com.rehearsal.domain.rehearsal.model.OpponentLineJob;
+import com.rehearsal.api.rehearsal.controller.dto.TurnEvaluationResponse;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluationJob;
+import com.rehearsal.domain.rehearsal.model.SimulationTurn;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
@@ -46,35 +46,35 @@ public class SimulationController {
 
   @ResponseStatus(HttpStatus.ACCEPTED)
   @PostMapping("/{sessionId}/simulation/turns/{turnNo}/evaluation")
-  public TurnEvaluationJobResponse submitEvaluation(
+  public TurnEvaluationResponse submitEvaluation(
       @PathVariable @NotBlank String sessionId,
       @PathVariable int turnNo,
       @Valid @RequestBody EvaluationRequest request) {
     TurnMetrics metrics = request.metrics() == null ? null : request.metrics().toDomain();
-    TurnEvaluationJob job =
+    SimulationTurnAttempt attempt =
         submitTurnEvaluationUseCase.submit(sessionId, turnNo, request.transcript(), metrics);
-    return TurnEvaluationJobResponse.from(job);
+    return TurnEvaluationResponse.from(sessionId, turnNo, attempt);
   }
 
   @GetMapping("/{sessionId}/simulation/turns/{turnNo}/evaluation")
-  public TurnEvaluationJobResponse getEvaluation(
+  public TurnEvaluationResponse getEvaluation(
       @PathVariable @NotBlank String sessionId, @PathVariable int turnNo) {
-    TurnEvaluationJob job = getTurnEvaluationUseCase.get(sessionId, turnNo);
-    return TurnEvaluationJobResponse.from(job);
+    SimulationTurnAttempt attempt = getTurnEvaluationUseCase.get(sessionId, turnNo);
+    return TurnEvaluationResponse.from(sessionId, turnNo, attempt);
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)
   @PostMapping("/{sessionId}/simulation/turns/{turnNo}/next-line")
-  public NextOpponentLineJobResponse submitNextLine(
+  public OpponentLineResponse submitNextLine(
       @PathVariable @NotBlank String sessionId, @PathVariable int turnNo) {
-    OpponentLineJob job = submitNextOpponentLineUseCase.submitNextLine(sessionId, turnNo);
-    return NextOpponentLineJobResponse.from(job);
+    SimulationTurn turn = submitNextOpponentLineUseCase.submitNextLine(sessionId, turnNo);
+    return OpponentLineResponse.from(turn);
   }
 
   @GetMapping("/{sessionId}/simulation/turns/{turnNo}/next-line")
-  public NextOpponentLineJobResponse getNextLine(
+  public OpponentLineResponse getNextLine(
       @PathVariable @NotBlank String sessionId, @PathVariable int turnNo) {
-    OpponentLineJob job = getNextOpponentLineUseCase.getNextLine(sessionId, turnNo);
-    return NextOpponentLineJobResponse.from(job);
+    SimulationTurn turn = getNextOpponentLineUseCase.getNextLine(sessionId, turnNo);
+    return OpponentLineResponse.from(turn);
   }
 }

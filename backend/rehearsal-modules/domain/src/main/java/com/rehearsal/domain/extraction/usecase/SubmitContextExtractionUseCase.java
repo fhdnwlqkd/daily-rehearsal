@@ -1,10 +1,10 @@
 package com.rehearsal.domain.extraction.usecase;
 
-import com.rehearsal.domain.extraction.model.ContextExtractionJob;
+import com.rehearsal.domain.session.model.ClientSession;
 
 public interface SubmitContextExtractionUseCase {
 
-  ContextExtractionJob submitBriefingExtraction(String sessionId, String transcript);
+  ClientSession submitBriefingExtraction(String sessionId, String transcript);
 
-  ContextExtractionJob submitFollowUpExtraction(String sessionId, String transcript);
+  ClientSession submitFollowUpExtraction(String sessionId, String transcript);
 }

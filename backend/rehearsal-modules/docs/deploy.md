@@ -54,7 +54,8 @@ sudo chown $USER:$USER /opt/daily-rehearsal
 
 ```bash
 cp docker/.env.example /opt/daily-rehearsal/.env
-# /opt/daily-rehearsal/.env 를 열어서 DB_PASSWORD, GEMINI_API_KEY, ECR_IMAGE 등 값을 채운다
+# /opt/daily-rehearsal/.env 를 열어서 DB_PASSWORD, GEMINI_API_KEY, API_KEY, ECR_IMAGE 등 값을 채운다
+# API_KEY는 클라이언트가 X-API-KEY 헤더로 보내야 하는 값이다. 비워두면 /api/** 전체가 401을 반환한다.
 ```
 
 ### 5. 최초 수동 기동으로 확인

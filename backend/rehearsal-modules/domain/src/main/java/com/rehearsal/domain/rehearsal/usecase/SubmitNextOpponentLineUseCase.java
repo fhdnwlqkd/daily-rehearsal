@@ -1,8 +1,8 @@
 package com.rehearsal.domain.rehearsal.usecase;
 
-import com.rehearsal.domain.rehearsal.model.OpponentLineJob;
+import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 
 public interface SubmitNextOpponentLineUseCase {
 
-  OpponentLineJob submitNextLine(String sessionId, int turnNo);
+  SimulationTurn submitNextLine(String sessionId, int turnNo);
 }

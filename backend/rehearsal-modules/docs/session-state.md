@@ -1,11 +1,14 @@
-# Client Session State
+# Client Session State - RDB Architecture
 
 ## 목적
 
 `ClientSession`은 한 사용자의 Daily Rehearsal 1회 실행 상태를 나타낸다.
 
-이 값은 `SessionCache`를 통해 저장되는 짧은 수명의 상태 객체이며, 현재 구현에서는 Redis에 저장된다.
-`ClientSession`은 RDB 엔티티가 아니고, 관리자 화면에서 CRUD로 관리하는 스키마도 아니다.
+이 문서는 MySQL RDB를 세션의 단일 진실 공급원(Single Source of Truth)으로 사용하는
+현재 구조를 정의한다. 별도 Redis session/cache/job은 사용하지 않는다.
+
+`ClientSession`은 `rehearsal_session`에 대응하는 세션 root 도메인 모델이다. Context, simulation
+turn/attempt, 최종 결과는 별도 도메인 모델과 테이블로 관리한다.
 
 세션은 사용자가 전시 플로우를 진행하는 동안 계속 바뀌는 값을 저장한다.
 
@@ -17,25 +20,42 @@
 
 ## 저장 경계
 
-세션 상태는 Redis에 저장한다.
+세션 상태는 MySQL(RDB)에 단일 진실 공급원(SSOT)으로 저장한다.
 
 | Layer | File | Role |
 | --- | --- | --- |
 | Domain model | `domain/session/model/ClientSession.java` | 세션 상태와 상태 전이 규칙 |
-| Domain port | `domain/session/cache/SessionCache.java` | application service가 사용하는 세션 저장소 계약 |
-| Cache adapter | `datasource/cache-session/.../RedisSessionCacheAdapter.java` | `SessionCache`의 Redis 구현체 |
-| Cache entity | `datasource/cache-session/.../ClientSessionRedisEntity.java` | Redis에 JSON으로 저장하기 위한 직렬화 형태 |
+| Domain port | `domain/session/repository/SessionRepository.java` | application service가 사용하는 세션 저장소 계약 |
+| Persistence adapter | `datasource/db-integrated/.../JpaSessionRepositoryAdapter.java` | `SessionRepository`의 JPA 구현체 |
+| Persistence entities | `datasource/db-integrated/.../entity` | 5개 RDB 테이블과 각각 매핑되는 JPA 엔티티 |
+
+`SessionRepository`는 하나의 domain port로 유지한다. JPA adapter 내부에서는 테이블별 Spring Data
+JPA repository를 사용해 session, context, turn, attempt, result를 저장하고 조회한다.
+
+JPA 관계는 자식 entity가 부모 FK 연관관계를 소유한다. 자식에서 부모로 이동할 때는 lazy reference를
+사용하고, 부모 entity에는 `@OneToMany` collection을 두지 않는다. Polling은 필요한 child row를
+repository query로 직접 조회한다.
 
 정적 설정은 세션에 저장하지 않는다. 정적 설정은 코드 기반 registry 또는 resolver에서 조회한다.
 
 | Static component | Role |
 | --- | --- |
-| `SituationTypeRegistry` | 선택 가능한 상황 타입과 선택 화면 메타데이터 제공 |
-| `ContextSlotSchemaRegistry` | 상황별 slot 정의, 질문, default, option 제공 |
+| `SituationType` (Enum) | 선택 가능한 상황 타입과 선택 화면 메타데이터 제공 |
+| `ContextSlotSchemaType` (Enum) | 상황별 slot 정의, 질문, default, option 제공 |
 | `OutfitSpecResolver` | outfit id 검증 및 Decart VTON spec 제공 |
 | `RehearsalConfigRegistry` | 상황별 시뮬레이션 설정 제공. 예: 최대 턴 수, 첫 상대 발화 |
 
-## Session Fields
+## Target Domain Boundaries
+
+| Domain model | Persistence table | Role |
+| --- | --- | --- |
+| `ClientSession` | `rehearsal_session` | 세션 root와 전체/context 진행 상태 |
+| `SessionContext` | `session_context_value` | 세션에서 수집한 context 값 |
+| `SimulationTurn` | `simulation_turn` | 상대 발화 생성 상태와 결과 |
+| `SimulationTurnAttempt` | `simulation_turn_attempt` | 사용자 답변과 평가 상태/결과 |
+| `RehearsalResult` | `rehearsal_result` | 영상, 티켓, 다운로드 결과 |
+
+## ClientSession Target Fields
 
 | Field | Type | Role |
 | --- | --- | --- |
@@ -44,28 +64,18 @@
 | `status` | `SessionStatus` | Daily Rehearsal 전체 플로우 상태 |
 | `contextStatus` | `ContextStatus` | context 수집 과정의 세부 상태 |
 | `followUpAttempt` | `int` | context 수집 중 사용한 재질문 라운드 횟수 |
-| `partialContext` | `SessionContext` | required slot이 아직 완성되지 않은 중간 context |
-| `finalContext` | `SessionContext` | outfit, rehearsal, feedback, result 플로우에서 사용할 최종 context |
-| `missingSlotKeys` | `List<String>` | 추가 입력이 필요한 required slot key 목록 |
-| `followUpQuestions` | `List<String>` | 사용자에게 보여줄 고정 재질문 목록 |
 | `selectedOutfitId` | `String` | 사용자가 확정한 outfit id |
 | `currentTurn` | `int` | 현재 리허설 시뮬레이션 턴 |
 | `maxTurn` | `int` | 상황별 rehearsal config에서 결정된 최대 턴 수 |
-| `conversationHistory` | `List<ConversationHistory>` | 턴별 상대 발화와 사용자 transcript 기록 |
-| `turnEvaluations` | `List<TurnEvaluation>` | 턴별 성공 여부, 피드백, fallback 여부 기록 |
 
 ## Context Fields
 
-`partialContext`와 `finalContext`는 서로 다른 완성도를 표현하므로 별도 필드로 둔다.
-
-`partialContext`는 required slot이 아직 남아 있을 때 사용한다. 이미 추출된 slot 값을 보존해서
-follow-up 단계에서 부족한 정보만 다시 물을 수 있게 한다.
-
-`finalContext`는 required slot이 채워졌거나 default로 보정된 뒤 사용하는 완성된 context다. outfit,
-rehearsal, feedback, result 플로우는 `finalContext`를 기준으로 진행한다.
+수집된 context 값은 `session_context_value`에 누적한다. Partial/Final 상태를 별도 context 복사본으로
+저장하지 않고 `ClientSession.contextStatus`로 구분한다. Missing slot과 follow-up 질문은 현재 context
+값과 정적 `ContextSlotSchemaType`에서 계산한다.
 
 상황 타입의 기준값은 `ClientSession.situationType`이다. context payload에 `situation_type`이 필요할 때는
-클라이언트 입력이나 AI 응답을 신뢰하지 않고 `session.getSituationType().key()`에서 파생해서 넣는다.
+클라이언트 입력이나 AI 응답을 신뢰하지 않고 `session.getSituationType().getKey()`에서 파생해서 넣는다.
 
 ## Status Model
 
@@ -106,9 +116,9 @@ rehearsal, feedback, result 플로우는 `finalContext`를 기준으로 진행�
 | `startContextExtraction()` | `BRIEFING` | `CONTEXT_EXTRACTING`, `ContextStatus.EXTRACTING`으로 이동 |
 | `startFollowUpMerge()` | `FOLLOW_UP_REQUIRED` / `ContextStatus.FOLLOW_UP_REQUIRED` | `CONTEXT_EXTRACTING`, `ContextStatus.MERGING`으로 이동하고 `followUpAttempt` 증가 |
 | `selectOutfit(selectedOutfitId)` | `TRANSFORMATION_READY` | 플로우를 진행하지 않고 선택 outfit id만 저장 |
-| `confirmOutfit(selectedOutfitId)` | `TRANSFORMATION_READY`이고 `finalContext`가 완료된 상태 | outfit id를 저장하고 `REHEARSAL_READY`로 이동 |
+| `confirmOutfit(selectedOutfitId)` | `TRANSFORMATION_READY`이고 context 수집이 완료된 상태 | outfit id를 저장하고 `REHEARSAL_READY`로 이동 |
 | `startSimulation(maxTurn)` | `REHEARSAL_READY` | `REHEARSAL_PLAYING`으로 이동하고 `currentTurn = 1`, `maxTurn` 저장 |
-| `recordTurn(...)` | `REHEARSAL_PLAYING`이고 턴 제한 이내 | 대화 기록과 턴 평가를 누적하고, 성공 시 다음 턴으로 이동 |
+| `advanceTurn()` | `REHEARSAL_PLAYING`이고 턴 제한 이내 | 성공한 평가가 저장된 뒤 다음 턴으로 이동 |
 
 context 완료 관련 전이도 같은 패턴을 따라야 한다.
 
@@ -116,8 +126,8 @@ context 완료 관련 전이도 같은 패턴을 따라야 한다.
 | --- | --- | --- |
 | 최초 briefing 추출 시작 | `BRIEFING` / `NOT_STARTED` | `CONTEXT_EXTRACTING` / `EXTRACTING`으로 이동 |
 | Follow-up merge 시작 | `FOLLOW_UP_REQUIRED` / `FOLLOW_UP_REQUIRED` | `CONTEXT_EXTRACTING` / `MERGING`으로 이동하고 `followUpAttempt` 증가 |
-| Follow-up 필요 | `CONTEXT_EXTRACTING` / `EXTRACTING` 또는 `MERGING` | `partialContext`, `missingSlotKeys`, `followUpQuestions` 저장 후 follow-up required 상태로 이동 |
-| Context 완료 | `CONTEXT_EXTRACTING` / `EXTRACTING` 또는 `MERGING` | `finalContext` 저장, missing/follow-up 값 정리 후 transformation ready 상태로 이동 |
+| Follow-up 필요 | `CONTEXT_EXTRACTING` / `EXTRACTING` 또는 `MERGING` | context 값을 저장하고 follow-up required 상태로 이동 |
+| Context 완료 | `CONTEXT_EXTRACTING` / `EXTRACTING` 또는 `MERGING` | context 값을 저장하고 transformation ready 상태로 이동 |
 
 ## Flow Ownership
 

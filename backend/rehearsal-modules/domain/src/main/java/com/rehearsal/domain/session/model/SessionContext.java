@@ -48,7 +48,7 @@ public class SessionContext {
 
   public Map<String, Object> valuesWithSituationType() {
     Map<String, Object> context = values();
-    context.put(SITUATION_TYPE_KEY, situationType.key());
+    context.put(SITUATION_TYPE_KEY, situationType.getKey());
     return context;
   }
 
