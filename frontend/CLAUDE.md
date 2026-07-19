@@ -112,6 +112,18 @@ function MockQr() { ... }   // export 안 함 = 이 파일 전용
   직접 호출이 아니므로 CORS 문제도 없다)
 - API 명세서는 실서버의 `/docs/index.html` (Spring REST Docs 정적 문서).
 
+## AI 에이전트 브라우저 검증 한계
+
+Claude Desktop 내장 브라우저는 **카메라/마이크 권한을 받을 수 없다**.
+→ 웹캠 배경·제스처(MediaPipe)·STT가 끼는 플로우는 에이전트 혼자 절대 검증 못 한다.
+
+- 그런 플로우의 검증은 둘 중 하나로만 가능하다:
+  1. **사람이 직접** localhost에서 확인
+  2. **Claude for Chrome**(실제 Chrome)으로 띄운 뒤 **사람이 권한을 허용**해 주고 진행
+- 카메라 무관한 부분(API 호출·네트워크, 레이아웃/문구, 키보드 입력 경로)은
+  내장 브라우저로도 검증 가능하다 — 에이전트는 여기까지만 검증하고,
+  카메라 의존 부분은 사람 확인을 요청할 것.
+
 ## 명령
 
 - 개발 `pnpm dev` / 타입검사 `pnpm typecheck` / 린트 `pnpm lint` / 포맷 `pnpm format`
