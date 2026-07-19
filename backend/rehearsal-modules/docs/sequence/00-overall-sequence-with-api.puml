@@ -1,4 +1,5 @@
 @startuml
+autoNumber
 title Daily Rehearsal - Overall Sequence (with API endpoints)
 
 skinparam responseMessageBelowArrow true

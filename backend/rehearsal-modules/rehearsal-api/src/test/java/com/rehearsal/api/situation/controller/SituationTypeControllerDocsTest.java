@@ -5,12 +5,15 @@ import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.docu
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
+import com.rehearsal.api.support.RestDocsEnumValues;
 import com.rehearsal.domain.situation.model.SituationType;
 import com.rehearsal.domain.situation.usecase.GetSituationTypeBriefingUseCase;
 import com.rehearsal.domain.situation.usecase.GetSituationTypesUseCase;
@@ -28,6 +31,8 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({GlobalExceptionHandler.class, ApiResponseBodyAdvice.class})
 class SituationTypeControllerDocsTest {
 
+  private static final String API_KEY = "test-api-key";
+
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private GetSituationTypesUseCase getSituationTypesUseCase;
@@ -39,7 +44,7 @@ class SituationTypeControllerDocsTest {
         .willReturn(List.of(SituationType.DATE, SituationType.BUSINESS_MEETING));
 
     mockMvc
-        .perform(get("/api/v1/situation-types"))
+        .perform(get("/api/v1/situation-types").header("X-API-KEY", API_KEY))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data[0].situationType").value("date"))
@@ -48,7 +53,11 @@ class SituationTypeControllerDocsTest {
             document(
                 "situation-types-list",
                 preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint())));
+                preprocessResponse(prettyPrint()),
+                relaxedResponseFields(
+                    fieldWithPath("data[].situationType")
+                        .description("상황 타입. 가능한 값: " + RestDocsEnumValues.situationTypes()),
+                    fieldWithPath("data[].label").description("상황 표시 이름"))));
   }
 
   @Test
@@ -57,7 +66,9 @@ class SituationTypeControllerDocsTest {
         .willReturn(SituationType.DATE);
 
     mockMvc
-        .perform(get("/api/v1/situation-types/{situationType}/briefing", "date"))
+        .perform(
+            get("/api/v1/situation-types/{situationType}/briefing", "date")
+                .header("X-API-KEY", API_KEY))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.situationType").value("date"))
@@ -67,6 +78,11 @@ class SituationTypeControllerDocsTest {
             document(
                 "situation-type-briefing",
                 preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint())));
+                preprocessResponse(prettyPrint()),
+                relaxedResponseFields(
+                    fieldWithPath("data.situationType")
+                        .description("상황 타입. 가능한 값: " + RestDocsEnumValues.situationTypes()),
+                    fieldWithPath("data.briefingTitle").description("브리핑 질문"),
+                    fieldWithPath("data.exampleAnswer").description("예시 답변"))));
   }
 }

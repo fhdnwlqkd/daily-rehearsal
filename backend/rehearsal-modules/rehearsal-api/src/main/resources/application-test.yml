@@ -18,6 +18,9 @@ spring:
     enabled: false
 
 rehearsal:
+  security:
+    api-key:
+      enabled: false
   ai:
     defaults:
       provider: fake

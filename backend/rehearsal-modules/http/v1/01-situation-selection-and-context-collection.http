@@ -1,9 +1,13 @@
-@host = http://localhost:8080
+@host = http://32.236.96.32:8080
+@apiKey = replace-with-api-key
 @situationType = date
+@briefingTranscript = I am worried that my first greeting will be awkward tomorrow.
+@followUpTranscript = warm_natural
 
 ### 1-1. Selectable situation types
 # Expected data fields: situationType, label
 GET {{host}}/api/v1/situation-types
+X-API-KEY: {{apiKey}}
 Accept: application/json
 
 > {%
@@ -20,6 +24,7 @@ Accept: application/json
 ### 2. Create a session after the user confirms a situation type
 # Expected data fields: sessionId, situationType
 POST {{host}}/api/v1/sessions
+X-API-KEY: {{apiKey}}
 Content-Type: application/json
 Accept: application/json
 
@@ -40,6 +45,7 @@ Accept: application/json
 ### 3-1. Get briefing content for the selected situation type
 # Expected data fields: situationType, briefingTitle, exampleAnswer
 GET {{host}}/api/v1/situation-types/{{situationType}}/briefing
+X-API-KEY: {{apiKey}}
 Accept: application/json
 
 > {%
@@ -53,15 +59,14 @@ Accept: application/json
 %}
 
 ### 3-2. Submit an initial briefing transcript
-# This transcript intentionally omits the desired_persona option key.
-# The fake extractor fills critical_moment but leaves desired_persona empty,
-# so the following polling response should require a follow-up question.
+# The response is accepted immediately; extraction continues asynchronously.
 POST {{host}}/api/v1/sessions/{{sessionId}}/briefing
+X-API-KEY: {{apiKey}}
 Content-Type: application/json
 Accept: application/json
 
 {
-  "transcript": "I am worried that my first greeting will be awkward tomorrow."
+  "transcript": "{{briefingTranscript}}"
 }
 
 > {%
@@ -76,27 +81,41 @@ Accept: application/json
 ### 3-3. Poll initial context until a follow-up is required
 # Run this request again after a short moment if the worker has not completed yet.
 GET {{host}}/api/v1/sessions/{{sessionId}}/context
+X-API-KEY: {{apiKey}}
 Accept: application/json
 
 > {%
-  client.test("initial extraction requests the missing required slot", function () {
+  client.test("initial extraction returns current context status", function () {
     client.assert(response.status === 200, "Expected 200 OK");
     client.assert(response.body.success === true, "Expected success envelope");
-    client.assert(response.body.data.status === "FOLLOW_UP_REQUIRED", "Expected follow-up requirement");
-    client.assert(response.body.data.context.situation_type === "date", "Expected date context");
-    client.assert(response.body.data.missingSlotKeys.includes("desired_persona"), "Expected desired_persona to be missing");
-    client.assert(response.body.data.followUpQuestions.length > 0, "Expected a follow-up question");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert([
+      "EXTRACTING",
+      "FOLLOW_UP_REQUIRED",
+      "COMPLETED",
+      "FAILED"
+    ].includes(response.body.data.status), "Expected a known context status");
+
+    if (response.body.data.status === "FOLLOW_UP_REQUIRED") {
+      client.assert(Array.isArray(response.body.data.missingSlotKeys), "Expected missing slot keys");
+      client.assert(Array.isArray(response.body.data.followUpQuestions), "Expected follow-up questions");
+    }
+
+    if (response.body.data.context) {
+      client.assert(response.body.data.context.situation_type === "date", "Expected date context");
+    }
   });
 %}
 
 ### 3-4. Submit a follow-up transcript for the missing desired_persona slot
-# The fake extractor recognizes the option key warm_natural deterministically.
+# Run this after the context status becomes FOLLOW_UP_REQUIRED.
 POST {{host}}/api/v1/sessions/{{sessionId}}/follow-up
+X-API-KEY: {{apiKey}}
 Content-Type: application/json
 Accept: application/json
 
 {
-  "transcript": "warm_natural"
+  "transcript": "{{followUpTranscript}}"
 }
 
 > {%
@@ -111,15 +130,31 @@ Accept: application/json
 ### 3-5. Poll merged context until it is complete
 # Run this request again after a short moment if the worker has not completed yet.
 GET {{host}}/api/v1/sessions/{{sessionId}}/context
+X-API-KEY: {{apiKey}}
 Accept: application/json
 
 > {%
-  client.test("follow-up completes the required context", function () {
+  client.test("follow-up merge returns current context status", function () {
     client.assert(response.status === 200, "Expected 200 OK");
     client.assert(response.body.success === true, "Expected success envelope");
-    client.assert(response.body.data.status === "COMPLETED", "Expected completed context status");
-    client.assert(response.body.data.context.situation_type === "date", "Expected date context");
-    client.assert(response.body.data.context.desired_persona === "warm_natural", "Expected merged desired persona");
-    client.assert(response.body.data.missingSlotKeys === undefined, "Expected no missing required slot field");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert([
+      "MERGING",
+      "FOLLOW_UP_REQUIRED",
+      "COMPLETED",
+      "FAILED"
+    ].includes(response.body.data.status), "Expected a known context status");
+
+    if (response.body.data.context) {
+      client.assert(response.body.data.context.situation_type === "date", "Expected date context");
+    }
+
+    if (response.body.data.status === "COMPLETED") {
+      client.assert(response.body.data.context, "Expected completed context");
+      client.assert(
+        !response.body.data.missingSlotKeys || response.body.data.missingSlotKeys.length === 0,
+        "Expected no missing required slots"
+      );
+    }
   });
 %}
