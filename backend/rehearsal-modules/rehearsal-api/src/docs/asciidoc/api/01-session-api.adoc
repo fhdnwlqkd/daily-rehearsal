@@ -15,6 +15,8 @@ operation::session-create[snippets='http-request,request-headers,request-fields,
 
 `POST /api/v1/sessions/{sessionId}/briefing`
 
+The `202 Accepted` response starts asynchronous extraction. Poll the context endpoint for the result.
+
 세션에 브리핑 transcript를 제출합니다.
 
 operation::context-submit-briefing[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
@@ -23,6 +25,8 @@ operation::context-submit-briefing[snippets='http-request,request-headers,path-p
 === 2.3. Follow-up 응답 제출
 
 `POST /api/v1/sessions/{sessionId}/follow-up`
+
+The `202 Accepted` response starts asynchronous context merging. Poll the context endpoint for the result.
 
 세션에 follow-up transcript를 제출합니다.
 
@@ -35,4 +39,16 @@ operation::context-submit-follow-up[snippets='http-request,request-headers,path-
 
 세션의 context 추출 상태와 결과를 조회합니다.
 
-operation::context-poll[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+`GET` does not invoke AI again. It reads the latest context state and result stored in RDB.
+
+==== EXTRACTING
+
+operation::context-poll-extracting[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+==== FOLLOW_UP_REQUIRED
+
+operation::context-poll-follow-up-required[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+==== COMPLETED
+
+operation::context-poll-completed[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
