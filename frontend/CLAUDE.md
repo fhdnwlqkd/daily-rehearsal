@@ -95,6 +95,23 @@ function MockQr() { ... }   // export 안 함 = 이 파일 전용
   훅 안의 호출만 `apis.ts` 함수로 바꾼다. 컴포넌트는 수정하지 않는다.
   상태는 `ApiStatus`(`"LOADING" | "READY" | "ERROR"` — 대문자) 하나로 통일한다.
 
+### 실서버 연결 — 하이브리드 전환 규칙
+
+백엔드 실서버가 열려 있고, **명세 중 일부 API만 구현된 상태**다.
+
+- **구현된 API는 훅에서 실호출로 전환하고, 미구현 API는 mock을 유지한다.**
+  백엔드 진행에 맞춰 훅 파일 하나만 바꿔 교체한다 (컴포넌트 무수정 — 위 전환점 규칙 그대로).
+- **서버 주소·인증 키는 시크릿이다.** 코드·문서·커밋 어디에도 적지 않고
+  `.env.local`(gitignore됨)로만 관리한다. 변수 이름은 `.env.example` 참고:
+  - `API_BASE_URL` — 실서버 주소. 미설정 시 `http://localhost:8080`
+  - `API_KEY` — 인증 키. 프록시가 `x-api-key` 헤더로 첨부
+- **브라우저는 백엔드를 직접 호출하지 않는다.** 같은 출처의 프록시
+  (`app/api/backend/[...path]/route.ts`)를 거치고, 시크릿은 프록시(서버)에서만
+  붙는다. 그래서 위 변수들에 **`NEXT_PUBLIC_` 접두사를 붙이면 안 된다** —
+  붙이는 순간 브라우저 번들에 값이 박혀 공개된다. (부수 효과: 브라우저→백엔드
+  직접 호출이 아니므로 CORS 문제도 없다)
+- API 명세서는 실서버의 `/docs/index.html` (Spring REST Docs 정적 문서).
+
 ## 명령
 
 - 개발 `pnpm dev` / 타입검사 `pnpm typecheck` / 린트 `pnpm lint` / 포맷 `pnpm format`
