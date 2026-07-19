@@ -13,7 +13,7 @@ export function getSituationTypes() {
   return apiFetch<GetSituationTypesResponse>("/api/v1/situation-types");
 }
 
-/** @param situationType situation-types의 key 값 (예: "date") */
+/** @param situationType situation-types의 situationType 식별자 (예: "date") */
 export function createSession(situationType: string) {
   return apiFetch<CreateSessionResponse>("/api/v1/sessions", {
     method: "POST",

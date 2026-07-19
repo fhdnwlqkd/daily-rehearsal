@@ -38,7 +38,7 @@ export function ExperienceSession({
 }: ExperienceSessionProps) {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [session, setSession] = useState<CreateSessionResponse | null>(null);
-  // 선택된 타입 전체(briefingTitle·exampleAnswers 포함) — 브리핑 스테이지가 소비한다.
+  // 선택된 타입 전체(label 포함) — 브리핑 등 후속 스테이지가 소비한다.
   const [situationType, setSituationType] = useState<SituationType | null>(
     null,
   );

@@ -2,27 +2,21 @@
 
 import { useCallback, useState } from "react";
 
-import { mockCreateSessionResponse } from "../data/mock-session";
+import { createSession } from "../apis";
 import type { ApiStatus, CreateSessionResponse } from "../types";
-
-// mock 단계: 응답 명세를 만족하는 mock을 실제 API처럼 비동기로 돌려준다.
-// 실제 API가 붙으면 이 함수를 지우고 ../apis의 createSession을 쓴다.
-function createSession(situationType: string) {
-  return Promise.resolve(mockCreateSessionResponse(situationType));
-}
 
 interface UseCreateSessionResult {
   /** READY 전에는 null. sessionId는 이후 세션 API 경로에 사용한다. */
   session: CreateSessionResponse | null;
   status: ApiStatus;
-  /** 제스처로 상황 타입 확정 시 호출. situationType은 situation-types의 key. */
+  /** 제스처로 상황 타입 확정 시 호출. situationType은 situation-types의 식별자. */
   create: (situationType: string) => void;
 }
 
 /**
  * 상황 타입 확정 → 세션 생성을 담당하는 훅.
  * 마운트 시 자동 호출이 아니라 사용자 액션(create)으로 시작하므로
- * IDLE에서 출발한다. mock/실API 전환은 이 파일 안에서만 일어난다.
+ * IDLE에서 출발한다. 2026-07-19 실서버 전환 완료 — 프록시를 거쳐 실 API를 호출한다.
  */
 export function useCreateSession(): UseCreateSessionResult {
   const [session, setSession] = useState<CreateSessionResponse | null>(null);

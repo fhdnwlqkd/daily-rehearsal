@@ -44,7 +44,7 @@ export function TypeSelectStage({
     // LOADING(중복 요청)·READY(이미 성공) 중에는 확정을 막는다. ERROR는 재시도 허용.
     if (!highlighted || createStatus === "LOADING" || createStatus === "READY")
       return;
-    create(highlighted.key);
+    create(highlighted.situationType);
   }, [situationTypes, highlightIndex, createStatus, create]);
 
   const handleAction = useCallback(
@@ -85,7 +85,7 @@ export function TypeSelectStage({
     if (createStatus !== "READY" || !session) return;
 
     const selected = situationTypes.find(
-      (type) => type.key === session.situationType,
+      (type) => type.situationType === session.situationType,
     );
     if (selected) onSessionCreated(session, selected);
   }, [createStatus, session, situationTypes, onSessionCreated]);
@@ -112,8 +112,9 @@ export function TypeSelectStage({
         <div className="flex flex-wrap justify-center gap-6">
           {situationTypes.map((type, index) => (
             <TypeCard
-              key={type.key}
+              key={type.situationType}
               type={type}
+              order={index + 1}
               highlighted={index === highlightIndex}
               confirmProgress={index === highlightIndex ? confirmProgress : 0}
             />
@@ -286,10 +287,13 @@ function PalmEmoji({ className = "" }: { className?: string }) {
 
 function TypeCard({
   type,
+  order,
   highlighted,
   confirmProgress,
 }: {
   type: SituationType;
+  /** 카드 번호(1부터). 구 명세의 gestureOrder가 사라져 배열 순서를 쓴다. */
+  order: number;
   highlighted: boolean;
   /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
   confirmProgress: number;
@@ -312,7 +316,7 @@ function TypeCard({
       >
         <div className="flex w-56 flex-col items-center gap-3 text-center">
           <span className="text-xs font-light tracking-[0.3em] text-white/50">
-            {String(type.gestureOrder).padStart(2, "0")}
+            {String(order).padStart(2, "0")}
           </span>
           <span className="text-2xl font-extralight tracking-wide">
             {type.label}

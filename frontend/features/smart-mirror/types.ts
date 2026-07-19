@@ -7,18 +7,17 @@ import type { GestureRecognizer } from "@mediapipe/tasks-vision";
  */
 export type ApiStatus = "IDLE" | "LOADING" | "READY" | "ERROR";
 
-/** 타입 선택 화면에 뿌릴 상황 타입 카드 하나. 백엔드 스펙과 1:1. */
+/**
+ * 타입 선택 화면에 뿌릴 상황 타입 카드 하나. 실서버 응답과 1:1 (2026-07-19 확정).
+ * 구 명세의 gestureOrder·briefingTitle·exampleAnswers는 백엔드에서 제거됨 —
+ * 브리핑 화면 데이터(타이틀·예시 답변)의 공급처는 브리핑 스테이지 작업 시
+ * 백엔드와 다시 확인한다.
+ */
 export interface SituationType {
   /** 상황 타입 식별자(snake_case). POST /sessions에 그대로 사용한다. */
-  key: string;
+  situationType: string;
   /** UI 표시용 한글 라벨. */
   label: string;
-  /** 제스처 선택 순서(1부터). 백엔드가 이 값 오름차순으로 정렬해 내려준다. */
-  gestureOrder: number;
-  /** 브리핑 화면 타이틀. */
-  briefingTitle: string;
-  /** 예시 답변 목록(빈 배열 가능). */
-  exampleAnswers: string[];
 }
 
 /** GET /api/v1/situation-types 응답(data 알맹이) — 배열이 그대로 온다. */
