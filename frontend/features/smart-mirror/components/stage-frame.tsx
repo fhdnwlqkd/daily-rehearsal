@@ -3,35 +3,38 @@
 import { motion } from "framer-motion";
 import type { ComponentType } from "react";
 import type { ExperiencePhase, ExperiencePhaseId } from "../types";
+import { TypeSelectStage } from "./stages/type-select-stage";
 import { BriefingStage } from "./stages/briefing-stage";
-import { ContextStage } from "./stages/context-stage";
-import { TransformationStage } from "./stages/transformation-stage";
-import { GestureFitStage } from "./stages/gesture-fit-stage";
-import { RehearsalStage } from "./stages/rehearsal-stage";
-import { ChangeCardStage } from "./stages/change-card-stage";
+import { OutfitStage } from "./stages/outfit-stage";
+import { SimulationStage } from "./stages/simulation-stage";
+import { TicketStage } from "./stages/ticket-stage";
 
 // phase.id → 스테이지 컴포넌트 매핑. Record라서 단계를 추가하면
 // 여기 키 누락이 컴파일 에러로 강제된다(exhaustiveness 보장).
 const STAGE_COMPONENTS: Record<ExperiencePhaseId, ComponentType> = {
+  "type-select": TypeSelectStage,
   briefing: BriefingStage,
-  context: ContextStage,
-  transformation: TransformationStage,
-  "gesture-fit": GestureFitStage,
-  rehearsal: RehearsalStage,
-  "change-card": ChangeCardStage,
+  outfit: OutfitStage,
+  simulation: SimulationStage,
+  ticket: TicketStage,
 };
 
-interface ExperienceStageProps {
+interface StageFrameProps {
   phase: ExperiencePhase;
   phaseIndex: number;
   totalPhases: number;
 }
 
-export function ExperienceStage({
+/**
+ * 모든 스테이지가 공유하는 공통 프레임 — 톤 오버레이·헤더(진행 표시)·
+ * 전환 연출·조작 힌트를 씌우고 현재 스테이지를 그린다.
+ * REC 인디케이터처럼 여러 스테이지에 걸치는 표시도 이 레벨에 둔다.
+ */
+export function StageFrame({
   phase,
   phaseIndex,
   totalPhases,
-}: ExperienceStageProps) {
+}: StageFrameProps) {
   const Stage = STAGE_COMPONENTS[phase.id];
 
   return (
@@ -42,7 +45,7 @@ export function ExperienceStage({
         phaseIndex={phaseIndex}
         totalPhases={totalPhases}
       />
-      {phase.id !== "briefing" && <TransitionCue phase={phase.id} />}
+      {phase.id !== "type-select" && <TransitionCue phase={phase.id} />}
 
       <Stage />
 
@@ -53,12 +56,11 @@ export function ExperienceStage({
 
 function MirrorToneOverlay({ phase }: { phase: ExperiencePhaseId }) {
   const overlays: Record<ExperiencePhaseId, string> = {
-    briefing: "from-black/35 via-transparent to-black/55",
-    context: "from-black/55 via-black/10 to-black/75",
-    transformation: "from-black/45 via-black/10 to-black/75",
-    "gesture-fit": "from-black/45 via-black/10 to-black/75",
-    rehearsal: "from-black/45 via-black/20 to-black/80",
-    "change-card": "from-black/70 via-black/55 to-black/90",
+    "type-select": "from-black/35 via-transparent to-black/55",
+    briefing: "from-black/55 via-black/10 to-black/75",
+    outfit: "from-black/45 via-black/10 to-black/75",
+    simulation: "from-black/45 via-black/20 to-black/80",
+    ticket: "from-black/70 via-black/55 to-black/90",
   };
 
   return (
@@ -80,15 +82,9 @@ function StageHeader({
 }) {
   return (
     <div className="absolute top-6 right-8 left-8 z-20 flex items-center justify-between">
-      <div className="flex items-center gap-3 text-white/70">
-        <span className="text-xs font-light tracking-[0.32em]">
-          DAILY REHEARSAL
-        </span>
-        <span className="h-px w-10 bg-white/20" />
-        <span className="text-xs font-light tracking-[0.18em]">
-          {phase.timeRange}
-        </span>
-      </div>
+      <span className="text-xs font-light tracking-[0.32em] text-white/70">
+        DAILY REHEARSAL
+      </span>
       <div className="flex items-center gap-3">
         <span className="text-xs font-light tracking-[0.16em] text-white/60">
           {phase.label}
@@ -108,12 +104,11 @@ function StageHeader({
 
 function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
   const copy: Record<ExperiencePhaseId, string> = {
-    briefing: "",
-    context: "맥락을 정리합니다",
-    transformation: "내일의 모습을 입혀봅니다",
-    "gesture-fit": "제스처로 모습을 고릅니다",
-    rehearsal: "결정적 순간을 들어봅니다",
-    "change-card": "내일의 변화 카드를 발급합니다",
+    "type-select": "",
+    briefing: "내일의 상황을 그려봅니다",
+    outfit: "내일의 모습을 입혀봅니다",
+    simulation: "결정적 순간을 연습합니다",
+    ticket: "내일의 티켓을 발급합니다",
   };
 
   return (

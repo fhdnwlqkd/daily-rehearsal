@@ -32,47 +32,21 @@ export interface CreateSessionResponse {
   situationType: string;
 }
 
+/**
+ * 스테이지(=전시 화면이 전환되는 단위) 식별자. 정의·용어는 frontend/CLAUDE.md의
+ * "스테이지 용어 사전"이 기준이다. 라운드·턴 같은 반복은 스테이지 내부 상태로
+ * 관리하며 여기에 추가하지 않는다 (예: briefing의 재질문, simulation의 턴).
+ */
 export type ExperiencePhaseId =
+  | "type-select"
   | "briefing"
-  | "context"
-  | "transformation"
-  | "gesture-fit"
-  | "rehearsal"
-  | "change-card";
+  | "outfit"
+  | "simulation"
+  | "ticket";
 
 export interface ExperiencePhase {
   id: ExperiencePhaseId;
   label: string;
-  timeRange: string;
-}
-
-export interface OutfitOption {
-  name: string;
-  tone: string;
-  active: boolean;
-}
-
-/**
- * 한 세션의 경험 콘텐츠. 지금은 mock-experience가 채우지만,
- * 추후 STT transcript·AI 생성 결과·외부 컨텍스트 API가 이 형태로 채워야 한다.
- * mock과 실데이터가 공유하는 단일 계약.
- */
-export interface ExperienceData {
-  transcript: string;
-  contextReply: string;
-  tags: string[];
-  missing: string[];
-  followUpQuestions: string[];
-  outfits: OutfitOption[];
-  persona: string;
-  routeRisk: string;
-  placeMood: string;
-  gestureHint: string;
-  aiPrompt: string;
-  userReply: string;
-  changeAction: string;
-  changeAttitude: string;
-  ifThen: string;
 }
 
 // --- 제스처 (이슈 #9) ---
