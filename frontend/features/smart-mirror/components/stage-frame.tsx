@@ -130,9 +130,10 @@ function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
 }
 
 function TapHint({ phase }: { phase: ExperiencePhaseId }) {
-  // 타입 선택은 키보드 임시 입력(제스처 교체 예정), 나머지는 개발용 진행 힌트.
+  // 타입 선택의 제스처 안내는 스테이지 안(GestureHint)에서 상황별로 보여주므로
+  // 여기서는 키보드 대체 입력만 알린다. 나머지는 개발용 진행 힌트.
   const copy: Record<ExperiencePhaseId, string> = {
-    "type-select": "좌우 방향키로 고르고 Enter로 확정",
+    "type-select": "키보드 ←/→·Enter로도 조작할 수 있어요",
     briefing: "탭하거나 Enter를 눌러 계속",
     outfit: "탭하거나 Enter를 눌러 계속",
     simulation: "탭하거나 Enter를 눌러 계속",

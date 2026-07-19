@@ -4,9 +4,18 @@ import { useCallback, useEffect, useState } from "react";
 import { GlassPanel } from "../shared/glass-panel";
 import { useGetSituationTypes } from "../../hooks/use-get-situation-types";
 import { useCreateSession } from "../../hooks/use-create-session";
-import type { CreateSessionResponse, SituationType } from "../../types";
+import { useGestureController } from "../../hooks/use-gesture-controller";
+import type {
+  CreateSessionResponse,
+  GestureActionEvent,
+  GestureEngineHandle,
+  SituationType,
+} from "../../types";
 
 interface TypeSelectStageProps {
+  /** 부스 수명 장비 — 스테이지는 소비만 한다. */
+  engine: GestureEngineHandle;
+  stream: MediaStream | null;
   /** 세션 생성 성공 시 세션 층으로 올린다 — 스테이지는 세션 상태를 소유하지 않는다. */
   onSessionCreated: (
     session: CreateSessionResponse,
@@ -16,10 +25,15 @@ interface TypeSelectStageProps {
 
 /**
  * 1. 타입 선택 — 연습할 상황 타입을 고르고 세션을 생성한다.
- * 입력은 임시로 키보드(←/→ 이동, Enter 확정)다. 제스처 훅(#9)으로 교체할 때
- * 이 파일의 키보드 effect만 갈아끼우면 되도록 선택 상태와 UI를 분리해 뒀다.
+ * 입력은 useGestureController 하나로 들어온다: 손 스와이프(NEXT/PREV)로
+ * 하이라이트 이동, 팜홀드(CONFIRM)로 확정. 키보드(←/→·Enter)는 컨트롤러에
+ * 내장된 병렬 입력(운영자 개입 통로)이라 별도 처리가 없다.
  */
-export function TypeSelectStage({ onSessionCreated }: TypeSelectStageProps) {
+export function TypeSelectStage({
+  engine,
+  stream,
+  onSessionCreated,
+}: TypeSelectStageProps) {
   const { situationTypes, status: listStatus } = useGetSituationTypes();
   const { session, status: createStatus, create } = useCreateSession();
   const [highlightIndex, setHighlightIndex] = useState(0);
@@ -32,30 +46,36 @@ export function TypeSelectStage({ onSessionCreated }: TypeSelectStageProps) {
     create(highlighted.key);
   }, [situationTypes, highlightIndex, createStatus, create]);
 
-  // 키보드 임시 입력 — 제스처 교체 지점.
-  useEffect(() => {
-    if (listStatus !== "READY") return;
+  const handleAction = useCallback(
+    (event: GestureActionEvent) => {
+      if (listStatus !== "READY") return;
 
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.repeat) return;
-
-      if (event.key === "ArrowLeft") {
-        setHighlightIndex((index) => Math.max(0, index - 1));
-      }
-      if (event.key === "ArrowRight") {
+      if (event.action === "NEXT") {
         setHighlightIndex((index) =>
           Math.min(situationTypes.length - 1, index + 1),
         );
       }
-      if (event.key === "Enter") {
-        event.preventDefault();
+      if (event.action === "PREV") {
+        setHighlightIndex((index) => Math.max(0, index - 1));
+      }
+      if (event.action === "CONFIRM") {
         confirm();
       }
-    }
+    },
+    [listStatus, situationTypes.length, confirm],
+  );
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [listStatus, situationTypes.length, confirm]);
+  const {
+    status: gestureStatus,
+    handVisible,
+    confirmProgress,
+  } = useGestureController({
+    engine,
+    stream,
+    onAction: handleAction,
+    // 세션 생성 성공 후에는 인식 루프·키 입력을 정지해 이중 확정을 막는다.
+    enabled: createStatus !== "READY",
+  });
 
   // 세션 생성 성공 → 선택된 타입과 함께 세션 층으로 올린다.
   // (하이라이트가 아니라 응답의 situationType으로 역참조 — 성공 후
@@ -94,25 +114,57 @@ export function TypeSelectStage({ onSessionCreated }: TypeSelectStageProps) {
               key={type.key}
               type={type}
               highlighted={index === highlightIndex}
+              confirmProgress={index === highlightIndex ? confirmProgress : 0}
             />
           ))}
         </div>
       )}
 
+      {createStatus === "IDLE" && listStatus === "READY" && (
+        <GestureHint gestureStatus={gestureStatus} handVisible={handVisible} />
+      )}
       {createStatus === "LOADING" && <StatusLine text="세션을 준비하는 중…" />}
       {createStatus === "ERROR" && (
-        <StatusLine text="세션 생성에 실패했습니다 — Enter로 다시 시도" error />
+        <StatusLine
+          text="세션 생성에 실패했습니다 — 손바닥을 펴거나 Enter로 다시 시도"
+          error
+        />
       )}
     </div>
+  );
+}
+
+function GestureHint({
+  gestureStatus,
+  handVisible,
+}: {
+  gestureStatus: GestureEngineHandle["status"];
+  handVisible: boolean;
+}) {
+  if (gestureStatus === "LOADING") {
+    return <StatusLine text="제스처 인식을 준비하는 중…" />;
+  }
+  if (gestureStatus === "ERROR") {
+    return (
+      <StatusLine text="제스처 인식을 사용할 수 없습니다 — 키보드(←/→·Enter)로 진행하세요" />
+    );
+  }
+  return handVisible ? (
+    <StatusLine text="좌우로 스와이프해 고르고, 손바닥을 펴 확정하세요" />
+  ) : (
+    <StatusLine text="카메라에 손을 들어주세요" />
   );
 }
 
 function TypeCard({
   type,
   highlighted,
+  confirmProgress,
 }: {
   type: SituationType;
   highlighted: boolean;
+  /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
+  confirmProgress: number;
 }) {
   return (
     <GlassPanel
@@ -129,6 +181,12 @@ function TypeCard({
         <span className="text-2xl font-extralight tracking-wide">
           {type.label}
         </span>
+        <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full bg-white/70 transition-[width] duration-100"
+            style={{ width: `${confirmProgress * 100}%` }}
+          />
+        </div>
       </div>
     </GlassPanel>
   );

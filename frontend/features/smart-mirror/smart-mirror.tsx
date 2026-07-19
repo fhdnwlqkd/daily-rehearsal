@@ -6,6 +6,7 @@ import { WebcamBackground } from "./components/webcam-background";
 import { PermissionGuide } from "./components/permission-guide";
 import { ExperienceSession } from "./components/experience-session";
 import { useCamera } from "./hooks/use-camera";
+import { useGestureEngine } from "./hooks/use-gesture-engine";
 
 /**
  * 부스 수명 층. 전시 내내 유지되는 장비(카메라 stream, 추후 제스처 engine)만
@@ -17,6 +18,8 @@ export function SmartMirror() {
   const [sessionEpoch, setSessionEpoch] = useState(0);
   // 카메라/마이크 단일 소유권. stream은 WebcamBackground로 내려준다.
   const { stream, status, retry } = useCamera();
+  // 제스처 엔진(MediaPipe)도 부스 수명 — 모델 로딩이 수 초라 세션마다 재로딩 금지.
+  const engine = useGestureEngine();
 
   const showPermissionGuide = status === "denied";
 
@@ -33,6 +36,8 @@ export function SmartMirror() {
       {/* Session Layer (z-10) */}
       <ExperienceSession
         key={sessionEpoch}
+        engine={engine}
+        stream={stream}
         onRestart={() => setSessionEpoch((epoch) => epoch + 1)}
       />
     </div>

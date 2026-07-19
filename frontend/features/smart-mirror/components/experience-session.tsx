@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import type {
   CreateSessionResponse,
   ExperiencePhaseId,
+  GestureEngineHandle,
   SituationType,
 } from "../types";
 import { experiencePhases } from "../data/phases";
@@ -16,6 +17,9 @@ import { SimulationStage } from "./stages/simulation-stage";
 import { TicketStage } from "./stages/ticket-stage";
 
 interface ExperienceSessionProps {
+  /** 부스 수명 장비(SmartMirror 소유) — 세션이 리셋돼도 재로딩되지 않는다. */
+  engine: GestureEngineHandle;
+  stream: MediaStream | null;
   /** 티켓(마지막)에서 복귀 시 호출 — 부모가 key를 바꿔 이 층을 통째로 리마운트한다. */
   onRestart: () => void;
 }
@@ -27,7 +31,11 @@ interface ExperienceSessionProps {
  * 이 컴포넌트 아래에만 둔다. 카메라 stream·제스처 engine 같은
  * 부스 수명 장비는 여기 두지 않는다 (frontend/CLAUDE.md "수명 2층 구조").
  */
-export function ExperienceSession({ onRestart }: ExperienceSessionProps) {
+export function ExperienceSession({
+  engine,
+  stream,
+  onRestart,
+}: ExperienceSessionProps) {
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [session, setSession] = useState<CreateSessionResponse | null>(null);
   // 선택된 타입 전체(briefingTitle·exampleAnswers 포함) — 브리핑 스테이지가 소비한다.
@@ -101,7 +109,11 @@ export function ExperienceSession({ onRestart }: ExperienceSessionProps) {
             phaseIndex={phaseIndex}
             totalPhases={experiencePhases.length}
           >
-            {renderStage(currentPhase.id, handleSessionCreated)}
+            {renderStage(currentPhase.id, {
+              engine,
+              stream,
+              onSessionCreated: handleSessionCreated,
+            })}
           </StageFrame>
         </motion.div>
       </AnimatePresence>
@@ -140,18 +152,27 @@ export function ExperienceSession({ onRestart }: ExperienceSessionProps) {
   );
 }
 
-// 스테이지 선택과 props 주입은 세션 층의 책임 — StageFrame은 껍데기만 안다.
-// switch가 ExperiencePhaseId를 모두 다루는지는 default의 satisfies never가 강제한다.
-function renderStage(
-  phaseId: ExperiencePhaseId,
+interface StageContext {
+  engine: GestureEngineHandle;
+  stream: MediaStream | null;
   onSessionCreated: (
     session: CreateSessionResponse,
     situationType: SituationType,
-  ) => void,
-) {
+  ) => void;
+}
+
+// 스테이지 선택과 props 주입은 세션 층의 책임 — StageFrame은 껍데기만 안다.
+// switch가 ExperiencePhaseId를 모두 다루는지는 default의 satisfies never가 강제한다.
+function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
   switch (phaseId) {
     case "type-select":
-      return <TypeSelectStage onSessionCreated={onSessionCreated} />;
+      return (
+        <TypeSelectStage
+          engine={context.engine}
+          stream={context.stream}
+          onSessionCreated={context.onSessionCreated}
+        />
+      );
     case "briefing":
       return <BriefingStage />;
     case "outfit":
