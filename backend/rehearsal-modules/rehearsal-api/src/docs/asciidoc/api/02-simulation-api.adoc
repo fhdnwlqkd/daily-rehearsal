@@ -1,0 +1,50 @@
+[[Simulation-API]]
+== 3. Simulation API
+
+Simulation requires a session whose context collection and outfit confirmation are complete.
+All requests require the `X-API-KEY` header described in the Authentication section.
+
+[[Simulation-Start]]
+=== 3.1. Start simulation
+
+`POST /api/v1/sessions/{sessionId}/simulation/start`
+
+Starts the first turn synchronously and returns the first opponent line.
+
+operation::simulation-start[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Simulation-Submit-Evaluation]]
+=== 3.2. Submit a turn evaluation
+
+`POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
+
+The `202 Accepted` response stores an evaluation attempt with `PENDING` status. Poll the evaluation endpoint for the completed result.
+
+operation::simulation-submit-evaluation[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
+
+[[Simulation-Poll-Evaluation]]
+=== 3.3. Poll a turn evaluation
+
+`GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
+
+This endpoint only reads the latest attempt stored in RDB. It does not invoke AI again.
+
+operation::simulation-poll-evaluation[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Simulation-Submit-Next-Line]]
+=== 3.4. Request the next opponent line
+
+`POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
+
+The `202 Accepted` response stores a turn with `PENDING` status. Poll the next-line endpoint for the completed result.
+
+operation::simulation-submit-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Simulation-Poll-Next-Line]]
+=== 3.5. Poll the next opponent line
+
+`GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
+
+This endpoint only reads the turn stored in RDB. It does not invoke AI again.
+
+operation::simulation-poll-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
