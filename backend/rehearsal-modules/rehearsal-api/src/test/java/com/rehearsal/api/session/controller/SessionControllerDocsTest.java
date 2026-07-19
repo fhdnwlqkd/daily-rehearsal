@@ -2,6 +2,8 @@ package com.rehearsal.api.session.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
@@ -9,6 +11,8 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -72,6 +76,7 @@ class SessionControllerDocsTest {
                 "session-create",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
                 requestFields(
                     fieldWithPath("situationType")
                         .description("상황 타입. 가능한 값: " + RestDocsEnumValues.situationTypes())),
@@ -103,6 +108,8 @@ class SessionControllerDocsTest {
                 "context-submit-briefing",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
                 requestFields(fieldWithPath("transcript").description("브리핑 답변 transcript")),
                 relaxedResponseFields(
                     fieldWithPath("data.sessionId").description("세션 ID"),
@@ -136,6 +143,8 @@ class SessionControllerDocsTest {
                 "context-submit-follow-up",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
                 requestFields(fieldWithPath("transcript").description("follow-up 답변 transcript")),
                 relaxedResponseFields(
                     fieldWithPath("data.sessionId").description("세션 ID"),
@@ -171,6 +180,8 @@ class SessionControllerDocsTest {
                 "context-poll",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
                 relaxedResponseFields(
                     fieldWithPath("data.sessionId").description("세션 ID"),
                     fieldWithPath("data.status")

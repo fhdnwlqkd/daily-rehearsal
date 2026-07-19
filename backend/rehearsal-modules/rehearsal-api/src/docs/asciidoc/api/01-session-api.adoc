@@ -8,7 +8,7 @@
 
 선택한 상황으로 새 세션을 생성합니다.
 
-operation::session-create[snippets='http-request,request-fields,http-response,response-fields']
+operation::session-create[snippets='http-request,request-headers,request-fields,http-response,response-fields']
 
 [[Context-Submit-Briefing]]
 === 2.2. 브리핑 제출
@@ -17,7 +17,7 @@ operation::session-create[snippets='http-request,request-fields,http-response,re
 
 세션에 브리핑 transcript를 제출합니다.
 
-operation::context-submit-briefing[snippets='http-request,request-fields,http-response,response-fields']
+operation::context-submit-briefing[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
 [[Context-Submit-Follow-Up]]
 === 2.3. Follow-up 응답 제출
@@ -26,7 +26,7 @@ operation::context-submit-briefing[snippets='http-request,request-fields,http-re
 
 세션에 follow-up transcript를 제출합니다.
 
-operation::context-submit-follow-up[snippets='http-request,request-fields,http-response,response-fields']
+operation::context-submit-follow-up[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
 [[Context-Poll]]
 === 2.4. Context 상태 조회
@@ -35,4 +35,4 @@ operation::context-submit-follow-up[snippets='http-request,request-fields,http-r
 
 세션의 context 추출 상태와 결과를 조회합니다.
 
-operation::context-poll[snippets='http-request,http-response,response-fields']
+operation::context-poll[snippets='http-request,request-headers,path-parameters,http-response,response-fields']

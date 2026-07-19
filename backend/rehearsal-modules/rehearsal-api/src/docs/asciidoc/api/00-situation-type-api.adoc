@@ -8,7 +8,7 @@
 
 선택 가능한 리허설 상황 목록을 조회합니다.
 
-operation::situation-types-list[snippets='http-request,http-response,response-fields']
+operation::situation-types-list[snippets='http-request,request-headers,http-response,response-fields']
 
 [[Situation-Type-Briefing]]
 === 1.2. Get briefing content for a situation type
@@ -17,4 +17,4 @@ operation::situation-types-list[snippets='http-request,http-response,response-fi
 
 선택한 상황의 브리핑 질문과 예시 답변을 조회합니다.
 
-operation::situation-type-briefing[snippets='http-request,http-response,response-fields']
+operation::situation-type-briefing[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
