@@ -41,8 +41,10 @@ export function StageFrame({
 }
 
 function MirrorToneOverlay({ phase }: { phase: ExperiencePhaseId }) {
+  // 타입 선택은 화면 중앙에 제목·카드·힌트가 몰리는데 via가 투명하면
+  // 생영상 위에 글자가 얹혀 전시 조명에 씻긴다 — 중앙에도 스크림을 깐다.
   const overlays: Record<ExperiencePhaseId, string> = {
-    "type-select": "from-black/35 via-transparent to-black/55",
+    "type-select": "from-black/40 via-black/20 to-black/65",
     briefing: "from-black/55 via-black/10 to-black/75",
     outfit: "from-black/45 via-black/10 to-black/75",
     simulation: "from-black/45 via-black/20 to-black/80",
@@ -142,8 +144,8 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
 
   return (
     <motion.div
-      className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2 text-center text-xs font-light tracking-[0.2em] text-white/45"
-      animate={{ opacity: [0.25, 0.75, 0.25] }}
+      className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/35 px-4 py-1.5 text-center text-xs font-light tracking-[0.2em] text-white/70 backdrop-blur-sm"
+      animate={{ opacity: [0.45, 0.9, 0.45] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
       {copy[phase]}

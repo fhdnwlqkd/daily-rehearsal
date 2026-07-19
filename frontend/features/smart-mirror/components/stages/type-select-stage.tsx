@@ -91,8 +91,8 @@ export function TypeSelectStage({
 
   return (
     <div className="flex h-full flex-col items-center justify-center gap-12 px-8">
-      <div className="text-center">
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/55">
+      <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
+        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
           SELECT SITUATION
         </p>
         <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
@@ -166,29 +166,42 @@ function TypeCard({
   /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
   confirmProgress: number;
 }) {
+  const charging = confirmProgress > 0;
+
   return (
-    <GlassPanel
-      className={
-        highlighted ? "border-white/50 bg-white/15" : "border-white/10"
-      }
-      pulsing={highlighted}
-      pulseColor="rgba(255, 255, 255, 0.35)"
+    // 밝은 영상 위에서는 선택 카드를 키우는 것보다 비선택 카드를 죽이는 게
+    // 멀리서도 확실하다. GlassPanel이 framer로 transform을 소유하므로
+    // scale/opacity는 래퍼에서 준다.
+    <div
+      className={`transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
     >
-      <div className="flex w-56 flex-col items-center gap-3 text-center">
-        <span className="text-xs font-light tracking-[0.3em] text-white/50">
-          {String(type.gestureOrder).padStart(2, "0")}
-        </span>
-        <span className="text-2xl font-extralight tracking-wide">
-          {type.label}
-        </span>
-        <div className="h-1 w-full overflow-hidden rounded-full bg-white/10">
+      <GlassPanel
+        className={
+          highlighted ? "border-white/60 bg-white/20" : "border-white/10"
+        }
+        pulsing={highlighted}
+        pulseColor="rgba(255, 255, 255, 0.35)"
+      >
+        <div className="flex w-56 flex-col items-center gap-3 text-center">
+          <span className="text-xs font-light tracking-[0.3em] text-white/50">
+            {String(type.gestureOrder).padStart(2, "0")}
+          </span>
+          <span className="text-2xl font-extralight tracking-wide">
+            {type.label}
+          </span>
+          {/* 팜홀드 차징 바 — 평소엔 투명해서 구분선처럼 안 보이고,
+              차오를 때만 트랙과 함께 나타난다 (레이아웃 시프트 없음) */}
           <div
-            className="h-full rounded-full bg-white/70 transition-[width] duration-100"
-            style={{ width: `${confirmProgress * 100}%` }}
-          />
+            className={`h-1 w-full overflow-hidden rounded-full transition-colors ${charging ? "bg-white/10" : "bg-transparent"}`}
+          >
+            <div
+              className="h-full rounded-full bg-white/80 transition-[width] duration-100"
+              style={{ width: `${confirmProgress * 100}%` }}
+            />
+          </div>
         </div>
-      </div>
-    </GlassPanel>
+      </GlassPanel>
+    </div>
   );
 }
 
@@ -199,9 +212,10 @@ function StatusLine({
   text: string;
   error?: boolean;
 }) {
+  // 행동 지시 텍스트 — 밝은 영상 위에서도 읽히도록 필 스크림을 깐다.
   return (
     <p
-      className={`text-sm font-light tracking-[0.2em] ${error ? "text-red-300/80" : "text-white/45"}`}
+      className={`rounded-full bg-black/35 px-5 py-2 text-sm font-light tracking-[0.2em] backdrop-blur-sm ${error ? "text-red-300/90" : "text-white/80"}`}
     >
       {text}
     </p>
