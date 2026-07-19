@@ -89,4 +89,15 @@ class SimulationControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.status").value("PENDING"));
   }
+
+  @Test
+  void rejectsBlankEvaluationTranscript() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/sessions/session-id/simulation/turns/1/evaluation")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"transcript\":\"\"}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.success").value(false));
+  }
 }
