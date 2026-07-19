@@ -1,42 +1,28 @@
 "use client";
 
 import { motion } from "framer-motion";
-import type { ComponentType } from "react";
+import type { ReactNode } from "react";
 import type { ExperiencePhase, ExperiencePhaseId } from "../types";
-import { TypeSelectStage } from "./stages/type-select-stage";
-import { BriefingStage } from "./stages/briefing-stage";
-import { OutfitStage } from "./stages/outfit-stage";
-import { SimulationStage } from "./stages/simulation-stage";
-import { TicketStage } from "./stages/ticket-stage";
-
-// phase.id → 스테이지 컴포넌트 매핑. Record라서 단계를 추가하면
-// 여기 키 누락이 컴파일 에러로 강제된다(exhaustiveness 보장).
-const STAGE_COMPONENTS: Record<ExperiencePhaseId, ComponentType> = {
-  "type-select": TypeSelectStage,
-  briefing: BriefingStage,
-  outfit: OutfitStage,
-  simulation: SimulationStage,
-  ticket: TicketStage,
-};
 
 interface StageFrameProps {
   phase: ExperiencePhase;
   phaseIndex: number;
   totalPhases: number;
+  /** 현재 스테이지 화면. 어떤 스테이지를 그릴지·props 주입은 세션 층(ExperienceSession) 책임. */
+  children: ReactNode;
 }
 
 /**
  * 모든 스테이지가 공유하는 공통 프레임 — 톤 오버레이·헤더(진행 표시)·
- * 전환 연출·조작 힌트를 씌우고 현재 스테이지를 그린다.
+ * 전환 연출·조작 힌트를 씌우고 받은 스테이지(children)를 그린다.
  * REC 인디케이터처럼 여러 스테이지에 걸치는 표시도 이 레벨에 둔다.
  */
 export function StageFrame({
   phase,
   phaseIndex,
   totalPhases,
+  children,
 }: StageFrameProps) {
-  const Stage = STAGE_COMPONENTS[phase.id];
-
   return (
     <div className="relative h-full w-full overflow-hidden text-white">
       <MirrorToneOverlay phase={phase.id} />
@@ -47,9 +33,9 @@ export function StageFrame({
       />
       {phase.id !== "type-select" && <TransitionCue phase={phase.id} />}
 
-      <Stage />
+      {children}
 
-      <TapHint isLast={phaseIndex === totalPhases - 1} />
+      <TapHint phase={phase.id} />
     </div>
   );
 }
@@ -143,16 +129,23 @@ function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
   );
 }
 
-function TapHint({ isLast }: { isLast: boolean }) {
+function TapHint({ phase }: { phase: ExperiencePhaseId }) {
+  // 타입 선택은 키보드 임시 입력(제스처 교체 예정), 나머지는 개발용 진행 힌트.
+  const copy: Record<ExperiencePhaseId, string> = {
+    "type-select": "좌우 방향키로 고르고 Enter로 확정",
+    briefing: "탭하거나 Enter를 눌러 계속",
+    outfit: "탭하거나 Enter를 눌러 계속",
+    simulation: "탭하거나 Enter를 눌러 계속",
+    ticket: "탭하거나 Enter를 눌러 다시 시작",
+  };
+
   return (
     <motion.div
       className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2 text-center text-xs font-light tracking-[0.2em] text-white/45"
       animate={{ opacity: [0.25, 0.75, 0.25] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
-      {isLast
-        ? "탭하거나 Enter를 눌러 다시 시작"
-        : "탭하거나 Enter를 눌러 계속"}
+      {copy[phase]}
     </motion.div>
   );
 }
