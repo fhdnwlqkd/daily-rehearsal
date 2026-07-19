@@ -1,5 +1,9 @@
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
+/**
+ * 브라우저는 백엔드를 직접 호출하지 않고 같은 출처의 프록시
+ * (app/api/backend/[...path]/route.ts)를 거친다. 실서버 주소와 인증 키는
+ * 프록시(서버)만 알고, 클라이언트 번들에는 어떤 시크릿도 들어가지 않는다.
+ */
+const PROXY_PREFIX = "/api/backend";
 
 /**
  * 백엔드의 공통 응답 규약(ApiResponse.java와 1:1 대응).
@@ -57,7 +61,7 @@ export async function apiFetch<T>(
     headers.set("Accept", "application/json");
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(`${PROXY_PREFIX}${path}`, {
     ...options,
     headers,
     // 세션 상태가 계속 변하는 앱이라 응답 캐싱은 하지 않는다.

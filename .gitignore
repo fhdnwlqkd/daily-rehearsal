@@ -2,6 +2,7 @@
 node_modules/
 .next/
 .env*
+!.env.example
 .idea
 frontend/package-lock.json
 codex/
