@@ -2,6 +2,8 @@ package com.rehearsal.api.session.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
@@ -9,6 +11,8 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
 import static org.springframework.restdocs.payload.PayloadDocumentation.requestFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -72,6 +76,7 @@ class SessionControllerDocsTest {
                 "session-create",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
                 requestFields(
                     fieldWithPath("situationType")
                         .description("상황 타입. 가능한 값: " + RestDocsEnumValues.situationTypes())),
@@ -103,6 +108,8 @@ class SessionControllerDocsTest {
                 "context-submit-briefing",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
                 requestFields(fieldWithPath("transcript").description("브리핑 답변 transcript")),
                 relaxedResponseFields(
                     fieldWithPath("data.sessionId").description("세션 ID"),
@@ -136,6 +143,8 @@ class SessionControllerDocsTest {
                 "context-submit-follow-up",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
                 requestFields(fieldWithPath("transcript").description("follow-up 답변 transcript")),
                 relaxedResponseFields(
                     fieldWithPath("data.sessionId").description("세션 ID"),
@@ -146,31 +155,106 @@ class SessionControllerDocsTest {
   }
 
   @Test
-  void pollContext() throws Exception {
+  void pollExtractingContext() throws Exception {
     ContextCollectionState state =
         new ContextCollectionState(
-            "session-id",
+            SESSION_ID,
+            ContextStatus.EXTRACTING,
+            SessionContext.empty(SituationType.DATE),
+            List.of(),
+            List.of());
+    given(getContextExtractionUseCase.getContext(SESSION_ID)).willReturn(state);
+
+    mockMvc
+        .perform(
+            get("/api/v1/sessions/{sessionId}/context", SESSION_ID).header("X-API-KEY", API_KEY))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
+        .andExpect(jsonPath("$.data.status").value("EXTRACTING"))
+        .andDo(
+            document(
+                "context-poll-extracting",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data.sessionId").description("Session ID"),
+                    fieldWithPath("data.status")
+                        .description(
+                            "Context extraction status. Values: "
+                                + RestDocsEnumValues.names(ContextStatus.class)),
+                    fieldWithPath("data.context").description("Collected context values so far"))));
+  }
+
+  @Test
+  void pollFollowUpRequiredContext() throws Exception {
+    ContextCollectionState state =
+        new ContextCollectionState(
+            SESSION_ID,
+            ContextStatus.FOLLOW_UP_REQUIRED,
+            SessionContext.from(SituationType.DATE, Map.of("critical_moment", "first greeting")),
+            List.of("desired_persona"),
+            List.of("What impression would you like to make?"));
+    given(getContextExtractionUseCase.getContext(SESSION_ID)).willReturn(state);
+
+    mockMvc
+        .perform(
+            get("/api/v1/sessions/{sessionId}/context", SESSION_ID).header("X-API-KEY", API_KEY))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.status").value("FOLLOW_UP_REQUIRED"))
+        .andExpect(jsonPath("$.data.missingSlotKeys[0]").value("desired_persona"))
+        .andExpect(jsonPath("$.data.followUpQuestions[0]").isNotEmpty())
+        .andDo(
+            document(
+                "context-poll-follow-up-required",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data.sessionId").description("Session ID"),
+                    fieldWithPath("data.status")
+                        .description(
+                            "Context extraction status. Values: "
+                                + RestDocsEnumValues.names(ContextStatus.class)),
+                    fieldWithPath("data.context").description("Collected context values so far"),
+                    fieldWithPath("data.missingSlotKeys")
+                        .description("Required slot keys still missing"),
+                    fieldWithPath("data.followUpQuestions")
+                        .description("Fixed follow-up questions"))));
+  }
+
+  @Test
+  void pollCompletedContext() throws Exception {
+    ContextCollectionState state =
+        new ContextCollectionState(
+            SESSION_ID,
             ContextStatus.COMPLETED,
             SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural")),
             List.of(),
             List.of());
-    given(getContextExtractionUseCase.getContext("session-id")).willReturn(state);
+    given(getContextExtractionUseCase.getContext(SESSION_ID)).willReturn(state);
 
     mockMvc
         .perform(
-            get("/api/v1/sessions/{sessionId}/context", "session-id").header("X-API-KEY", API_KEY))
+            get("/api/v1/sessions/{sessionId}/context", SESSION_ID).header("X-API-KEY", API_KEY))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.sessionId").value("session-id"))
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
         .andExpect(jsonPath("$.data.status").value("COMPLETED"))
         .andExpect(jsonPath("$.data.context.situation_type").value("date"))
         .andExpect(jsonPath("$.data.context.desired_persona").value("warm_natural"))
         .andExpect(jsonPath("$.data.missingSlotKeys").doesNotExist())
         .andDo(
             document(
-                "context-poll",
+                "context-poll-completed",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
                 relaxedResponseFields(
                     fieldWithPath("data.sessionId").description("세션 ID"),
                     fieldWithPath("data.status")

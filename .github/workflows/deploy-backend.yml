@@ -60,6 +60,18 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_SSH_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: backend/rehearsal-modules/docker/docker-compose.prod.yml
+          target: /opt/daily-rehearsal
+          strip_components: 3
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
         with:

@@ -1,12 +1,16 @@
 package com.rehearsal.api.situation.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
 import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -54,6 +58,7 @@ class SituationTypeControllerDocsTest {
                 "situation-types-list",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
                 relaxedResponseFields(
                     fieldWithPath("data[].situationType")
                         .description("상황 타입. 가능한 값: " + RestDocsEnumValues.situationTypes()),
@@ -79,6 +84,10 @@ class SituationTypeControllerDocsTest {
                 "situation-type-briefing",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(
+                    parameterWithName("situationType")
+                        .description("Situation type key. " + RestDocsEnumValues.situationTypes())),
                 relaxedResponseFields(
                     fieldWithPath("data.situationType")
                         .description("상황 타입. 가능한 값: " + RestDocsEnumValues.situationTypes()),
