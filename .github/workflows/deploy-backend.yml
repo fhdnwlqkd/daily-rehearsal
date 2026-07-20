@@ -60,6 +60,18 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy compose file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_SSH_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: backend/rehearsal-modules/docker/docker-compose.prod.yml
+          target: /opt/daily-rehearsal
+          strip_components: 3
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1
         with:
@@ -70,7 +82,18 @@ jobs:
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
               | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
             cd /opt/daily-rehearsal
-            export IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}
+            umask 077
+            cat > .env <<'EOF'
+            API_KEY=${{ secrets.API_KEY }}
+            DB_NAME=${{ secrets.DB_NAME }}
+            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            DECART_API_KEY=${{ secrets.DECART_API_KEY }}
+            VIDEO_STORAGE_PUBLIC_BASE_URL=${{ secrets.VIDEO_STORAGE_PUBLIC_BASE_URL }}
+            ECR_IMAGE=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}
+            IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}
+            EOF
+            chmod 600 .env
             docker compose -f docker-compose.prod.yml pull app
             docker compose -f docker-compose.prod.yml up -d app
             docker image prune -f
