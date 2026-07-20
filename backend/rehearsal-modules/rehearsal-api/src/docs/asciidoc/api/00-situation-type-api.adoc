@@ -1,20 +1,20 @@
 [[Situation-Type-API]]
-== 1. Situation Type API
+== 1. 상황 타입 API
 
 [[Situation-Type-List]]
-=== 1.1. List selectable situation types
+=== 1.1. 선택 가능한 상황 타입 조회
 
 `GET /api/v1/situation-types`
 
 선택 가능한 리허설 상황 목록을 조회합니다.
 
-operation::situation-types-list[snippets='http-request,http-response,response-fields']
+operation::situation-types-list[snippets='http-request,request-headers,http-response,response-fields']
 
 [[Situation-Type-Briefing]]
-=== 1.2. Get briefing content for a situation type
+=== 1.2. 상황 타입별 브리핑 내용 조회
 
 `GET /api/v1/situation-types/{situationType}/briefing`
 
 선택한 상황의 브리핑 질문과 예시 답변을 조회합니다.
 
-operation::situation-type-briefing[snippets='http-request,http-response,response-fields']
+operation::situation-type-briefing[snippets='http-request,request-headers,path-parameters,http-response,response-fields']

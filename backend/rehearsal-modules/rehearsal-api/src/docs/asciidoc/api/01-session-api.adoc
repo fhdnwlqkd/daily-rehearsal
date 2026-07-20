@@ -1,5 +1,5 @@
 [[Session-API]]
-== 2. Session API
+== 2. 세션 API
 
 [[Session-Create]]
 === 2.1. 세션 생성
@@ -8,31 +8,47 @@
 
 선택한 상황으로 새 세션을 생성합니다.
 
-operation::session-create[snippets='http-request,request-fields,http-response,response-fields']
+operation::session-create[snippets='http-request,request-headers,request-fields,http-response,response-fields']
 
 [[Context-Submit-Briefing]]
 === 2.2. 브리핑 제출
 
 `POST /api/v1/sessions/{sessionId}/briefing`
 
+`202 Accepted` 응답은 비동기 추출 작업이 시작됐음을 뜻합니다. 결과는 context 조회 API를 polling하여 확인합니다.
+
 세션에 브리핑 transcript를 제출합니다.
 
-operation::context-submit-briefing[snippets='http-request,request-fields,http-response,response-fields']
+operation::context-submit-briefing[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
 [[Context-Submit-Follow-Up]]
-=== 2.3. Follow-up 응답 제출
+=== 2.3. 추가 질문 응답 제출
 
 `POST /api/v1/sessions/{sessionId}/follow-up`
 
-세션에 follow-up transcript를 제출합니다.
+`202 Accepted` 응답은 비동기 context 병합 작업이 시작됐음을 뜻합니다. 결과는 context 조회 API를 polling하여 확인합니다.
 
-operation::context-submit-follow-up[snippets='http-request,request-fields,http-response,response-fields']
+세션에 추가 질문 transcript를 제출합니다.
+
+operation::context-submit-follow-up[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
 [[Context-Poll]]
-=== 2.4. Context 상태 조회
+=== 2.4. Context 수집 상태 조회
 
 `GET /api/v1/sessions/{sessionId}/context`
 
 세션의 context 추출 상태와 결과를 조회합니다.
 
-operation::context-poll[snippets='http-request,http-response,response-fields']
+`GET`은 AI를 다시 호출하지 않습니다. RDB에 저장된 최신 context 상태와 결과만 읽습니다.
+
+==== EXTRACTING
+
+operation::context-poll-extracting[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+==== FOLLOW_UP_REQUIRED
+
+operation::context-poll-follow-up-required[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+==== COMPLETED
+
+operation::context-poll-completed[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
