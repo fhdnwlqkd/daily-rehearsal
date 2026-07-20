@@ -16,3 +16,7 @@ operation::context-submit-follow-up[snippets='http-request,http-response']
 [[Context-Poll]]
 === 2.4. Context 상태 조회
 operation::context-poll[snippets='http-request,http-response']
+
+[[Outfit-Confirm]]
+=== 2.5. 의상 확정
+operation::outfit-confirm[snippets='http-request,http-response']

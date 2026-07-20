@@ -8,3 +8,4 @@
 
 include::api/00-situation-type-api.adoc[]
 include::api/01-session-api.adoc[]
+include::api/02-decart-api.adoc[]

@@ -75,13 +75,16 @@ back --> front: 최종 context 확정\n남은 slot default 적용
 
 == 4. 내일 입어볼 모습 선택 ==
 
+front -> back: GET /api/v1/sessions/{sessionId}/outfits
+back --> front: 옷 후보 목록(outfitId/label/thumbnailUrl/defaultOutfit)\n첫 번째 옷 default
+
 front -> back: POST /api/v1/sessions/{sessionId}/decart-token
-back --> front: clientToken 반환
+back --> front: clientToken 반환\n(세션당 한 번만 발급, outfit 변경마다 재발급하지 않음)
 
 front -> back: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId={id}
-back --> front: 옷 목록 + Decart URI\n첫 번째 옷 default
+back --> front: 옷 스펙(model/prompt/referenceImageUrl/enhance)
 
-front -> external: Decart WebRTC 직접 연결\n기본 옷 preview (clientToken 사용)
+front -> external: Decart WebRTC 직접 연결\nclientToken + 옷 스펙으로 preview
 external --> front: default preview
 front --> user: 1번 의상을 입은 모습 표시
 front -> front: MediaRecorder 녹화 시작\n4~5번 연속 녹화
@@ -89,7 +92,9 @@ front -> front: MediaRecorder 녹화 시작\n4~5번 연속 녹화
 loop 의상 확정 전
     user -> front: 제스처로 의상 변경/확정
     alt 의상 변경
-        front -> external: Decart preview 갱신
+        front -> back: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId={id}
+        back --> front: 옷 스펙(순수 조회, 세션 상태 변경 없음)
+        front -> external: 스펙으로 preview 갱신
         external --> front: updated preview
         front --> user: 변경된 모습 표시
     else 의상 확정

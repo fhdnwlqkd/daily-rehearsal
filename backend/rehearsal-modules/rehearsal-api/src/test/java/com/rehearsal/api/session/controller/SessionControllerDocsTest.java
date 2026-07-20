@@ -7,6 +7,7 @@ import static org.springframework.restdocs.operation.preprocess.Preprocessors.pr
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -137,6 +138,27 @@ class SessionControllerDocsTest {
         .andDo(
             document(
                 "context-poll",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint())));
+  }
+
+  @Test
+  void confirmOutfit() throws Exception {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    given(updateClientSessionUseCase.confirmOutfit(session.getSessionId(), "presentation_jacket_01"))
+        .willReturn(session);
+
+    mockMvc
+        .perform(
+            patch("/api/v1/sessions/{sessionId}/outfit", session.getSessionId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value(session.getSessionId()))
+        .andDo(
+            document(
+                "outfit-confirm",
                 preprocessRequest(prettyPrint()),
                 preprocessResponse(prettyPrint())));
   }
