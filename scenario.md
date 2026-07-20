@@ -60,9 +60,9 @@ Daily Rehearsal은 전시장 방문자가 내일 마주할 상황을 제스처�
 
 ### 4. 옷 입히기 화면
 
-백엔드는 선택 타입과 context를 기반으로 옷 목록과 Decart URI를 만듭니다.
+백엔드는 선택 타입과 `outfit_direction` context 값을 기반으로 옷 후보 목록(`GET /outfits`)을 만듭니다.
 
-프론트는 Decart WebRTC에 직접 연결해 첫 번째 옷을 자동으로 입힌 모습을 보여줍니다.
+프론트는 클라이언트 토큰(`POST /decart-token`)과 옷 스펙(`GET /outfit-spec`)으로 Decart WebRTC에 직접 연결해 첫 번째 옷을 자동으로 입힌 모습을 보여줍니다.
 
 사용자는 타입 선택과 같은 제스처 컴포넌트로 옷을 넘기고 확정합니다.
 

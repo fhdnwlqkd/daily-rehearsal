@@ -1,7 +1,9 @@
 package com.rehearsal.api.config.decart;
 
 import com.rehearsal.domain.core.annotation.Description;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
@@ -24,5 +26,10 @@ public class DecartProperties {
     private String prompt = "";
     private String referenceImageUrl = "";
     private boolean enhance = false;
+    private String label = "";
+    private String thumbnailUrl = "";
+    private List<SituationType> situationTypes = List.of();
+    private String outfitDirection = "";
+    private boolean defaultOutfit = false;
   }
 }

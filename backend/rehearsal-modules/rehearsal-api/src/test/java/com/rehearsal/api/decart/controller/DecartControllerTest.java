@@ -10,8 +10,11 @@ import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.decart.model.DecartSpec;
+import com.rehearsal.domain.decart.model.OutfitCandidate;
+import com.rehearsal.domain.decart.usecase.GetOutfitCandidatesUseCase;
 import com.rehearsal.domain.decart.usecase.GetOutfitSpecUseCase;
 import com.rehearsal.domain.decart.usecase.IssueDecartTokenUseCase;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -107,6 +110,26 @@ class DecartControllerTest {
         .andExpect(jsonPath("$.error.code").value("C003"));
   }
 
+  @Test
+  void returnsOutfitCandidates() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/sessions/{sessionId}/outfits", VALID_SESSION_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data[0].outfitId").value(VALID_OUTFIT_ID))
+        .andExpect(jsonPath("$.data[0].label").value("네이비 재킷"))
+        .andExpect(jsonPath("$.data[0].defaultOutfit").value(true));
+  }
+
+  @Test
+  void getOutfitCandidatesReturnsNotFoundWhenSessionDoesNotExist() throws Exception {
+    mockMvc
+        .perform(get("/api/v1/sessions/{sessionId}/outfits", "not-found-session"))
+        .andExpect(status().isNotFound())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S001"));
+  }
+
   @TestConfiguration
   static class TestUseCaseConfiguration {
 
@@ -118,6 +141,11 @@ class DecartControllerTest {
     @Bean
     GetOutfitSpecUseCase getOutfitSpecUseCase() {
       return new TestGetOutfitSpecUseCase();
+    }
+
+    @Bean
+    GetOutfitCandidatesUseCase getOutfitCandidatesUseCase() {
+      return new TestGetOutfitCandidatesUseCase();
     }
   }
 
@@ -150,6 +178,19 @@ class DecartControllerTest {
           "Substitute the current top with a navy blue blazer",
           "https://asset-store/outfits/jacket_01.png",
           false);
+    }
+  }
+
+  static class TestGetOutfitCandidatesUseCase implements GetOutfitCandidatesUseCase {
+
+    @Override
+    public List<OutfitCandidate> getOutfitCandidates(String sessionId) {
+      if (sessionId.equals("not-found-session")) {
+        throw new BusinessException(ErrorCode.SESSION_NOT_FOUND);
+      }
+      return List.of(
+          new OutfitCandidate(
+              VALID_OUTFIT_ID, "네이비 재킷", "https://asset-store/thumbnails/jacket_01.png", true));
     }
   }
 }
