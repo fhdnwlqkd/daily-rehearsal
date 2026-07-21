@@ -147,7 +147,8 @@ class DecartSpecServiceTest {
     InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     sessionRepository.saveContext(
         session.getSessionId(),
-        SessionContext.from(session.getSituationType(), Map.of("outfit_direction", "formal_clean")));
+        SessionContext.from(
+            session.getSituationType(), Map.of("outfit_direction", "formal_clean")));
 
     DecartProperties properties = new DecartProperties();
     properties.getOutfits().put("neat_outfit", outfitSpecWithDirection("neat_casual", false));

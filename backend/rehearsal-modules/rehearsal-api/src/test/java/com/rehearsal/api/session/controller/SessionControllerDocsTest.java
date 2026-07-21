@@ -193,7 +193,9 @@ class SessionControllerDocsTest {
   @Test
   void confirmOutfit() throws Exception {
     ClientSession session = ClientSession.create(SituationType.DATE);
-    given(updateClientSessionUseCase.confirmOutfit(session.getSessionId(), "presentation_jacket_01"))
+    given(
+            updateClientSessionUseCase.confirmOutfit(
+                session.getSessionId(), "presentation_jacket_01"))
         .willReturn(session);
 
     mockMvc

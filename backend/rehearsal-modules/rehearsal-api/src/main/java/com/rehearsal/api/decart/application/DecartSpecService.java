@@ -50,7 +50,8 @@ public class DecartSpecService
     String outfitDirection =
         sessionRepository
             .findContext(sessionId)
-            .map(context -> (String) context.values().get(ContextSlotType.OUTFIT_DIRECTION.getKey()))
+            .map(
+                context -> (String) context.values().get(ContextSlotType.OUTFIT_DIRECTION.getKey()))
             .orElse(null);
     return outfitSpecResolver.resolveCandidates(session.getSituationType(), outfitDirection);
   }

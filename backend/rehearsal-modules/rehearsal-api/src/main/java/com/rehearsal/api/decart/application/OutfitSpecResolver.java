@@ -12,8 +12,9 @@ import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-@Description("outfitId를 Decart VTON 스펙(prompt, referenceImageUrl)으로 변환하고, "
-    + "situationType/outfitDirection 기준으로 옷 후보 목록을 필터링하는 resolver")
+@Description(
+    "outfitId를 Decart VTON 스펙(prompt, referenceImageUrl)으로 변환하고, "
+        + "situationType/outfitDirection 기준으로 옷 후보 목록을 필터링하는 resolver")
 @Component
 @RequiredArgsConstructor
 public class OutfitSpecResolver {
@@ -32,7 +33,8 @@ public class OutfitSpecResolver {
         outfitSpec.isEnhance());
   }
 
-  public List<OutfitCandidate> resolveCandidates(SituationType situationType, String outfitDirection) {
+  public List<OutfitCandidate> resolveCandidates(
+      SituationType situationType, String outfitDirection) {
     List<Map.Entry<String, DecartProperties.OutfitSpec>> situationMatches =
         decartProperties.getOutfits().entrySet().stream()
             .filter(entry -> matchesSituationType(entry.getValue(), situationType))

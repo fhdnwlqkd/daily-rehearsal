@@ -44,7 +44,9 @@ class OutfitSpecResolverTest {
   @Test
   void resolvesCandidatesFilteredBySituationTypeAndOutfitDirection() {
     DecartProperties properties = new DecartProperties();
-    properties.getOutfits().put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
+    properties
+        .getOutfits()
+        .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
     properties
         .getOutfits()
         .put("business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", true));
@@ -62,7 +64,8 @@ class OutfitSpecResolverTest {
     DecartProperties properties = new DecartProperties();
     properties
         .getOutfits()
-        .put("business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", false));
+        .put(
+            "business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", false));
     OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
 
     List<OutfitCandidate> candidates =
@@ -74,7 +77,9 @@ class OutfitSpecResolverTest {
   @Test
   void marksFirstCandidateAsDefaultWhenNoneExplicitlyMarked() {
     DecartProperties properties = new DecartProperties();
-    properties.getOutfits().put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
+    properties
+        .getOutfits()
+        .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
     properties
         .getOutfits()
         .put("date_soft", outfit("소프트룩", SituationType.DATE, "soft_friendly", false));
@@ -90,7 +95,9 @@ class OutfitSpecResolverTest {
   @Test
   void throwsNotFoundWhenNoOutfitMatchesSituationType() {
     DecartProperties properties = new DecartProperties();
-    properties.getOutfits().put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
+    properties
+        .getOutfits()
+        .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
     OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
 
     assertThatThrownBy(() -> resolver.resolveCandidates(SituationType.BUSINESS_MEETING, null))
