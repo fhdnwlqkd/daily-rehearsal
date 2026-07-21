@@ -14,6 +14,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.requestF
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -271,5 +272,28 @@ class SessionControllerDocsTest {
         .status(com.rehearsal.domain.session.model.SessionStatus.BRIEFING)
         .contextStatus(ContextStatus.NOT_STARTED)
         .build();
+  }
+
+  @Test
+  void confirmOutfit() throws Exception {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    given(
+            updateClientSessionUseCase.confirmOutfit(
+                session.getSessionId(), "presentation_jacket_01"))
+        .willReturn(session);
+
+    mockMvc
+        .perform(
+            patch("/api/v1/sessions/{sessionId}/outfit", session.getSessionId())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value(session.getSessionId()))
+        .andDo(
+            document(
+                "outfit-confirm",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint())));
   }
 }

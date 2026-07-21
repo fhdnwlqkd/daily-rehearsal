@@ -67,10 +67,16 @@ back --> front: 최종 context 확정\n남은 slot default 적용
 
 == 4. 내일 입어볼 모습 선택 ==
 
-front -> back: 의상 후보 요청
-back --> front: 옷 목록 + Decart URI\n첫 번째 옷 default
+front -> back: 상황/방향에 맞는 의상 후보 요청
+back --> front: 옷 후보 목록\n첫 번째 옷 default
 
-front -> external: Decart WebRTC 직접 연결\n기본 옷 preview
+front -> back: Decart 연결 토큰 요청\n(세션당 한 번만 발급)
+back --> front: clientToken
+
+front -> back: default 옷 스펙 요청
+back --> front: 옷 스펙(순수 조회)
+
+front -> external: Decart WebRTC 직접 연결\nclientToken + 옷 스펙으로 preview
 external --> front: default preview
 front --> user: 1번 의상을 입은 모습 표시
 front -> front: MediaRecorder 녹화 시작\n4~5번 연속 녹화
@@ -78,7 +84,9 @@ front -> front: MediaRecorder 녹화 시작\n4~5번 연속 녹화
 loop 의상 확정 전
     user -> front: 제스처로 의상 변경/확정
     alt 의상 변경
-        front -> external: Decart preview 갱신
+        front -> back: 변경할 옷 스펙 요청
+        back --> front: 옷 스펙(순수 조회, 세션 상태 변경 없음)
+        front -> external: 스펙으로 preview 갱신
         external --> front: updated preview
         front --> user: 변경된 모습 표시
     else 의상 확정

@@ -10,8 +10,12 @@ import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.decart.model.DecartSpec;
+import com.rehearsal.domain.decart.model.OutfitCandidate;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.model.SessionStatus;
+import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class DecartSpecServiceTest {
@@ -63,13 +67,14 @@ class DecartSpecServiceTest {
   }
 
   @Test
-  void updatesSelectedOutfitIdOnSession() {
+  void getOutfitSpecDoesNotMutateSessionState() {
     ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
+    String selectedOutfitIdBeforeCall = session.getSelectedOutfitId();
     DecartSpecService service = serviceWith(session);
 
     service.getOutfitSpec(session.getSessionId(), OUTFIT_ID);
 
-    assertThat(session.getSelectedOutfitId()).isEqualTo(OUTFIT_ID);
+    assertThat(session.getSelectedOutfitId()).isEqualTo(selectedOutfitIdBeforeCall);
   }
 
   @Test
@@ -102,6 +107,70 @@ class DecartSpecServiceTest {
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.NOT_FOUND);
+  }
+
+  @Test
+  void returnsOutfitCandidatesForValidSession() {
+    ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
+    DecartSpecService service = serviceWith(session);
+
+    List<OutfitCandidate> candidates = service.getOutfitCandidates(session.getSessionId());
+
+    assertThat(candidates).extracting(OutfitCandidate::outfitId).containsExactly(OUTFIT_ID);
+    assertThat(candidates.get(0).defaultOutfit()).isTrue();
+  }
+
+  @Test
+  void getOutfitCandidatesThrowsSessionNotFound() {
+    DecartSpecService service = serviceWith(new InMemorySessionRepository());
+
+    assertThatThrownBy(() -> service.getOutfitCandidates("unknown-session-id"))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.SESSION_NOT_FOUND);
+  }
+
+  @Test
+  void getOutfitCandidatesThrowsInvalidSessionStateWhenNotTransformationReady() {
+    ClientSession session = sessionWith(SessionStatus.BRIEFING);
+    DecartSpecService service = serviceWith(session);
+
+    assertThatThrownBy(() -> service.getOutfitCandidates(session.getSessionId()))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  @Test
+  void getOutfitCandidatesFiltersByOutfitDirectionFromSessionContext() {
+    ClientSession session = sessionWith(SessionStatus.TRANSFORMATION_READY);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
+    sessionRepository.saveContext(
+        session.getSessionId(),
+        SessionContext.from(
+            session.getSituationType(), Map.of("outfit_direction", "formal_clean")));
+
+    DecartProperties properties = new DecartProperties();
+    properties.getOutfits().put("neat_outfit", outfitSpecWithDirection("neat_casual", false));
+    properties.getOutfits().put("formal_outfit", outfitSpecWithDirection("formal_clean", true));
+    DecartSpecService service =
+        new DecartSpecService(
+            sessionRepository,
+            new SessionReader(sessionRepository),
+            () -> CLIENT_TOKEN,
+            new OutfitSpecResolver(properties));
+
+    List<OutfitCandidate> candidates = service.getOutfitCandidates(session.getSessionId());
+
+    assertThat(candidates).extracting(OutfitCandidate::outfitId).containsExactly("formal_outfit");
+  }
+
+  private DecartProperties.OutfitSpec outfitSpecWithDirection(
+      String outfitDirection, boolean defaultOutfit) {
+    DecartProperties.OutfitSpec outfitSpec = new DecartProperties.OutfitSpec();
+    outfitSpec.setOutfitDirection(outfitDirection);
+    outfitSpec.setDefaultOutfit(defaultOutfit);
+    return outfitSpec;
   }
 
   private DecartSpecService serviceWith(ClientSession session) {

@@ -35,6 +35,12 @@ operation::context-submit-follow-up[snippets='http-request,request-headers,path-
 [[Context-Poll]]
 === 2.4. Context 수집 상태 조회
 
+operation::context-poll[snippets='http-request,http-response']
+
+[[Outfit-Confirm]]
+=== 2.5. 의상 확정
+operation::outfit-confirm[snippets='http-request,http-response']
+
 `GET /api/v1/sessions/{sessionId}/context`
 
 세션의 context 추출 상태와 결과를 조회합니다.

@@ -86,11 +86,6 @@ public class ClientSession {
     this.contextStatus = ContextStatus.FAILED;
   }
 
-  public void selectOutfit(String selectedOutfitId) {
-    validateStatus(SessionStatus.TRANSFORMATION_READY);
-    this.selectedOutfitId = selectedOutfitId;
-  }
-
   public void confirmOutfit(String selectedOutfitId) {
     validateStatus(SessionStatus.TRANSFORMATION_READY);
     validateContextCompleted();
