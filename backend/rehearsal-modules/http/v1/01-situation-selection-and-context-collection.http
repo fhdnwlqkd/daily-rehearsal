@@ -1,8 +1,5 @@
-@host = http://32.236.96.32:8080
-@apiKey = replace-with-api-key
-@situationType = date
-@briefingTranscript = I am worried that my first greeting will be awkward tomorrow.
-@followUpTranscript = warm_natural
+# Select an IntelliJ HTTP Client environment from http-client.private.env.json.
+# Use local-fake for deterministic assertions and manual-gemini for external AI quality checks.
 
 ### 1-1. Selectable situation types
 # Expected data fields: situationType, label

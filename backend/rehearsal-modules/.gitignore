@@ -42,3 +42,4 @@ docker/mysql_data/
 ### local env ###
 .env*
 !.env.example
+http-client.private.env.json

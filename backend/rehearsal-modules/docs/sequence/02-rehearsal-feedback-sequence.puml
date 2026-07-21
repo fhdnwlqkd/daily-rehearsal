@@ -84,18 +84,23 @@ loop currentTurn <= N
     web -> web: optional metrics 계산\nresponseDelay/speechRate/volume
 
     web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation\ntranscript + metrics
-    api -> sessionStore: 전체 context + 대화 history 조회
-    sessionStore --> api: stateless LLM input
-    api -> llm: 성공/실패 판정 + 피드백 JSON 요청
+    api -> sessionStore: evaluation attempt=PENDING 저장
+    api --> web: 202 Accepted (attemptNo + status=PENDING)
+    api -> llm: after-commit worker가 성공/실패 판정 + 피드백 JSON 요청
 
     alt AI 성공
         llm --> api: {success, feedback, retryReason}
         api -> sessionStore: turn evaluation 저장
-        api --> web: evaluation JSON
     else AI 실패
         llm --> api: error/timeout
         api -> sessionStore: 실패 evaluation 저장\nfallback=true
-        api --> web: {success:false, feedback:"다시 시도해보세요"}
+    end
+
+    loop evaluation 완료까지 polling
+        web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
+        api -> sessionStore: 저장된 evaluation 조회
+        sessionStore --> api: PENDING/COMPLETED/FAILED + 결과
+        api --> web: evaluation JSON
     end
 
     web --> user: 피드백 영역에 결과 표시
@@ -103,24 +108,28 @@ loop currentTurn <= N
     alt success=false
         web --> user: 같은 turn 재시도 안내
     else success=true
-        web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line/stream
-        api -> sessionStore: 전체 context + history 조회
-        sessionStore --> api: next line input
-        api -> llm: 다음 상대 발화 생성\nSSE token stream
+        web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+        api -> sessionStore: simulation turn=PENDING 저장
+        api --> web: 202 Accepted (status=PENDING)
+        api -> llm: after-commit worker가 다음 상대 발화 생성
 
-        alt AI streaming 성공
-            llm --> api: streamed tokens
-            api --> web: text/event-stream tokens
-            web --> user: 다음 발화 영역에 토큰 스트리밍 표시
-            api -> sessionStore: nextOpponentLine 저장\ncurrentTurn 증가
-        else AI streaming 실패
+        alt AI 성공
+            llm --> api: next opponent line
+            api -> sessionStore: nextOpponentLine 저장
+        else AI 실패
             llm --> api: error/timeout
             api -> staticConfig: 타입별 고정 발화 fallback 조회
             staticConfig --> api: fallbackOpponentLine
-            api --> web: fallback line event
-            web --> user: 고정 상대 발화 표시
-            api -> sessionStore: fallback line 저장\ncurrentTurn 증가
+            api -> sessionStore: fallback line 저장
         end
+
+        loop next line 완료까지 polling
+            web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+            api -> sessionStore: 저장된 next line 조회
+            sessionStore --> api: PENDING/COMPLETED/FAILED + 결과
+            api --> web: next line JSON
+        end
+        web --> user: 다음 상대 발화 표시
     end
 end
 

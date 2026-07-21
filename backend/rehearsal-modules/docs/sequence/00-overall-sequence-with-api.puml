@@ -114,24 +114,28 @@ loop N턴 완료 전
     user -> front: 응답 발화
     front -> front: STT + 간단 지표 계산
     front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
+    back -> back: attempt=PENDING 저장 후 after-commit worker dispatch
     back --> front: 202 Accepted (attemptNo + status=PENDING)
+    back -> external: 비동기 판정+피드백 JSON 생성
+    external --> back: success/fail + feedback 또는 실패
+    back -> back: attempt 상태와 결과 저장
     
     loop 평가 완료까지 Polling
         front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
-        back -> external: 판정+피드백 JSON 생성
-        external --> back: success/fail + feedback 또는 실패
-        back --> front: 판정+피드백 JSON\n실패 시 fallback feedback
+        back --> front: 저장된 판정+피드백 JSON\n실패 시 fallback feedback
     end
     
     alt 성공
         front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+        back -> back: turn=PENDING 저장 후 after-commit worker dispatch
         back --> front: 202 Accepted (status=PENDING)
+        back -> external: 비동기 다음 상대 발화 생성
+        external --> back: text 또는 실패
+        back -> back: turn 상태와 발화 저장
         
         loop 다음 발화 생성 완료까지 Polling
             front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
-            back -> external: 다음 상대 발화 생성
-            external --> back: text 또는 실패
-            back --> front: 다음 발화 결과\n실패 시 고정 발화
+            back --> front: 저장된 다음 발화 결과\n실패 시 고정 발화
         end
         front -> front: 다음 발화 표시
     else 실패

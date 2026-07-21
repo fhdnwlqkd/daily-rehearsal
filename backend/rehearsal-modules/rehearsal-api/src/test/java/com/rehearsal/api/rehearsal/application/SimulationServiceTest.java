@@ -1,9 +1,11 @@
 package com.rehearsal.api.rehearsal.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.api.support.InMemorySessionRepository;
+import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
@@ -96,6 +98,32 @@ class SimulationServiceTest {
 
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.PENDING);
     assertThat(events).containsExactly(new OpponentLineRequested(session.getSessionId(), 2));
+  }
+
+  @Test
+  void duplicateNextLineSubmissionReusesPendingTurn() {
+    ClientSession session = playingSession(2);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    SimulationTurn pending = repository.saveTurn(SimulationTurn.pending(session.getSessionId(), 2));
+    List<Object> events = new ArrayList<>();
+
+    SimulationTurn duplicated =
+        service(repository, events).submitNextLine(session.getSessionId(), 2);
+
+    assertThat(duplicated.getId()).isEqualTo(pending.getId());
+    assertThat(events).isEmpty();
+  }
+
+  @Test
+  void rejectsEvaluationForDifferentCurrentTurn() {
+    ClientSession session = playingSession(1);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+
+    assertThatThrownBy(
+            () ->
+                service(repository, new ArrayList<>())
+                    .submit(session.getSessionId(), 2, "answer", null))
+        .isInstanceOf(BusinessException.class);
   }
 
   private SimulationService service(InMemorySessionRepository repository, List<Object> events) {
