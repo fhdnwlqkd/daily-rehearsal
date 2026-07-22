@@ -1,46 +1,51 @@
 import type { GestureRecognizer } from "@mediapipe/tasks-vision";
 
+/**
+ * API 호출 훅이 공통으로 쓰는 상태.
+ * IDLE은 사용자 액션으로 시작하는 훅(use-create-* 등)의 초기 상태 —
+ * 마운트 즉시 조회하는 훅(use-get-*)은 LOADING에서 시작한다.
+ */
+export type ApiStatus = "IDLE" | "LOADING" | "READY" | "ERROR";
+
+/**
+ * 타입 선택 화면에 뿌릴 상황 타입 카드 하나. 실서버 응답과 1:1 (2026-07-19 확정).
+ * 구 명세의 gestureOrder·briefingTitle·exampleAnswers는 백엔드에서 제거됨 —
+ * 브리핑 화면 데이터(타이틀·예시 답변)의 공급처는 브리핑 스테이지 작업 시
+ * 백엔드와 다시 확인한다.
+ */
+export interface SituationType {
+  /** 상황 타입 식별자(snake_case). POST /sessions에 그대로 사용한다. */
+  situationType: string;
+  /** UI 표시용 한글 라벨. */
+  label: string;
+}
+
+/** GET /api/v1/situation-types 응답(data 알맹이) — 배열이 그대로 온다. */
+export type GetSituationTypesResponse = SituationType[];
+
+/** POST /api/v1/sessions 응답(data 알맹이). 이 두 필드만 온다. */
+export interface CreateSessionResponse {
+  /** 서버가 생성한 세션 UUID. 이후 모든 세션 API 경로에 사용한다. */
+  sessionId: string;
+  /** 요청한 situation type key 그대로 에코. */
+  situationType: string;
+}
+
+/**
+ * 스테이지(=전시 화면이 전환되는 단위) 식별자. 정의·용어는 frontend/CLAUDE.md의
+ * "스테이지 용어 사전"이 기준이다. 라운드·턴 같은 반복은 스테이지 내부 상태로
+ * 관리하며 여기에 추가하지 않는다 (예: briefing의 재질문, simulation의 턴).
+ */
 export type ExperiencePhaseId =
+  | "type-select"
   | "briefing"
-  | "context"
-  | "transformation"
-  | "gesture-fit"
-  | "rehearsal"
-  | "change-card";
+  | "outfit"
+  | "simulation"
+  | "ticket";
 
 export interface ExperiencePhase {
   id: ExperiencePhaseId;
   label: string;
-  timeRange: string;
-}
-
-export interface OutfitOption {
-  name: string;
-  tone: string;
-  active: boolean;
-}
-
-/**
- * 한 세션의 경험 콘텐츠. 지금은 mock-experience가 채우지만,
- * 추후 STT transcript·AI 생성 결과·외부 컨텍스트 API가 이 형태로 채워야 한다.
- * mock과 실데이터가 공유하는 단일 계약.
- */
-export interface ExperienceData {
-  transcript: string;
-  contextReply: string;
-  tags: string[];
-  missing: string[];
-  followUpQuestions: string[];
-  outfits: OutfitOption[];
-  persona: string;
-  routeRisk: string;
-  placeMood: string;
-  gestureHint: string;
-  aiPrompt: string;
-  userReply: string;
-  changeAction: string;
-  changeAttitude: string;
-  ifThen: string;
 }
 
 // --- 제스처 (이슈 #9) ---
