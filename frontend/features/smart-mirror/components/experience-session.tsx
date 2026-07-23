@@ -10,6 +10,7 @@ import type {
 } from "../types";
 import { experiencePhases } from "../data/phases";
 import { StageFrame } from "./stage-frame";
+import { StagePlaceholder } from "./shared/stage-placeholder";
 import { TypeSelectStage } from "./stages/type-select-stage";
 import { BriefingStage } from "./stages/briefing-stage";
 import { OutfitStage } from "./stages/outfit-stage";
@@ -64,14 +65,26 @@ export function ExperienceSession({
     [goToNextPhase],
   );
 
-  // 개발용 진행(클릭/Enter → 다음 스테이지). 타입 선택에서는 스테이지가
-  // 입력(하이라이트 이동·확정)을 소유하므로 전역 진행을 끈다 —
-  // 세션 없이 다음 화면으로 새는 것을 막는 실제 흐름 게이트이기도 하다.
-  const devAdvanceEnabled = currentPhase?.id !== "type-select";
+  // 개발용 진행(클릭/Enter → 다음 스테이지). 자기 입력(확정·재시도 등)을
+  // 소유한 스테이지에서는 전역 진행을 끈다 — 안 끄면 Enter 한 번이 스테이지
+  // 확정과 스테이지 스킵으로 이중 처리된다. 실제 흐름 게이트이기도 하다
+  // (세션·context 없이 다음 화면으로 새는 것을 막는다).
+  const stagesOwningInput: ExperiencePhaseId[] = ["type-select", "briefing"];
+  const devAdvanceEnabled =
+    !currentPhase || !stagesOwningInput.includes(currentPhase.id);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.repeat) return;
+      // 텍스트 입력 중 타이핑(브리핑 키보드 fallback 등)이 디버그 토글·진행으로
+      // 새지 않게 편집 가능한 대상에서 온 키는 무시한다.
+      const target = event.target;
+      if (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+      )
+        return;
 
       if ((event.key === " " || event.key === "Enter") && devAdvanceEnabled) {
         event.preventDefault();
@@ -112,7 +125,10 @@ export function ExperienceSession({
             {renderStage(currentPhase.id, {
               engine,
               stream,
+              session,
+              situationType,
               onSessionCreated: handleSessionCreated,
+              onBriefingComplete: goToNextPhase,
             })}
           </StageFrame>
         </motion.div>
@@ -155,10 +171,14 @@ export function ExperienceSession({
 interface StageContext {
   engine: GestureEngineHandle;
   stream: MediaStream | null;
+  /** 타입 선택 완료 전에는 null — briefing 이후 스테이지가 소비한다. */
+  session: CreateSessionResponse | null;
+  situationType: SituationType | null;
   onSessionCreated: (
     session: CreateSessionResponse,
     situationType: SituationType,
   ) => void;
+  onBriefingComplete: () => void;
 }
 
 // 스테이지 선택과 props 주입은 세션 층의 책임 — StageFrame은 껍데기만 안다.
@@ -174,7 +194,22 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
         />
       );
     case "briefing":
-      return <BriefingStage />;
+      // 세션 null 가드는 여기서 — 디버그 점프로 세션 없이 진입한 경우다.
+      // 스테이지 props는 non-null로 유지해 스테이지 안 가드를 없앤다.
+      if (!context.session || !context.situationType) {
+        return (
+          <StagePlaceholder label="브리핑 (세션 없음 — 타입 선택부터 진행)" />
+        );
+      }
+      return (
+        <BriefingStage
+          sessionId={context.session.sessionId}
+          situationType={context.situationType}
+          engine={context.engine}
+          stream={context.stream}
+          onComplete={context.onBriefingComplete}
+        />
+      );
     case "outfit":
       return <OutfitStage />;
     case "simulation":

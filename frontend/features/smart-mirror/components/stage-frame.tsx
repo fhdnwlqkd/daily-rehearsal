@@ -136,7 +136,7 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
   // 여기서는 키보드 대체 입력만 알린다. 나머지는 개발용 진행 힌트.
   const copy: Record<ExperiencePhaseId, string> = {
     "type-select": "키보드 ←/→·Enter로도 조작할 수 있어요",
-    briefing: "탭하거나 Enter를 눌러 계속",
+    briefing: "마이크에 대고 답해주세요 · Enter 바로 전송 · ← 다시 말하기",
     outfit: "탭하거나 Enter를 눌러 계속",
     simulation: "탭하거나 Enter를 눌러 계속",
     ticket: "탭하거나 Enter를 눌러 다시 시작",
@@ -144,7 +144,7 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
 
   return (
     <motion.div
-      className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/35 px-4 py-1.5 text-center text-xs font-light tracking-[0.2em] text-white/70 backdrop-blur-sm"
+      className="absolute bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full bg-black/40 px-5 py-2 text-center text-sm font-light tracking-[0.2em] text-white/80 backdrop-blur-sm"
       animate={{ opacity: [0.45, 0.9, 0.45] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
