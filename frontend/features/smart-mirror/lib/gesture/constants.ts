@@ -12,10 +12,10 @@ export const SWIPE_COOLDOWN_MS = 500;
 export const PALM_MIN_SCORE = 0.6;
 /**
  * CONFIRM 발사에 필요한 손바닥 유지 시간.
- * 1500이었으나 타입 선택 화면에서 차징 중 안내("멈춰 있으면 선택 ·
- * 다른 타입은 스와이프")를 읽고 손을 뺄 시간이 필요해 2500으로 상향.
+ * 1500 → 2500(차징 중 안내를 읽을 시간 확보) → 다시 1500:
+ * 실사용 테스트 결과 2500은 확정이 답답하게 느껴짐 (2026-07-23 사용자 결정).
  */
-export const PALM_HOLD_DURATION_MS = 2500;
+export const PALM_HOLD_DURATION_MS = 1500;
 /** CONFIRM 발사 후 재누적 금지 시간 */
 export const PALM_REFRACTORY_MS = 1000;
 /** 이 속도(x/ms)를 넘으면 "정지"가 아니라서 유지 누적 리셋 — 스와이프와의 충돌 규칙 */
