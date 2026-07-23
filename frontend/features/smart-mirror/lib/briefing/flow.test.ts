@@ -11,8 +11,8 @@ const POLL_TIMEOUT = 10_000;
 
 /**
  * POST/GET 응답을 수동으로 쥐고 있다가 순서대로 내보내는 API 대역.
- * 재질문 경로는 실서버 quirk(즉시 COMPLETED) 때문에 라이브로 못 밟으므로
- * 이 대역이 FOLLOW_UP_REQUIRED를 흉내 내는 것이 검증의 핵심이다.
+ * 실서버는 라운드 수·질문을 마음대로 못 정하므로, 재질문 다라운드·실패
+ * 조합은 이 대역으로 결정적으로 밟는다.
  */
 function createFakeApi() {
   const briefingCalls: string[] = [];

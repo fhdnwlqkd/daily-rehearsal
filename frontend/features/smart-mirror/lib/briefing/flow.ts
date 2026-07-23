@@ -16,8 +16,7 @@ import {
 
 /**
  * 컨트롤러가 의존하는 API 표면. 실제로는 apis.ts 함수를 sessionId로 바인딩해
- * 주입하고, 테스트는 FakeApi를 주입한다 — 재질문 경로는 실서버가 아직 밟게
- * 해주지 않으므로(즉시 COMPLETED quirk) 이 주입 지점이 검증의 핵심이다.
+ * 주입하고, 테스트는 FakeApi를 주입해 재질문 경로를 임의로 밟는다.
  */
 export interface BriefingFlowApi {
   submitBriefing: (transcript: string) => Promise<SubmitTranscriptResponse>;

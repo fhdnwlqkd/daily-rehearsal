@@ -25,10 +25,7 @@ export interface UseBriefingFlowResult extends BriefingFlowSnapshot {
  * 브리핑 제출→context 폴링→재질문 흐름 훅. 상태머신 본체는
  * BriefingFlowController(lib/briefing)에 있고, 이 훅은 React lifecycle 연결과
  * apis.ts 함수의 sessionId 바인딩만 담당한다 (use-speech-to-text와 같은 구조).
- *
- * mock/실API 전환점: 재질문 UI를 수동 확인할 때는 아래 api 객체를
- * data/mock-session-context.ts의 mock api로 갈아끼운다 — 실서버가 현재
- * 즉시 COMPLETED만 반환해서(백엔드 문의 중) 재질문 경로를 라이브로 못 밟는다.
+ * 재질문 경로까지 실서버 검증 완료(2026-07-23) — mock 전환점 불필요.
  */
 export function useBriefingFlow(sessionId: string): UseBriefingFlowResult {
   const [snapshot, setSnapshot] =
