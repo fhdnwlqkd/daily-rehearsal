@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { GlassPanel } from "../shared/glass-panel";
+import { StatusLine } from "../shared/status-line";
 import { useGetSituationTypes } from "../../hooks/use-get-situation-types";
 import { useCreateSession } from "../../hooks/use-create-session";
 import { useGestureController } from "../../hooks/use-gesture-controller";
@@ -176,14 +177,15 @@ function GestureHint({
   if (confirmProgress > 0) {
     return (
       <FadeIn>
-        <div className="flex items-center gap-3 rounded-2xl bg-black/35 px-6 py-3 backdrop-blur-sm">
-          <PalmEmoji className="text-2xl" />
-          <div className="flex flex-col items-start gap-0.5">
-            <span className="text-sm font-light tracking-[0.15em] text-white/90">
+        {/* 크기·스크림은 StatusLine과 같은 급으로 맞춘다 — 같은 화면에서 안내끼리 크기가 튀지 않게 */}
+        <div className="flex items-center gap-4 rounded-2xl bg-black/45 px-7 py-3.5 backdrop-blur-sm">
+          <PalmEmoji className="text-3xl" />
+          <div className="flex flex-col items-start gap-1">
+            <span className="text-base font-light tracking-[0.15em] text-white/90 md:text-lg">
               이대로 멈춰 있으면{" "}
               {highlightedLabel ? `'${highlightedLabel}' ` : ""}선택
             </span>
-            <span className="text-xs font-light tracking-[0.15em] text-white/60">
+            <span className="text-sm font-light tracking-[0.15em] text-white/60 md:text-base">
               다른 타입은 ← → 스와이프
             </span>
           </div>
@@ -212,22 +214,22 @@ function GestureHint({
   return (
     <FadeIn>
       <div className="flex flex-wrap items-center justify-center gap-4">
-        <div className="flex items-center gap-3 rounded-full bg-black/35 px-5 py-2.5 backdrop-blur-sm">
-          <span className="text-base text-white/50">←</span>
+        <div className="flex items-center gap-3 rounded-full bg-black/45 px-6 py-3 backdrop-blur-sm">
+          <span className="text-lg text-white/50">←</span>
           <motion.div
             animate={{ x: [-8, 8, -8] }}
             transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           >
-            <PalmEmoji className="text-2xl" />
+            <PalmEmoji className="text-3xl" />
           </motion.div>
-          <span className="text-base text-white/50">→</span>
-          <span className="text-sm font-light tracking-[0.15em] text-white/85">
+          <span className="text-lg text-white/50">→</span>
+          <span className="text-base font-light tracking-[0.15em] text-white/85 md:text-lg">
             스와이프로 타입 변경
           </span>
         </div>
-        <div className="flex items-center gap-3 rounded-full bg-black/35 px-5 py-2.5 backdrop-blur-sm">
-          <span className="relative inline-flex h-10 w-10 items-center justify-center">
-            <PalmEmoji className="text-2xl" />
+        <div className="flex items-center gap-3 rounded-full bg-black/45 px-6 py-3 backdrop-blur-sm">
+          <span className="relative inline-flex h-11 w-11 items-center justify-center">
+            <PalmEmoji className="text-3xl" />
             <svg
               className="absolute inset-0 h-full w-full -rotate-90"
               viewBox="0 0 40 40"
@@ -251,7 +253,7 @@ function GestureHint({
               />
             </svg>
           </span>
-          <span className="text-sm font-light tracking-[0.15em] text-white/85">
+          <span className="text-base font-light tracking-[0.15em] text-white/85 md:text-lg">
             잠시 멈추면 선택
           </span>
         </div>
@@ -334,22 +336,5 @@ function TypeCard({
         </div>
       </GlassPanel>
     </div>
-  );
-}
-
-function StatusLine({
-  text,
-  error = false,
-}: {
-  text: string;
-  error?: boolean;
-}) {
-  // 행동 지시 텍스트 — 밝은 영상 위에서도 읽히도록 필 스크림을 깐다.
-  return (
-    <p
-      className={`rounded-full bg-black/35 px-5 py-2 text-sm font-light tracking-[0.2em] backdrop-blur-sm ${error ? "text-red-300/90" : "text-white/80"}`}
-    >
-      {text}
-    </p>
   );
 }
