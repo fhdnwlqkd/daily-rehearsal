@@ -90,7 +90,9 @@ export function useGestureController({
     video.muted = true;
     video.playsInline = true;
     video.srcObject = stream;
-    void video.play();
+    // 빠른 마운트/해제(StrictMode·스테이지 전환) 때 cleanup이 srcObject를 끊으면
+    // 진행 중이던 play()가 AbortError로 reject된다 — 무해한 레이스라 삼킨다.
+    video.play().catch(() => {});
 
     const swipe = new SwipeDetector();
     const palm = new PalmHoldDetector();
