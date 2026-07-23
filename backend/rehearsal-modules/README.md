@@ -104,7 +104,7 @@ rehearsal:
       provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:gemini}
     gemini:
       api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+      model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
       temperature: ${GEMINI_TEMPERATURE:0.0}
       thinking-budget: ${GEMINI_THINKING_BUDGET:0}
 ```
@@ -193,5 +193,16 @@ V1__create_context_slot_tables.sql
 ```bash
 ./gradlew spotlessApply
 ```
+
+## REST Docs on Windows Unicode User Paths
+
+AsciidoctorJ can fail when the Gradle cache path contains non-ASCII characters. On Windows, run document generation with an ASCII Gradle user home:
+
+```powershell
+$env:GRADLE_USER_HOME = "C:\Users\Public\.daily-rehearsal-gradle"
+.\gradlew.bat :rehearsal-api:asciidoctor --console=plain
+```
+
+The generated HTML is written to `rehearsal-api/build/docs/asciidoc/index.html`.
 
 `spotlessApply`는 모든 Java 코드에 Google Java Format을 적용하고, 사용하지 않는 import와 줄 끝 공백을 정리합니다.

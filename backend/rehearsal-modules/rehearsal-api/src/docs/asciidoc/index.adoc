@@ -1,4 +1,4 @@
-= Rehearsal API Document
+= Daily Rehearsal API 문서
 :doctype: book
 :icons: font
 :source-highlighter: highlightjs
@@ -6,7 +6,7 @@
 :toclevels: 2
 :sectlinks:
 
-== Authentication
+== 인증
 
 `/api/**` 요청은 API key 인증을 사용합니다.
 클라이언트는 `X-API-KEY` 헤더를 포함해야 합니다.
@@ -19,3 +19,4 @@ X-API-KEY: ${client-api-key}
 include::api/00-situation-type-api.adoc[]
 include::api/01-session-api.adoc[]
 include::api/02-decart-api.adoc[]
+include::api/02-simulation-api.adoc[]
