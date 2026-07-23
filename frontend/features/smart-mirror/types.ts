@@ -9,9 +9,8 @@ export type ApiStatus = "IDLE" | "LOADING" | "READY" | "ERROR";
 
 /**
  * 타입 선택 화면에 뿌릴 상황 타입 카드 하나. 실서버 응답과 1:1 (2026-07-19 확정).
- * 구 명세의 gestureOrder·briefingTitle·exampleAnswers는 백엔드에서 제거됨 —
- * 브리핑 화면 데이터(타이틀·예시 답변)의 공급처는 브리핑 스테이지 작업 시
- * 백엔드와 다시 확인한다.
+ * 구 명세의 gestureOrder는 백엔드에서 제거됨. 브리핑 화면 데이터(타이틀·예시)는
+ * 별도 엔드포인트로 부활했다 — BriefingContent 참고 (2026-07-20 실서버 문서 확정).
  */
 export interface SituationType {
   /** 상황 타입 식별자(snake_case). POST /sessions에 그대로 사용한다. */
@@ -29,6 +28,91 @@ export interface CreateSessionResponse {
   sessionId: string;
   /** 요청한 situation type key 그대로 에코. */
   situationType: string;
+}
+
+// --- 브리핑 & context 수집 (이슈 #67) ---
+
+/**
+ * GET /api/v1/situation-types/{situationType}/briefing 응답(data 알맹이).
+ * 기획상 둘 다 화면에 노출한다: briefingTitle이 메인 질문, exampleAnswer는
+ * "이렇게 말하면 돼요" 발화 유도용 (scenario.md §3-2).
+ */
+export interface BriefingContent {
+  situationType: string;
+  /** 타입별 고정 브리핑 질문 (예: "내일의 소개팅을 짧게 말해주세요") */
+  briefingTitle: string;
+  /** 예시 답변 — 실서버 명세 기준 단수형이다 (다이어그램의 exampleAnswers 아님) */
+  exampleAnswer: string;
+}
+
+/**
+ * context 수집 파이프라인의 서버 상태 (GET /sessions/{id}/context의 status).
+ * NOT_STARTED·EXTRACTING·MERGING은 비종결(계속 폴링),
+ * FOLLOW_UP_REQUIRED·COMPLETED·FAILED가 폴링을 끝내는 상태다.
+ */
+export type ContextStatus =
+  | "NOT_STARTED"
+  | "EXTRACTING"
+  | "FOLLOW_UP_REQUIRED"
+  | "MERGING"
+  | "COMPLETED"
+  | "FAILED";
+
+/** POST /sessions/{id}/briefing·follow-up의 202 응답(data 알맹이). */
+export interface SubmitTranscriptResponse {
+  sessionId: string;
+  /** briefing 제출 직후 EXTRACTING, follow-up 제출 직후 MERGING */
+  status: ContextStatus;
+}
+
+/**
+ * GET /sessions/{id}/context 응답(data 알맹이). context는 불투명 snake_case
+ * 덩어리 — 프론트는 status·followUpQuestions만 소비하고 절대 해석하지 않는다.
+ * missingSlotKeys·followUpQuestions는 FOLLOW_UP_REQUIRED일 때만 온다
+ * (백엔드 NON_NULL 직렬화로 그 외에는 필드 자체가 생략됨).
+ */
+export interface SessionContextResponse {
+  sessionId: string;
+  status: ContextStatus;
+  context?: Record<string, unknown>;
+  missingSlotKeys?: string[];
+  followUpQuestions?: string[];
+}
+
+/**
+ * 브리핑 스테이지 흐름 상태 (BriefingFlowController 소유).
+ * IDLE        최초 답변 대기
+ * SUBMITTING  POST 전송 중
+ * PROCESSING  202 수신, context 폴링 중 (serverStatus로 EXTRACTING/MERGING 구분)
+ * FOLLOW_UP   재질문 표시, 추가 답변 대기
+ * COMPLETED   종결 — 스테이지가 onComplete를 부른다
+ * FAILED      종결 실패 — retry 가능
+ */
+export type BriefingFlowStatus =
+  | "IDLE"
+  | "SUBMITTING"
+  | "PROCESSING"
+  | "FOLLOW_UP"
+  | "COMPLETED"
+  | "FAILED";
+
+/**
+ * SERVER_FAILED 서버가 status=FAILED를 반환
+ * TIMEOUT       폴링 데드라인 초과
+ * NETWORK       POST 실패 또는 폴링 연속 에러 소진
+ */
+export type BriefingFlowFailReason = "SERVER_FAILED" | "TIMEOUT" | "NETWORK";
+
+/** BriefingFlowController가 매 변화마다 통지하는 불변 스냅샷 (SttSnapshot과 동형). */
+export interface BriefingFlowSnapshot {
+  status: BriefingFlowStatus;
+  /** PROCESSING 중 문구 분기용 서버 상태. 그 외에는 null. */
+  serverStatus: ContextStatus | null;
+  /** FOLLOW_UP일 때만 비어있지 않다. 재질문 리스트는 한 번에 전부 표시한다. */
+  followUpQuestions: string[];
+  /** 0 = 최초 브리핑, 1부터 재질문 라운드. 상한 판단은 백엔드 책임(프론트 무제한). */
+  round: number;
+  failReason: BriefingFlowFailReason | null;
 }
 
 /**
