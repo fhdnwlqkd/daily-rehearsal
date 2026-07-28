@@ -30,6 +30,7 @@ import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -56,6 +57,7 @@ class SessionControllerDocsTest {
   @MockitoBean private UpdateClientSessionUseCase updateClientSessionUseCase;
   @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
   @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
+  @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
 
   @Test
   void createSession() throws Exception {
