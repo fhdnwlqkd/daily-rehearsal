@@ -285,6 +285,7 @@ class SessionControllerDocsTest {
     mockMvc
         .perform(
             patch("/api/v1/sessions/{sessionId}/outfit", session.getSessionId())
+                .header("X-API-KEY", API_KEY)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
         .andExpect(status().isOk())
@@ -294,6 +295,10 @@ class SessionControllerDocsTest {
             document(
                 "outfit-confirm",
                 preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint())));
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                requestFields(fieldWithPath("selectedOutfitId").description("사용자가 확정한 옷 후보 ID")),
+                relaxedResponseFields(fieldWithPath("data.sessionId").description("세션 ID"))));
   }
 }
