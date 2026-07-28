@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.rehearsal.api.session.application.SessionReader;
-import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.InMemoryTicketJobStore;
 import com.rehearsal.api.support.RecordingTicketGenerationWorker;
 import com.rehearsal.api.support.TestClientSessions;
@@ -19,14 +19,12 @@ import org.junit.jupiter.api.Test;
 
 class TicketServiceTest {
 
-  private static final String FIRST_OPPONENT_LINE = "오는 길 괜찮으셨어요?";
-
   @Test
   void submitCreatesPendingJobAndDispatchesWorkerWhenSimulationFinished() {
     ClientSession session = finishedSession();
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     TicketService service =
-        serviceWith(new InMemorySessionCache(session), new InMemoryTicketJobStore(), worker);
+        serviceWith(new InMemorySessionRepository(session), new InMemoryTicketJobStore(), worker);
 
     TicketJob job = service.submit(session.getSessionId());
 
@@ -37,10 +35,10 @@ class TicketServiceTest {
   @Test
   void submitThrowsSimulationNotCompletedWhenTurnsRemain() {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(3, FIRST_OPPONENT_LINE);
+    session.startSimulation(3);
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     TicketService service =
-        serviceWith(new InMemorySessionCache(session), new InMemoryTicketJobStore(), worker);
+        serviceWith(new InMemorySessionRepository(session), new InMemoryTicketJobStore(), worker);
 
     assertThatThrownBy(() -> service.submit(session.getSessionId()))
         .isInstanceOf(BusinessException.class)
@@ -54,7 +52,7 @@ class TicketServiceTest {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.TRANSFORMATION_READY);
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     TicketService service =
-        serviceWith(new InMemorySessionCache(session), new InMemoryTicketJobStore(), worker);
+        serviceWith(new InMemorySessionRepository(session), new InMemoryTicketJobStore(), worker);
 
     assertThatThrownBy(() -> service.submit(session.getSessionId()))
         .isInstanceOf(BusinessException.class)
@@ -67,7 +65,7 @@ class TicketServiceTest {
   void submitThrowsSessionNotFound() {
     TicketService service =
         serviceWith(
-            new InMemorySessionCache(),
+            new InMemorySessionRepository(),
             new InMemoryTicketJobStore(),
             new RecordingTicketGenerationWorker());
 
@@ -84,7 +82,7 @@ class TicketServiceTest {
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     TicketService service =
         serviceWith(
-            new InMemorySessionCache(session), new InMemoryTicketJobStore(pendingJob), worker);
+            new InMemorySessionRepository(session), new InMemoryTicketJobStore(pendingJob), worker);
 
     TicketJob job = service.submit(session.getSessionId());
 
@@ -99,7 +97,9 @@ class TicketServiceTest {
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     TicketService service =
         serviceWith(
-            new InMemorySessionCache(session), new InMemoryTicketJobStore(completedJob), worker);
+            new InMemorySessionRepository(session),
+            new InMemoryTicketJobStore(completedJob),
+            worker);
 
     TicketJob job = service.submit(session.getSessionId());
 
@@ -114,7 +114,7 @@ class TicketServiceTest {
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     TicketService service =
         serviceWith(
-            new InMemorySessionCache(session), new InMemoryTicketJobStore(failedJob), worker);
+            new InMemorySessionRepository(session), new InMemoryTicketJobStore(failedJob), worker);
 
     TicketJob job = service.submit(session.getSessionId());
 
@@ -128,7 +128,7 @@ class TicketServiceTest {
     RecordingTicketGenerationWorker worker = new RecordingTicketGenerationWorker();
     worker.rejectNextDispatch();
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
-    TicketService service = serviceWith(new InMemorySessionCache(session), jobStore, worker);
+    TicketService service = serviceWith(new InMemorySessionRepository(session), jobStore, worker);
 
     TicketJob job = service.submit(session.getSessionId());
 
@@ -142,7 +142,7 @@ class TicketServiceTest {
     TicketJob completedJob = TicketJob.pending(session.getSessionId()).complete(samplePayload());
     TicketService service =
         serviceWith(
-            new InMemorySessionCache(session),
+            new InMemorySessionRepository(session),
             new InMemoryTicketJobStore(completedJob),
             new RecordingTicketGenerationWorker());
 
@@ -155,7 +155,7 @@ class TicketServiceTest {
   void getThrowsTicketJobNotFoundWhenNoJobStored() {
     TicketService service =
         serviceWith(
-            new InMemorySessionCache(),
+            new InMemorySessionRepository(),
             new InMemoryTicketJobStore(),
             new RecordingTicketGenerationWorker());
 
@@ -167,8 +167,8 @@ class TicketServiceTest {
 
   private ClientSession finishedSession() {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(1, FIRST_OPPONENT_LINE);
-    session.recordTurn("마지막 답변", true, "잘하셨습니다.", false);
+    session.startSimulation(1);
+    session.advanceTurn();
     return session;
   }
 
@@ -188,9 +188,9 @@ class TicketServiceTest {
   }
 
   private TicketService serviceWith(
-      InMemorySessionCache sessionCache,
+      InMemorySessionRepository sessionRepository,
       InMemoryTicketJobStore jobStore,
       RecordingTicketGenerationWorker worker) {
-    return new TicketService(new SessionReader(sessionCache), jobStore, worker);
+    return new TicketService(new SessionReader(sessionRepository), jobStore, worker);
   }
 }

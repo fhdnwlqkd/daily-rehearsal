@@ -2,7 +2,7 @@ package com.rehearsal.api.session.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionStatus;
@@ -19,14 +19,14 @@ class VideoUploadWorkerTest {
   void completesSessionUploadStatusOnStorageSuccess() throws Exception {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_PLAYING);
     session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     Path tempFile = Files.createTempFile("video-upload-test-", ".tmp");
     Files.write(tempFile, "video-bytes".getBytes());
-    VideoUploadWorker worker = workerWith(sessionCache, false);
+    VideoUploadWorker worker = workerWith(sessionRepository, false);
 
     worker.uploadAsync(session.getSessionId(), tempFile, "recording.webm", "video/webm");
 
-    ClientSession saved = sessionCache.findById(session.getSessionId()).orElseThrow();
+    ClientSession saved = sessionRepository.findSession(session.getSessionId()).orElseThrow();
     assertThat(saved.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.COMPLETED);
     assertThat(Files.exists(tempFile)).isFalse();
   }
@@ -35,21 +35,22 @@ class VideoUploadWorkerTest {
   void marksSessionFailedWhenStorageUploadThrows() throws Exception {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_PLAYING);
     session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     Path tempFile = Files.createTempFile("video-upload-test-", ".tmp");
     Files.write(tempFile, "video-bytes".getBytes());
-    VideoUploadWorker worker = workerWith(sessionCache, true);
+    VideoUploadWorker worker = workerWith(sessionRepository, true);
 
     worker.uploadAsync(session.getSessionId(), tempFile, "recording.webm", "video/webm");
 
-    ClientSession saved = sessionCache.findById(session.getSessionId()).orElseThrow();
+    ClientSession saved = sessionRepository.findSession(session.getSessionId()).orElseThrow();
     assertThat(saved.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.FAILED);
     assertThat(saved.getVideoUploadFailureReason()).isEqualTo("disk full");
     assertThat(Files.exists(tempFile)).isFalse();
   }
 
-  private VideoUploadWorker workerWith(InMemorySessionCache sessionCache, boolean shouldFail) {
-    SessionReader sessionReader = new SessionReader(sessionCache);
+  private VideoUploadWorker workerWith(
+      InMemorySessionRepository sessionRepository, boolean shouldFail) {
+    SessionReader sessionReader = new SessionReader(sessionRepository);
     VideoStoragePort videoStoragePort =
         new VideoStoragePort() {
           @Override
@@ -65,6 +66,6 @@ class VideoUploadWorkerTest {
             }
           }
         };
-    return new VideoUploadWorker(sessionReader, sessionCache, videoStoragePort);
+    return new VideoUploadWorker(sessionReader, sessionRepository, videoStoragePort);
   }
 }

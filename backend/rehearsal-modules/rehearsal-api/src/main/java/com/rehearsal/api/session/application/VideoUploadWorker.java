@@ -2,9 +2,9 @@ package com.rehearsal.api.session.application;
 
 import com.rehearsal.api.config.async.AsyncConfig;
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.port.VideoStoragePort;
+import com.rehearsal.domain.session.repository.SessionRepository;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -23,7 +23,7 @@ public class VideoUploadWorker {
   private static final Logger log = LoggerFactory.getLogger(VideoUploadWorker.class);
 
   private final SessionReader sessionReader;
-  private final SessionCache sessionCache;
+  private final SessionRepository sessionRepository;
   private final VideoStoragePort videoStoragePort;
 
   @Async(AsyncConfig.VIDEO_UPLOAD_EXECUTOR)
@@ -36,14 +36,14 @@ public class VideoUploadWorker {
 
       ClientSession session = sessionReader.get(sessionId);
       session.completeVideoUpload();
-      sessionCache.save(session);
+      sessionRepository.saveSession(session);
     } catch (Exception exception) {
       // 업로드 실패는 세션을 죽이는 사유가 아니라 상태(FAILED)로 흡수한다 — 이후 티켓 발급 쪽에서
       // "영상 없이 발급" 또는 "재업로드 안내"를 판단할 수 있도록.
       log.error("Video upload failed for session {}", sessionId, exception);
       ClientSession session = sessionReader.get(sessionId);
       session.failVideoUpload(exception.getMessage());
-      sessionCache.save(session);
+      sessionRepository.saveSession(session);
     } finally {
       deleteQuietly(tempFile);
     }

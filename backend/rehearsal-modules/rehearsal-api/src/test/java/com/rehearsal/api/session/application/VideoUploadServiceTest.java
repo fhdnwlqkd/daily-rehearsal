@@ -2,7 +2,7 @@ package com.rehearsal.api.session.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.RecordingVideoUploadWorker;
 import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.session.model.ClientSession;
@@ -18,7 +18,7 @@ class VideoUploadServiceTest {
   @Test
   void assignsVideoUrlImmediatelyAndDispatchesAsyncUploadWithoutWaiting() {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_PLAYING);
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     RecordingVideoUploadWorker worker = new RecordingVideoUploadWorker();
     VideoStoragePort videoStoragePort =
         new VideoStoragePort() {
@@ -36,7 +36,7 @@ class VideoUploadServiceTest {
         };
     VideoUploadService service =
         new VideoUploadService(
-            new SessionReader(sessionCache), sessionCache, videoStoragePort, worker);
+            new SessionReader(sessionRepository), sessionRepository, videoStoragePort, worker);
 
     ClientSession result =
         service.upload(
@@ -48,7 +48,11 @@ class VideoUploadServiceTest {
     assertThat(result.getVideoUrl())
         .isEqualTo("http://localhost/mock-videos/" + session.getSessionId() + ".webm");
     assertThat(result.getVideoUploadStatus()).isEqualTo(VideoUploadStatus.PENDING);
-    assertThat(sessionCache.findById(session.getSessionId()).orElseThrow().getVideoUploadStatus())
+    assertThat(
+            sessionRepository
+                .findSession(session.getSessionId())
+                .orElseThrow()
+                .getVideoUploadStatus())
         .isEqualTo(VideoUploadStatus.PENDING);
     assertThat(worker.invocationCount()).isEqualTo(1);
     assertThat(worker.lastTempFile()).isNotNull();

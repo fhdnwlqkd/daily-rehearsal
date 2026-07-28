@@ -1,9 +1,9 @@
 package com.rehearsal.api.session.application;
 
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.session.cache.SessionCache;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.port.VideoStoragePort;
+import com.rehearsal.domain.session.repository.SessionRepository;
 import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 public class VideoUploadService implements UploadSessionVideoUseCase {
 
   private final SessionReader sessionReader;
-  private final SessionCache sessionCache;
+  private final SessionRepository sessionRepository;
   private final VideoStoragePort videoStoragePort;
   private final VideoUploadWorker videoUploadWorker;
 
@@ -35,7 +35,7 @@ public class VideoUploadService implements UploadSessionVideoUseCase {
     String videoUrl = videoStoragePort.resolvePublicUrl(sessionId, originalFilename);
 
     session.assignVideoUrl(videoUrl);
-    sessionCache.save(session);
+    sessionRepository.saveSession(session);
 
     videoUploadWorker.uploadAsync(sessionId, tempFile, originalFilename, contentType);
 

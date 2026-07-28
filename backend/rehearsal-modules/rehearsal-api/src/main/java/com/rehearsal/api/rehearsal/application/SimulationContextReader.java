@@ -4,6 +4,7 @@ import com.rehearsal.domain.rehearsal.model.ConversationHistory;
 import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.repository.SessionRepository;
@@ -41,6 +42,22 @@ public class SimulationContextReader {
                           turn.getTurnNo(), turn.getOpponentLine(), attempt.getUserTranscript())));
     }
     return List.copyOf(history);
+  }
+
+  public List<TurnEvaluation> evaluations(String sessionId) {
+    List<TurnEvaluation> evaluations = new ArrayList<>();
+    for (SimulationTurn turn : sessionRepository.findTurns(sessionId)) {
+      latestSuccessfulAttempt(turn)
+          .ifPresent(
+              attempt ->
+                  evaluations.add(
+                      new TurnEvaluation(
+                          turn.getTurnNo(),
+                          attempt.getSuccess(),
+                          attempt.getFeedback(),
+                          attempt.getFallback())));
+    }
+    return List.copyOf(evaluations);
   }
 
   private java.util.Optional<SimulationTurnAttempt> latestSuccessfulAttempt(SimulationTurn turn) {

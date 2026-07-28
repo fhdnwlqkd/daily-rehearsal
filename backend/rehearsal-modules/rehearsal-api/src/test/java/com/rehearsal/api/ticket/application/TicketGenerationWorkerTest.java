@@ -3,8 +3,9 @@ package com.rehearsal.api.ticket.application;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rehearsal.api.config.ticket.TicketProperties;
+import com.rehearsal.api.rehearsal.application.SimulationContextReader;
 import com.rehearsal.api.session.application.SessionReader;
-import com.rehearsal.api.support.InMemorySessionCache;
+import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.InMemoryTicketJobStore;
 import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.session.model.ClientSession;
@@ -18,7 +19,6 @@ import org.junit.jupiter.api.Test;
 
 class TicketGenerationWorkerTest {
 
-  private static final String FIRST_OPPONENT_LINE = "오는 길 괜찮으셨어요?";
   private static final String FALLBACK_DOWNLOAD_URL =
       "http://localhost:8080/mock-videos/unavailable.webm";
 
@@ -27,11 +27,11 @@ class TicketGenerationWorkerTest {
     ClientSession session = finishedSession();
     session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
     session.completeVideoUpload();
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
         workerWith(
-            sessionCache, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+            sessionRepository, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
 
     worker.generateAsync(session.getSessionId());
 
@@ -51,11 +51,11 @@ class TicketGenerationWorkerTest {
   @Test
   void completesJobWithCopyFallbackWhenAiCallFails() {
     ClientSession session = finishedSession();
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
         workerWith(
-            sessionCache,
+            sessionRepository,
             jobStore,
             command -> {
               throw new IllegalStateException("Gemini timeout");
@@ -74,11 +74,11 @@ class TicketGenerationWorkerTest {
   @Test
   void fallsBackDownloadUrlWhenVideoUploadIsNotCompleted() {
     ClientSession session = finishedSession();
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
         workerWith(
-            sessionCache, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+            sessionRepository, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
 
     worker.generateAsync(session.getSessionId());
 
@@ -93,7 +93,7 @@ class TicketGenerationWorkerTest {
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
         workerWith(
-            new InMemorySessionCache(),
+            new InMemorySessionRepository(),
             jobStore,
             command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
 
@@ -108,12 +108,12 @@ class TicketGenerationWorkerTest {
   void marksJobFailedWhenSimulationIsNotActuallyCompleted() {
     // AI 카피 생성까지는 성공하지만 completeSimulation()에서 검증에 실패하는 경우를 재현한다.
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(3, FIRST_OPPONENT_LINE);
-    InMemorySessionCache sessionCache = new InMemorySessionCache(session);
+    session.startSimulation(3);
+    InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
         workerWith(
-            sessionCache, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+            sessionRepository, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
 
     worker.generateAsync(session.getSessionId());
 
@@ -122,20 +122,27 @@ class TicketGenerationWorkerTest {
   }
 
   private TicketGenerationWorker workerWith(
-      InMemorySessionCache sessionCache,
+      InMemorySessionRepository sessionRepository,
       InMemoryTicketJobStore jobStore,
       TicketCopyGeneratorClient ticketCopyGeneratorClient) {
-    SessionReader sessionReader = new SessionReader(sessionCache);
+    SessionReader sessionReader = new SessionReader(sessionRepository);
+    SimulationContextReader simulationContextReader =
+        new SimulationContextReader(sessionRepository);
     TicketProperties ticketProperties = new TicketProperties();
     ticketProperties.setDownloadFallbackUrl(FALLBACK_DOWNLOAD_URL);
     return new TicketGenerationWorker(
-        sessionReader, sessionCache, ticketCopyGeneratorClient, jobStore, ticketProperties);
+        sessionReader,
+        sessionRepository,
+        simulationContextReader,
+        ticketCopyGeneratorClient,
+        jobStore,
+        ticketProperties);
   }
 
   private ClientSession finishedSession() {
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_READY);
-    session.startSimulation(1, FIRST_OPPONENT_LINE);
-    session.recordTurn("마지막 답변", true, "잘하셨습니다.", false);
+    session.startSimulation(1);
+    session.advanceTurn();
     return session;
   }
 }

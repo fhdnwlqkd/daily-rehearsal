@@ -2,13 +2,16 @@ package com.rehearsal.api.ticket.application;
 
 import com.rehearsal.api.config.async.AsyncConfig;
 import com.rehearsal.api.config.ticket.TicketProperties;
+import com.rehearsal.api.rehearsal.application.SimulationContextReader;
 import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.session.cache.SessionCache;
+import com.rehearsal.domain.rehearsal.model.ConversationHistory;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.VideoUploadStatus;
+import com.rehearsal.domain.session.repository.SessionRepository;
 import com.rehearsal.domain.ticket.model.TicketCopyRawResult;
 import com.rehearsal.domain.ticket.model.TicketCopyResult;
 import com.rehearsal.domain.ticket.model.TicketGenerationCommand;
@@ -18,6 +21,7 @@ import com.rehearsal.domain.ticket.port.TicketCopyGeneratorClient;
 import com.rehearsal.domain.ticket.port.TicketJobStore;
 import com.rehearsal.domain.ticket.registry.TicketCopyDefinition;
 import com.rehearsal.domain.ticket.registry.TicketCopyRegistry;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,7 +36,8 @@ public class TicketGenerationWorker {
   private static final Logger log = LoggerFactory.getLogger(TicketGenerationWorker.class);
 
   private final SessionReader sessionReader;
-  private final SessionCache sessionCache;
+  private final SessionRepository sessionRepository;
+  private final SimulationContextReader simulationContextReader;
   private final TicketCopyGeneratorClient ticketCopyGeneratorClient;
   private final TicketJobStore ticketJobStore;
   private final TicketProperties ticketProperties;
@@ -42,12 +47,15 @@ public class TicketGenerationWorker {
     try {
       // 제출 시점 이후 시간이 지났을 수 있으므로 세션을 다시 조회한다.
       ClientSession session = sessionReader.get(sessionId);
-      TicketCopyResult copy = generateCopy(session);
+      List<ConversationHistory> conversationHistory =
+          simulationContextReader.history(sessionId, Integer.MAX_VALUE);
+      List<TurnEvaluation> turnEvaluations = simulationContextReader.evaluations(sessionId);
+      TicketCopyResult copy = generateCopy(session, conversationHistory, turnEvaluations);
 
       session.completeSimulation();
-      sessionCache.save(session);
+      sessionRepository.saveSession(session);
 
-      TicketPayload payload = buildPayload(session, copy);
+      TicketPayload payload = buildPayload(session, copy, conversationHistory, turnEvaluations);
       ticketJobStore.save(TicketJob.pending(sessionId).complete(payload));
     } catch (RuntimeException exception) {
       // 세션 소실/상태 불일치/Redis 장애 등, 아래 generateCopy()의 AI 호출 실패 fallback으로 흡수되지 않는
@@ -59,14 +67,17 @@ public class TicketGenerationWorker {
     }
   }
 
-  private TicketCopyResult generateCopy(ClientSession session) {
+  private TicketCopyResult generateCopy(
+      ClientSession session,
+      List<ConversationHistory> conversationHistory,
+      List<TurnEvaluation> turnEvaluations) {
     TicketGenerationCommand command =
         new TicketGenerationCommand(
             session.getSituationType(),
-            session.getFinalContext().valuesWithSituationType(),
+            simulationContextReader.context(session),
             session.getSelectedOutfitId(),
-            session.getConversationHistory(),
-            session.getTurnEvaluations());
+            conversationHistory,
+            turnEvaluations);
 
     try {
       TicketCopyRawResult raw = ticketCopyGeneratorClient.generate(command);
@@ -84,7 +95,11 @@ public class TicketGenerationWorker {
         .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
   }
 
-  private TicketPayload buildPayload(ClientSession session, TicketCopyResult copy) {
+  private TicketPayload buildPayload(
+      ClientSession session,
+      TicketCopyResult copy,
+      List<ConversationHistory> conversationHistory,
+      List<TurnEvaluation> turnEvaluations) {
     boolean videoAvailable = session.getVideoUploadStatus() == VideoUploadStatus.COMPLETED;
     String downloadUrl =
         videoAvailable ? session.getVideoUrl() : ticketProperties.getDownloadFallbackUrl();
@@ -95,8 +110,8 @@ public class TicketGenerationWorker {
         copy.fallback(),
         session.getSituationType(),
         session.getSelectedOutfitId(),
-        session.getConversationHistory(),
-        session.getTurnEvaluations(),
+        conversationHistory,
+        turnEvaluations,
         session.getVideoUrl(),
         videoAvailable,
         downloadUrl,
