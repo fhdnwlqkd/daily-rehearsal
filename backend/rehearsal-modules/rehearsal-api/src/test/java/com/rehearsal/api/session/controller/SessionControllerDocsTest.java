@@ -298,9 +298,7 @@ class SessionControllerDocsTest {
                 preprocessResponse(prettyPrint()),
                 requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
                 pathParameters(parameterWithName("sessionId").description("Session ID")),
-                requestFields(
-                    fieldWithPath("selectedOutfitId").description("사용자가 확정한 옷 후보 ID")),
-                relaxedResponseFields(
-                    fieldWithPath("data.sessionId").description("세션 ID"))));
+                requestFields(fieldWithPath("selectedOutfitId").description("사용자가 확정한 옷 후보 ID")),
+                relaxedResponseFields(fieldWithPath("data.sessionId").description("세션 ID"))));
   }
 }
