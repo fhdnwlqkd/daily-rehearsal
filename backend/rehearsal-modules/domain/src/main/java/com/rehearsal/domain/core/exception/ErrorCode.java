@@ -21,7 +21,10 @@ public enum ErrorCode {
   TURN_EVALUATION_JOB_NOT_FOUND("S005", "Turn evaluation job not found.", HttpStatus.NOT_FOUND),
   NEXT_LINE_JOB_NOT_FOUND("S006", "Next opponent line job not found.", HttpStatus.NOT_FOUND),
   CONTEXT_EXTRACTION_JOB_NOT_FOUND(
-      "S007", "Context extraction job not found.", HttpStatus.NOT_FOUND);
+      "S007", "Context extraction job not found.", HttpStatus.NOT_FOUND),
+  VIDEO_FILE_EMPTY("S008", "Uploaded video file is empty.", HttpStatus.BAD_REQUEST),
+  SIMULATION_NOT_COMPLETED("S009", "Simulation is not completed yet.", HttpStatus.CONFLICT),
+  TICKET_JOB_NOT_FOUND("S010", "Ticket generation job not found.", HttpStatus.NOT_FOUND);
 
   private final String code;
   private final String message;

@@ -7,6 +7,9 @@ import com.rehearsal.api.config.decart.DecartProperties;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
 import com.rehearsal.domain.decart.model.DecartSpec;
+import com.rehearsal.domain.decart.model.OutfitCandidate;
+import com.rehearsal.domain.situation.model.SituationType;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class OutfitSpecResolverTest {
@@ -36,6 +39,82 @@ class OutfitSpecResolverTest {
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.NOT_FOUND);
+  }
+
+  @Test
+  void resolvesCandidatesFilteredBySituationTypeAndOutfitDirection() {
+    DecartProperties properties = new DecartProperties();
+    properties
+        .getOutfits()
+        .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
+    properties
+        .getOutfits()
+        .put("business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", true));
+    OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
+
+    List<OutfitCandidate> candidates =
+        resolver.resolveCandidates(SituationType.BUSINESS_MEETING, "formal_clean");
+
+    assertThat(candidates).extracting(OutfitCandidate::outfitId).containsExactly("business_formal");
+    assertThat(candidates.get(0).defaultOutfit()).isTrue();
+  }
+
+  @Test
+  void fallsBackToSituationTypeMatchesWhenNoOutfitDirectionMatches() {
+    DecartProperties properties = new DecartProperties();
+    properties
+        .getOutfits()
+        .put(
+            "business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", false));
+    OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
+
+    List<OutfitCandidate> candidates =
+        resolver.resolveCandidates(SituationType.BUSINESS_MEETING, "soft_friendly");
+
+    assertThat(candidates).extracting(OutfitCandidate::outfitId).containsExactly("business_formal");
+  }
+
+  @Test
+  void marksFirstCandidateAsDefaultWhenNoneExplicitlyMarked() {
+    DecartProperties properties = new DecartProperties();
+    properties
+        .getOutfits()
+        .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
+    properties
+        .getOutfits()
+        .put("date_soft", outfit("소프트룩", SituationType.DATE, "soft_friendly", false));
+    OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
+
+    List<OutfitCandidate> candidates = resolver.resolveCandidates(SituationType.DATE, null);
+
+    assertThat(candidates).hasSize(2);
+    assertThat(candidates.get(0).defaultOutfit()).isTrue();
+    assertThat(candidates.get(1).defaultOutfit()).isFalse();
+  }
+
+  @Test
+  void throwsNotFoundWhenNoOutfitMatchesSituationType() {
+    DecartProperties properties = new DecartProperties();
+    properties
+        .getOutfits()
+        .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
+    OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
+
+    assertThatThrownBy(() -> resolver.resolveCandidates(SituationType.BUSINESS_MEETING, null))
+        .isInstanceOf(BusinessException.class)
+        .extracting(e -> ((BusinessException) e).getErrorCode())
+        .isEqualTo(ErrorCode.NOT_FOUND);
+  }
+
+  private DecartProperties.OutfitSpec outfit(
+      String label, SituationType situationType, String outfitDirection, boolean defaultOutfit) {
+    DecartProperties.OutfitSpec outfitSpec = new DecartProperties.OutfitSpec();
+    outfitSpec.setLabel(label);
+    outfitSpec.setThumbnailUrl("https://asset-store/thumbnails/" + label + ".png");
+    outfitSpec.setSituationTypes(List.of(situationType));
+    outfitSpec.setOutfitDirection(outfitDirection);
+    outfitSpec.setDefaultOutfit(defaultOutfit);
+    return outfitSpec;
   }
 
   private OutfitSpecResolver resolverWithOutfit(String outfitId) {

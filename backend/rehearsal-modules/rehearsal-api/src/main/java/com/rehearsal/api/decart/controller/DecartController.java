@@ -1,11 +1,14 @@
 package com.rehearsal.api.decart.controller;
 
 import com.rehearsal.api.decart.controller.dto.DecartTokenResponse;
+import com.rehearsal.api.decart.controller.dto.OutfitCandidateResponse;
 import com.rehearsal.api.decart.controller.dto.OutfitSpecResponse;
 import com.rehearsal.domain.decart.model.DecartSpec;
+import com.rehearsal.domain.decart.usecase.GetOutfitCandidatesUseCase;
 import com.rehearsal.domain.decart.usecase.GetOutfitSpecUseCase;
 import com.rehearsal.domain.decart.usecase.IssueDecartTokenUseCase;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +26,7 @@ public class DecartController {
 
   private final IssueDecartTokenUseCase issueDecartTokenUseCase;
   private final GetOutfitSpecUseCase getOutfitSpecUseCase;
+  private final GetOutfitCandidatesUseCase getOutfitCandidatesUseCase;
 
   @PostMapping("/{sessionId}/decart-token")
   public DecartTokenResponse issueToken(@PathVariable @NotBlank String sessionId) {
@@ -35,5 +39,13 @@ public class DecartController {
       @PathVariable @NotBlank String sessionId, @RequestParam @NotBlank String outfitId) {
     DecartSpec spec = getOutfitSpecUseCase.getOutfitSpec(sessionId, outfitId);
     return OutfitSpecResponse.from(spec);
+  }
+
+  @GetMapping("/{sessionId}/outfits")
+  public List<OutfitCandidateResponse> getOutfitCandidates(
+      @PathVariable @NotBlank String sessionId) {
+    return getOutfitCandidatesUseCase.getOutfitCandidates(sessionId).stream()
+        .map(OutfitCandidateResponse::from)
+        .toList();
   }
 }

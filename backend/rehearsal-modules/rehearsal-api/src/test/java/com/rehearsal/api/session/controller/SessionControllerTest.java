@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -19,6 +20,7 @@ import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -42,6 +45,7 @@ class SessionControllerTest {
   @MockitoBean private UpdateClientSessionUseCase updateClientSessionUseCase;
   @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
   @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
+  @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
 
   @Test
   void createSession() throws Exception {
@@ -116,6 +120,36 @@ class SessionControllerTest {
         .andExpect(jsonPath("$.data.selectedOutfitId").doesNotExist());
   }
 
+  @Test
+  void uploadVideo() throws Exception {
+    ClientSession session = rehearsalReadySession();
+    session.assignVideoUrl("http://localhost/mock-videos/" + SESSION_ID + ".webm");
+    given(uploadSessionVideoUseCase.upload(anyString(), any(), anyString(), anyString()))
+        .willReturn(session);
+
+    mockMvc
+        .perform(
+            multipart("/api/v1/sessions/{sessionId}/video", SESSION_ID)
+                .file(
+                    new MockMultipartFile(
+                        "file", "recording.webm", "video/webm", "video-bytes".getBytes())))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
+        .andExpect(jsonPath("$.data.videoUrl").isString())
+        .andExpect(jsonPath("$.data.status").value("PENDING"));
+  }
+
+  @Test
+  void uploadVideoWhenFileIsEmpty() throws Exception {
+    mockMvc
+        .perform(
+            multipart("/api/v1/sessions/{sessionId}/video", SESSION_ID)
+                .file(new MockMultipartFile("file", "recording.webm", "video/webm", new byte[0])))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.success").value(false))
+        .andExpect(jsonPath("$.error.code").value("S008"));
+  }
+
   private ClientSession extractingSession() {
     ClientSession session =
         ClientSession.builder()
@@ -126,5 +160,15 @@ class SessionControllerTest {
             .build();
     session.startContextExtraction();
     return session;
+  }
+
+  private ClientSession rehearsalReadySession() {
+    return ClientSession.builder()
+        .sessionId(SESSION_ID)
+        .situationType(SituationType.DATE)
+        .status(com.rehearsal.domain.session.model.SessionStatus.REHEARSAL_READY)
+        .contextStatus(ContextStatus.COMPLETED)
+        .selectedOutfitId("outfit-1")
+        .build();
   }
 }

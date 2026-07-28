@@ -14,6 +14,7 @@ import static org.springframework.restdocs.payload.PayloadDocumentation.requestF
 import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
 import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -29,6 +30,7 @@ import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
 import java.util.Map;
@@ -55,6 +57,7 @@ class SessionControllerDocsTest {
   @MockitoBean private UpdateClientSessionUseCase updateClientSessionUseCase;
   @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
   @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
+  @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
 
   @Test
   void createSession() throws Exception {
@@ -271,5 +274,33 @@ class SessionControllerDocsTest {
         .status(com.rehearsal.domain.session.model.SessionStatus.BRIEFING)
         .contextStatus(ContextStatus.NOT_STARTED)
         .build();
+  }
+
+  @Test
+  void confirmOutfit() throws Exception {
+    ClientSession session = ClientSession.create(SituationType.DATE);
+    given(
+            updateClientSessionUseCase.confirmOutfit(
+                session.getSessionId(), "presentation_jacket_01"))
+        .willReturn(session);
+
+    mockMvc
+        .perform(
+            patch("/api/v1/sessions/{sessionId}/outfit", session.getSessionId())
+                .header("X-API-KEY", API_KEY)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"selectedOutfitId\":\"presentation_jacket_01\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.sessionId").value(session.getSessionId()))
+        .andDo(
+            document(
+                "outfit-confirm",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                requestFields(fieldWithPath("selectedOutfitId").description("사용자가 확정한 옷 후보 ID")),
+                relaxedResponseFields(fieldWithPath("data.sessionId").description("세션 ID"))));
   }
 }

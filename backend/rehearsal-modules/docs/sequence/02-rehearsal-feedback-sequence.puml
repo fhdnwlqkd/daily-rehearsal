@@ -21,22 +21,25 @@ Decart WebRTC track이 MediaRecorder로 녹화 가능한지 최우선 검증이 
 시뮬레이션은 턴마다 1차 JSON 판정/피드백, 2차 SSE 상대 발화로 분리한다.
 end note
 
-== 1. 옷 목록과 Decart URI 준비 ==
+== 1. 옷 후보 조회와 Decart 연결 준비 ==
 
 web -> api: GET /api/v1/sessions/{sessionId}/outfits
-api -> sessionStore: finalContext 조회
-sessionStore --> api: situationType + context
-api -> staticConfig: 타입/context 기반 outfit enum 조회
-staticConfig --> api: outfitId/thumbnail/decartParams
-api --> web: outfit list\n첫 번째 옷 default
+api -> sessionStore: situationType + outfit_direction 조회
+sessionStore --> api: situationType + outfit_direction
+api -> staticConfig: situationType/outfitDirection 기준 outfit 필터링
+staticConfig --> api: 매칭되는 outfit 목록
+api --> web: outfit list(outfitId/label/thumbnailUrl/defaultOutfit)
 
-web -> api: POST /api/v1/sessions/{sessionId}/decart-uri\noutfitId=default
-api -> staticConfig: outfit decart parameter 조회
-staticConfig --> api: prompt/reference/style params
-api -> api: Decart URI 빌드
-api --> web: decartUri
+web -> api: POST /api/v1/sessions/{sessionId}/decart-token
+api -> api: 세션 상태 검증(TRANSFORMATION_READY)
+api --> web: clientToken\n(세션당 한 번 발급, outfit 변경마다 재발급하지 않음)
 
-web -> decart: WebRTC 직접 연결\ndecartUri
+web -> api: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId=default
+api -> staticConfig: outfit 스펙(prompt/referenceImageUrl/enhance) 조회
+staticConfig --> api: outfit spec
+api --> web: model/prompt/referenceImageUrl/enhance
+
+web -> decart: WebRTC 직접 연결\nclientToken + outfit spec
 decart --> web: default outfit video track
 web --> user: 첫 번째 옷을 입은 모습 표시
 web -> recorder: 녹화 시작\nDecart/camera/audio capture
@@ -49,10 +52,9 @@ loop 의상 확정 전
     gesture --> web: NEXT/PREV/CONFIRM
 
     alt NEXT/PREV
-        web -> api: POST /api/v1/sessions/{sessionId}/decart-uri\noutfitId
-        api -> api: 새 Decart URI 빌드
-        api --> web: decartUri
-        web -> decart: URI 또는 track 갱신
+        web -> api: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId
+        api --> web: outfit spec(순수 조회, 세션 상태 변경 없음)
+        web -> decart: outfit spec으로 track 갱신
         decart --> web: updated outfit track
         web --> user: 변경된 모습 표시
     else CONFIRM

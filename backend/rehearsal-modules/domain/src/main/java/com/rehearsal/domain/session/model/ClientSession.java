@@ -20,6 +20,9 @@ public class ClientSession {
   private String selectedOutfitId;
   private int currentTurn;
   private int maxTurn;
+  private String videoUrl;
+  private VideoUploadStatus videoUploadStatus;
+  private String videoUploadFailureReason;
 
   @Builder
   private ClientSession(
@@ -30,7 +33,10 @@ public class ClientSession {
       int followUpAttempt,
       String selectedOutfitId,
       int currentTurn,
-      int maxTurn) {
+      int maxTurn,
+      String videoUrl,
+      VideoUploadStatus videoUploadStatus,
+      String videoUploadFailureReason) {
     this.sessionId = sessionId;
     this.situationType = situationType;
     this.status = status;
@@ -39,6 +45,9 @@ public class ClientSession {
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
     this.maxTurn = maxTurn;
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = videoUploadStatus == null ? VideoUploadStatus.NONE : videoUploadStatus;
+    this.videoUploadFailureReason = videoUploadFailureReason;
   }
 
   public static ClientSession create(SituationType situationType) {
@@ -86,11 +95,6 @@ public class ClientSession {
     this.contextStatus = ContextStatus.FAILED;
   }
 
-  public void selectOutfit(String selectedOutfitId) {
-    validateStatus(SessionStatus.TRANSFORMATION_READY);
-    this.selectedOutfitId = selectedOutfitId;
-  }
-
   public void confirmOutfit(String selectedOutfitId) {
     validateStatus(SessionStatus.TRANSFORMATION_READY);
     validateContextCompleted();
@@ -109,6 +113,27 @@ public class ClientSession {
     validateStatus(SessionStatus.REHEARSAL_PLAYING);
     validateTurnLimit();
     this.currentTurn++;
+  }
+
+  public void completeSimulation() {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    validateSimulationCompleted();
+    this.status = SessionStatus.COMPLETED;
+  }
+
+  public void assignVideoUrl(String videoUrl) {
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = VideoUploadStatus.PENDING;
+    this.videoUploadFailureReason = null;
+  }
+
+  public void completeVideoUpload() {
+    this.videoUploadStatus = VideoUploadStatus.COMPLETED;
+  }
+
+  public void failVideoUpload(String reason) {
+    this.videoUploadStatus = VideoUploadStatus.FAILED;
+    this.videoUploadFailureReason = reason;
   }
 
   private void validateStatus(SessionStatus expected) {
@@ -141,6 +166,12 @@ public class ClientSession {
   private void validateContextCompleted() {
     if (contextStatus != ContextStatus.COMPLETED) {
       throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateSimulationCompleted() {
+    if (currentTurn <= maxTurn) {
+      throw new BusinessException(ErrorCode.SIMULATION_NOT_COMPLETED);
     }
   }
 }

@@ -52,3 +52,12 @@ operation::context-poll-follow-up-required[snippets='http-request,request-header
 ==== COMPLETED
 
 operation::context-poll-completed[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Outfit-Confirm]]
+=== 2.5. 의상 확정
+
+`PATCH /api/v1/sessions/{sessionId}/outfit`
+
+선택한 옷 후보를 최종 확정합니다. 확정 시 세션 상태가 `REHEARSAL_READY`로 전이됩니다.
+
+operation::outfit-confirm[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
