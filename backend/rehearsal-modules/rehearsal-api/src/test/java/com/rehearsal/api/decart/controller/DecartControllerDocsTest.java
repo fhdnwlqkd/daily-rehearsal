@@ -1,10 +1,17 @@
 package com.rehearsal.api.decart.controller;
 
 import static org.mockito.BDDMockito.given;
+import static org.springframework.restdocs.headers.HeaderDocumentation.headerWithName;
+import static org.springframework.restdocs.headers.HeaderDocumentation.requestHeaders;
 import static org.springframework.restdocs.mockmvc.MockMvcRestDocumentation.document;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessRequest;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.preprocessResponse;
 import static org.springframework.restdocs.operation.preprocess.Preprocessors.prettyPrint;
+import static org.springframework.restdocs.payload.PayloadDocumentation.fieldWithPath;
+import static org.springframework.restdocs.payload.PayloadDocumentation.relaxedResponseFields;
+import static org.springframework.restdocs.request.RequestDocumentation.parameterWithName;
+import static org.springframework.restdocs.request.RequestDocumentation.pathParameters;
+import static org.springframework.restdocs.request.RequestDocumentation.queryParameters;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -31,6 +38,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @Import({GlobalExceptionHandler.class, ApiResponseBodyAdvice.class})
 class DecartControllerDocsTest {
 
+  private static final String API_KEY = "test-api-key";
   private static final String SESSION_ID = "session-id";
   private static final String OUTFIT_ID = "presentation_jacket_01";
 
@@ -45,7 +53,9 @@ class DecartControllerDocsTest {
     given(issueDecartTokenUseCase.issueDecartToken(SESSION_ID)).willReturn("test-client-token");
 
     mockMvc
-        .perform(post("/api/v1/sessions/{sessionId}/decart-token", SESSION_ID))
+        .perform(
+            post("/api/v1/sessions/{sessionId}/decart-token", SESSION_ID)
+                .header("X-API-KEY", API_KEY))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.clientToken").value("test-client-token"))
@@ -53,7 +63,12 @@ class DecartControllerDocsTest {
             document(
                 "decart-token-issue",
                 preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint())));
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data.clientToken")
+                        .description("Decart WebRTC 연결에 사용할 단기 client token"))));
   }
 
   @Test
@@ -65,7 +80,8 @@ class DecartControllerDocsTest {
                     OUTFIT_ID, "네이비 재킷", "https://asset-store/thumbnails/jacket_01.png", true)));
 
     mockMvc
-        .perform(get("/api/v1/sessions/{sessionId}/outfits", SESSION_ID))
+        .perform(
+            get("/api/v1/sessions/{sessionId}/outfits", SESSION_ID).header("X-API-KEY", API_KEY))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data[0].outfitId").value(OUTFIT_ID))
@@ -75,7 +91,14 @@ class DecartControllerDocsTest {
             document(
                 "outfits-list",
                 preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint())));
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data[].outfitId").description("옷 후보 ID"),
+                    fieldWithPath("data[].label").description("옷 표시 이름"),
+                    fieldWithPath("data[].thumbnailUrl").description("옷 썸네일 이미지 URL"),
+                    fieldWithPath("data[].defaultOutfit").description("기본 선택 옷 여부"))));
   }
 
   @Test
@@ -91,6 +114,7 @@ class DecartControllerDocsTest {
     mockMvc
         .perform(
             get("/api/v1/sessions/{sessionId}/outfit-spec", SESSION_ID)
+                .header("X-API-KEY", API_KEY)
                 .param("outfitId", OUTFIT_ID))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
@@ -100,6 +124,14 @@ class DecartControllerDocsTest {
             document(
                 "outfit-spec-get",
                 preprocessRequest(prettyPrint()),
-                preprocessResponse(prettyPrint())));
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("Session ID")),
+                queryParameters(parameterWithName("outfitId").description("옷 후보 ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data.model").description("Decart VTON 모델 이름"),
+                    fieldWithPath("data.prompt").description("Decart VTON에 전달할 프롬프트"),
+                    fieldWithPath("data.referenceImageUrl").description("참조 옷 이미지 URL"),
+                    fieldWithPath("data.enhance").description("이미지 향상 옵션 적용 여부"))));
   }
 }

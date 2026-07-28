@@ -1,11 +1,11 @@
 [[Simulation-API]]
-== 3. 시뮬레이션 API
+== 4. 시뮬레이션 API
 
 시뮬레이션은 context 수집과 의상 확정이 완료된 세션에서만 시작할 수 있습니다.
 모든 요청에는 인증 항목에서 설명한 `X-API-KEY` 헤더가 필요합니다.
 
 [[Simulation-Start]]
-=== 3.1. 시뮬레이션 시작
+=== 4.1. 시뮬레이션 시작
 
 `POST /api/v1/sessions/{sessionId}/simulation/start`
 
@@ -14,7 +14,7 @@
 operation::simulation-start[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 
 [[Simulation-Submit-Evaluation]]
-=== 3.2. Turn 평가 제출
+=== 4.2. Turn 평가 제출
 
 `POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
 
@@ -23,7 +23,7 @@ operation::simulation-start[snippets='http-request,request-headers,path-paramete
 operation::simulation-submit-evaluation[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
 [[Simulation-Poll-Evaluation]]
-=== 3.3. Turn 평가 상태 조회
+=== 4.3. Turn 평가 상태 조회
 
 `GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
 
@@ -32,7 +32,7 @@ operation::simulation-submit-evaluation[snippets='http-request,request-headers,p
 operation::simulation-poll-evaluation[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 
 [[Simulation-Submit-Next-Line]]
-=== 3.4. 다음 상대 발화 요청
+=== 4.4. 다음 상대 발화 요청
 
 `POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
 
@@ -41,7 +41,7 @@ operation::simulation-poll-evaluation[snippets='http-request,request-headers,pat
 operation::simulation-submit-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 
 [[Simulation-Poll-Next-Line]]
-=== 3.5. 다음 상대 발화 상태 조회
+=== 4.5. 다음 상대 발화 상태 조회
 
 `GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
 
