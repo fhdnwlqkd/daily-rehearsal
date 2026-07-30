@@ -11,6 +11,21 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "rehearsal.video-storage")
 public class VideoStorageProperties {
 
+  private Provider provider = Provider.LOCAL;
   private String localRoot = "./data/videos";
   private String publicBaseUrl = "http://localhost:8080/mock-videos";
+  private S3 s3 = new S3();
+
+  public enum Provider {
+    LOCAL,
+    S3
+  }
+
+  @Getter
+  @Setter
+  public static class S3 {
+
+    private String bucket = "";
+    private String region = "";
+  }
 }

@@ -18,3 +18,11 @@ spring:
     redis:
       host: ${REDIS_HOST:redis}
       port: ${REDIS_PORT:6379}
+
+rehearsal:
+  video-storage:
+    provider: s3
+    public-base-url: ${VIDEO_STORAGE_PUBLIC_BASE_URL}
+    s3:
+      bucket: ${VIDEO_STORAGE_BUCKET}
+      region: ${AWS_REGION}

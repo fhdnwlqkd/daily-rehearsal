@@ -18,6 +18,7 @@ dependencies {
     implementation project(':datasource:client-gemini')
     implementation project(':datasource:client-decart')
     implementation project(':datasource:storage-local')
+    implementation project(':datasource:storage-s3')
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
