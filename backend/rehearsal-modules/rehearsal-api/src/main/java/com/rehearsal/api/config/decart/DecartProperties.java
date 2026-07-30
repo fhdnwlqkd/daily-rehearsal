@@ -17,7 +17,7 @@ public class DecartProperties {
 
   private String apiKey = "";
   private String model = "lucy-vton-latest";
-  private String tokenEndpoint = "https://api.decart.ai/v1/tokens";
+  private String tokenEndpoint = "https://api.decart.ai/v1/client/tokens";
   private Map<String, OutfitSpec> outfits = new LinkedHashMap<>();
 
   @Getter
