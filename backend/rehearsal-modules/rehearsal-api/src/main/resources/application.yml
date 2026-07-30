@@ -36,7 +36,7 @@ rehearsal:
   decart:
     api-key: ${DECART_API_KEY:}
     model: ${DECART_MODEL:lucy-vton-latest}
-    token-endpoint: ${DECART_TOKEN_ENDPOINT:https://api.decart.ai/v1/tokens}
+    token-endpoint: ${DECART_TOKEN_ENDPOINT:https://api.decart.ai/v1/client/tokens}
     outfits: {}
   video-storage:
     local-root: ${VIDEO_STORAGE_LOCAL_ROOT:./data/videos}

@@ -12,11 +12,13 @@ public class DecartWebTokenClient implements DecartTokenClient {
 
   private final WebClient webClient;
 
+  private static final String API_KEY_HEADER = "x-api-key";
+
   public static DecartWebTokenClient of(String apiKey, String tokenEndpoint) {
     WebClient webClient =
         WebClient.builder()
             .baseUrl(tokenEndpoint)
-            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+            .defaultHeader(API_KEY_HEADER, apiKey)
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .build();
     return new DecartWebTokenClient(webClient);
