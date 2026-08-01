@@ -1,6 +1,7 @@
 package com.rehearsal.api.config.storage;
 
 import com.rehearsal.datasource.storage.local.LocalVideoStorageAdapter;
+import com.rehearsal.datasource.storage.s3.S3VideoStorageAdapter;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.session.port.VideoStoragePort;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -14,6 +15,14 @@ public class VideoStorageConfiguration {
 
   @Bean
   public VideoStoragePort videoStoragePort(VideoStorageProperties properties) {
-    return new LocalVideoStorageAdapter(properties.getLocalRoot(), properties.getPublicBaseUrl());
+    return switch (properties.getProvider()) {
+      case LOCAL ->
+          new LocalVideoStorageAdapter(properties.getLocalRoot(), properties.getPublicBaseUrl());
+      case S3 ->
+          S3VideoStorageAdapter.create(
+              properties.getS3().getBucket(),
+              properties.getS3().getRegion(),
+              properties.getPublicBaseUrl());
+    };
   }
 }
