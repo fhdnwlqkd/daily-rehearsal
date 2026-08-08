@@ -7,16 +7,22 @@ import type {
   GetOutfitsResponse,
   GetSituationTypesResponse,
   IssueDecartTokenResponse,
+  NextLineResponse,
+  RequestNextLineResponse,
   SessionContextResponse,
+  SimulationStartResponse,
+  SubmitEvaluationResponse,
   SubmitTranscriptResponse,
+  TurnEvaluationResponse,
 } from "./types";
 
 /**
  * smart-mirror가 백엔드와 주고받는 API 호출 함수 모음.
  * 컴포넌트가 직접 부르지 않는다 — hooks/의 use-get-* 훅이 부른다.
  *
- * SSE 스트리밍(시뮬레이션 다음 발화)과 multipart 업로드(녹화 영상)는
- * apiFetch를 거치지 않고 이 파일 안에서 fetch를 직접 쓰는 함수로 추가한다.
+ * multipart 업로드(녹화 영상)는 apiFetch를 거치지 않고 이 파일 안에서
+ * fetch를 직접 쓰는 함수로 추가한다. (다음 발화 SSE는 기획 합의로 폐기 —
+ * 시뮬레이션도 브리핑과 같은 202+폴링이다.)
  */
 
 export function getSituationTypes() {
@@ -92,5 +98,61 @@ export function confirmOutfit(sessionId: string, selectedOutfitId: string) {
   return apiFetch<ConfirmOutfitResponse>(
     `/api/v1/sessions/${sessionId}/outfit`,
     { method: "PATCH", body: JSON.stringify({ selectedOutfitId }) },
+  );
+}
+
+// --- 시뮬레이션 (이슈 #68) ---
+// 판정·다음 발화는 202 접수 후 GET 폴링으로 결과를 받는 브리핑과 같은 패턴.
+// 모든 호출은 세션의 currentTurn과 turnNo가 일치해야 한다(아니면 409).
+
+/**
+ * 시뮬레이션 시작 — 동기 응답으로 첫 상대 발화까지 온다.
+ * REHEARSAL_READY(옷 확정 후)에서만, 세션당 한 번만 성공한다.
+ */
+export function startSimulation(sessionId: string) {
+  return apiFetch<SimulationStartResponse>(
+    `/api/v1/sessions/${sessionId}/simulation/start`,
+    { method: "POST" },
+  );
+}
+
+/**
+ * 턴 판정 제출 — 202 응답. 결과는 getTurnEvaluation 폴링으로 확인한다.
+ * 진행 중(PENDING)이거나 이미 끝난 시도가 있으면 새로 만들지 않고 그걸 돌려준다.
+ */
+export function submitTurnEvaluation(
+  sessionId: string,
+  turnNo: number,
+  transcript: string,
+) {
+  return apiFetch<SubmitEvaluationResponse>(
+    `/api/v1/sessions/${sessionId}/simulation/turns/${turnNo}/evaluation`,
+    { method: "POST", body: JSON.stringify({ transcript }) },
+  );
+}
+
+/** 턴 판정 상태 조회 — RDB만 읽는 저렴한 호출이라 폴링에 쓴다. */
+export function getTurnEvaluation(sessionId: string, turnNo: number) {
+  return apiFetch<TurnEvaluationResponse>(
+    `/api/v1/sessions/${sessionId}/simulation/turns/${turnNo}/evaluation`,
+  );
+}
+
+/**
+ * 다음 상대 발화 요청 — 202 응답. 결과는 getNextLine 폴링으로 확인한다.
+ * turnNo는 "다음" 턴 번호다(성공한 턴 + 1 — 프론트 계산). 진행 중이거나
+ * 완성된 턴이 있으면 그대로 돌려주고, FAILED 턴만 재생성한다.
+ */
+export function requestNextLine(sessionId: string, turnNo: number) {
+  return apiFetch<RequestNextLineResponse>(
+    `/api/v1/sessions/${sessionId}/simulation/turns/${turnNo}/next-line`,
+    { method: "POST" },
+  );
+}
+
+/** 다음 상대 발화 상태 조회 — RDB만 읽는 저렴한 호출이라 폴링에 쓴다. */
+export function getNextLine(sessionId: string, turnNo: number) {
+  return apiFetch<NextLineResponse>(
+    `/api/v1/sessions/${sessionId}/simulation/turns/${turnNo}/next-line`,
   );
 }

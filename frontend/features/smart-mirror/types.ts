@@ -186,6 +186,124 @@ export interface DecartConnectionHandle {
   applyOutfit: (spec: DecartSpec) => void;
 }
 
+// --- 시뮬레이션 (이슈 #68) ---
+
+/**
+ * POST /sessions/{id}/simulation/start 응답(data 알맹이).
+ * 옷 확정(REHEARSAL_READY) 후에만 성공하고, 세션당 한 번만 시작할 수 있다.
+ */
+export interface SimulationStartResponse {
+  sessionId: string;
+  /** 시작 직후 항상 1. */
+  currentTurn: number;
+  /** 성공해야 하는 턴 수 — 실패 재시도는 턴을 늘리지 않는다(성공 횟수 기준). */
+  maxTurn: number;
+  /** 첫 상대 발화 — AI가 아니라 타입별 고정 문구다(백엔드 registry). */
+  opponentLine: string;
+}
+
+/**
+ * 판정·다음 발화 비동기 작업의 서버 상태. PENDING만 비종결(계속 폴링).
+ * FAILED는 AI 호출 실패가 아니라 워커 자체 장애다 — AI 실패는 백엔드가
+ * 고정 피드백(fallback=true)·고정 발화로 흡수해 COMPLETED로 내려준다.
+ */
+export type SimulationJobStatus = "PENDING" | "COMPLETED" | "FAILED";
+
+/** POST /sessions/{id}/simulation/turns/{n}/evaluation의 202 응답(data 알맹이). */
+export interface SubmitEvaluationResponse {
+  sessionId: string;
+  turnNo: number;
+  /** 같은 턴 안에서의 시도 번호(1부터). 재시도마다 증가한다. */
+  attemptNo: number;
+  status: SimulationJobStatus;
+}
+
+/**
+ * GET /sessions/{id}/simulation/turns/{n}/evaluation 응답(data 알맹이).
+ * success·feedback·fallback은 COMPLETED, failureReason은 FAILED일 때만 온다.
+ */
+export interface TurnEvaluationResponse {
+  sessionId: string;
+  turnNo: number;
+  attemptNo: number;
+  status: SimulationJobStatus;
+  /** 답변이 판정을 통과했는가 — 통과 시에만 백엔드 currentTurn이 전진한다. */
+  success?: boolean;
+  feedback?: string;
+  /** AI 호출 실패로 백엔드 고정 피드백이 채워졌는지. */
+  fallback?: boolean;
+  failureReason?: string;
+}
+
+/** POST /sessions/{id}/simulation/turns/{n}/next-line의 202 응답(data 알맹이). */
+export interface RequestNextLineResponse {
+  sessionId: string;
+  turnNo: number;
+  status: SimulationJobStatus;
+}
+
+/**
+ * GET /sessions/{id}/simulation/turns/{n}/next-line 응답(data 알맹이).
+ * opponentLine은 COMPLETED, failureReason은 FAILED일 때만 온다.
+ */
+export interface NextLineResponse {
+  sessionId: string;
+  turnNo: number;
+  status: SimulationJobStatus;
+  opponentLine?: string;
+  failureReason?: string;
+}
+
+/**
+ * 시뮬레이션 스테이지 흐름 상태 (SimulationFlowController 소유).
+ * STARTING   start 요청 중 (성공 시 첫 상대 발화와 함께 ANSWERING)
+ * ANSWERING  상대 발화 표시 + 답변 대기. 직전 판정이 실패면 재시도 화면이다
+ * EVALUATING 답변 제출~판정 폴링 중
+ * NEXT_LINE  판정 성공 후 다음 상대 발화 요청~폴링 중
+ * COMPLETED  maxTurn 성공 종결 — 스테이지가 onComplete를 부른다
+ * FAILED     통신·서버 장애 종결 — retry 가능
+ */
+export type SimulationFlowStatus =
+  | "STARTING"
+  | "ANSWERING"
+  | "EVALUATING"
+  | "NEXT_LINE"
+  | "COMPLETED"
+  | "FAILED";
+
+/**
+ * SERVER_FAILED next-line 워커 장애(status=FAILED) — retry가 재요청한다
+ * TIMEOUT       폴링 데드라인 초과
+ * NETWORK       POST 실패 또는 폴링 연속 에러 소진
+ * (판정 워커 장애는 FAILED가 아니라 "실패 판정 + 고정 피드백"으로 흡수한다 —
+ *  전시 안 멈춤 원칙. 재제출은 서버가 FAILED attempt 뒤 새 시도를 허용한다.)
+ */
+export type SimulationFlowFailReason = "SERVER_FAILED" | "TIMEOUT" | "NETWORK";
+
+/** 화면에 보여줄 판정 결과 — TurnEvaluationResponse에서 표시 필드만 추린 것. */
+export interface SimulationFeedback {
+  success: boolean;
+  feedback: string;
+  /** AI 실패로 백엔드/프론트 고정 문구가 채워진 경우 (연출 구분용). */
+  fallback: boolean;
+}
+
+/** SimulationFlowController가 매 변화마다 통지하는 불변 스냅샷. */
+export interface SimulationFlowSnapshot {
+  status: SimulationFlowStatus;
+  /** 현재 턴(1부터). start 응답 전에는 0. */
+  currentTurn: number;
+  /** 성공해야 하는 턴 수. start 응답 전에는 0. */
+  maxTurn: number;
+  /** 지금 상대가 한 말. start 응답 전에는 null. */
+  opponentLine: string | null;
+  /** 마지막으로 제출한 답변 — EVALUATING 표시용. */
+  transcript: string | null;
+  /** 마지막 판정 결과. 새 턴의 상대 발화가 나오면 지운다. */
+  evaluation: SimulationFeedback | null;
+  failReason: SimulationFlowFailReason | null;
+}
+
 /**
  * 스테이지(=전시 화면이 전환되는 단위) 식별자. 정의·용어는 frontend/CLAUDE.md의
  * "스테이지 용어 사전"이 기준이다. 라운드·턴 같은 반복은 스테이지 내부 상태로
