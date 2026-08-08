@@ -182,6 +182,12 @@ export interface DecartConnectionHandle {
   status: DecartConnectionStatus;
   /** Decart가 변환한 출력 스트림. CONNECTED 전에는 null. */
   remoteStream: MediaStream | null;
+  /**
+   * SDK가 실측한 glass-to-glass 지연(ms) — 녹화(#94)의 A/V 싱크 보정값.
+   * 비디오만 이만큼 늦게 도착하므로 마이크를 같은 만큼 지연시켜야 싱크가
+   * 맞는다 (#90 PoC 검증). 측정 전에는 null.
+   */
+  g2gMs: number | null;
   /** 하이라이트된 옷의 스펙을 프리뷰에 적용한다. 연속 호출 시 마지막 것이 이긴다. */
   applyOutfit: (spec: DecartSpec) => void;
 }
