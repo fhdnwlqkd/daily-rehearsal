@@ -123,6 +123,15 @@ export function useSessionRecorder({
     const micTrack = cameraStream?.getAudioTracks()[0];
     if (micTrack) {
       const audioContext = new AudioContext();
+      // 자동재생 정책상 페이지에 클릭·키 입력이 한 번도 없으면 suspended로
+      // 시작한다 — 전시 부스는 제스처·음성만 쓸 수 있어 그대로 두면 녹음이
+      // 무음이 된다. 캡처 그래프이므로 즉시 재개를 시도하고, 막히면 로그만
+      // 남긴다(녹화 실패로 전시를 멈추지 않는다).
+      if (audioContext.state === "suspended") {
+        audioContext.resume().catch(() => {
+          console.warn("녹음 AudioContext resume 실패 — 영상이 무음일 수 있다");
+        });
+      }
       const source = audioContext.createMediaStreamSource(
         new MediaStream([micTrack]),
       );
