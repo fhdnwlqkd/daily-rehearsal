@@ -7,6 +7,7 @@ import {
   RECORDER_TIMESLICE_MS,
 } from "../lib/recording/constants";
 import { pickRecordingMimeType } from "../lib/recording/mime";
+import { decideRecordingSource } from "../lib/recording/source";
 import type { DecartConnectionStatus } from "../types";
 
 /**
@@ -94,15 +95,16 @@ export function useSessionRecorder({
     if (!enabled || startedRef.current) return;
     if (typeof MediaRecorder === "undefined") return;
 
-    // 소스 결정: 변환 프리뷰가 목표물이다. 연결 시도 중에는 기다리고,
-    // 실패(ERROR)·종료(CLOSED)가 확정된 경우에만 원본 거울로 폴백한다.
-    // (IDLE은 세션·카메라 미비 — 디버그 점프 등 — 로 연결 자체가 없던 경우다.)
-    const decartTrack =
-      decartStatus === "CONNECTED"
-        ? decartStream?.getVideoTracks()[0]
-        : undefined;
-    if (!decartTrack && decartStatus === "CONNECTING") return;
-    const videoTrack = decartTrack ?? cameraStream?.getVideoTracks()[0];
+    // 소스 결정은 lib/recording/source.ts — 실패·종료가 확정됐을 때만 원본
+    // 폴백이고, 그 전(진입 직후의 IDLE 포함)에는 다음 상태 변화까지 기다린다.
+    const decartTrack = decartStream?.getVideoTracks()[0];
+    const decision = decideRecordingSource(
+      decartStatus,
+      decartTrack !== undefined,
+    );
+    if (decision === "WAIT") return;
+    const videoTrack =
+      decision === "DECART" ? decartTrack : cameraStream?.getVideoTracks()[0];
     if (!videoTrack) return;
 
     const mimeType = pickRecordingMimeType((candidate) =>
@@ -115,7 +117,7 @@ export function useSessionRecorder({
     }
 
     startedRef.current = true;
-    recordsDecartRef.current = Boolean(decartTrack);
+    recordsDecartRef.current = decision === "DECART";
 
     const recordingTracks: MediaStreamTrack[] = [videoTrack];
 
@@ -136,9 +138,8 @@ export function useSessionRecorder({
         new MediaStream([micTrack]),
       );
       const delayNode = audioContext.createDelay(5);
-      const initialDelayMs = decartTrack
-        ? (syncDelayMs ?? DEFAULT_AV_SYNC_DELAY_MS)
-        : 0;
+      const initialDelayMs =
+        decision === "DECART" ? (syncDelayMs ?? DEFAULT_AV_SYNC_DELAY_MS) : 0;
       delayNode.delayTime.value = initialDelayMs / 1000;
       const destination = audioContext.createMediaStreamDestination();
       source.connect(delayNode);
