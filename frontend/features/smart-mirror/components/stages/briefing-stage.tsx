@@ -2,10 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import { AnswerArea } from "../shared/answer-area";
+import type { AnswerInputMode } from "../shared/answer-area";
 import { GlassPanel } from "../shared/glass-panel";
 import { ScanningEffect } from "../shared/scanning-effect";
 import { StatusLine } from "../shared/status-line";
-import { SttPanel } from "../shared/stt-panel";
 import { useBriefingFlow } from "../../hooks/use-briefing-flow";
 import { useGetBriefingContent } from "../../hooks/use-get-briefing-content";
 import { useGestureController } from "../../hooks/use-gesture-controller";
@@ -25,8 +26,6 @@ import type {
 
 /** 화면 진입/재발화 후 마이크를 다시 열기까지의 짧은 텀 (전환 연출과 겹침 완화) */
 const MIC_START_DELAY_MS = 600;
-
-type InputMode = "VOICE" | "KEYBOARD";
 
 interface BriefingStageProps {
   /** 세션 층이 소유한 세션 ID — 스테이지는 소비만 한다. */
@@ -62,7 +61,7 @@ export function BriefingStage({
     situationType.situationType,
   );
   const flow = useBriefingFlow(sessionId);
-  const [inputMode, setInputMode] = useState<InputMode>("VOICE");
+  const [inputMode, setInputMode] = useState<AnswerInputMode>("VOICE");
 
   const { submitAnswer } = flow;
   // 음성·키보드 공통 제출 합류점. 빈 답변은 보내지 않는다 —
@@ -83,6 +82,7 @@ export function BriefingStage({
     cancel: sttCancel,
     retry: sttRetry,
   } = stt;
+  // 자동 확정(CANDIDATE 카운트다운 → 전송)은 AnswerArea가 소유한다.
 
   // 답변을 받을 수 있는 화면인가 — 최초 질문(IDLE) 또는 재질문(FOLLOW_UP)
   const canAnswer =
@@ -104,13 +104,6 @@ export function BriefingStage({
     const timer = setTimeout(() => sttStart(), MIC_START_DELAY_MS);
     return () => clearTimeout(timer);
   }, [canAnswer, inputMode, stt.status, sttStart]);
-
-  // 자동 확정 — CANDIDATE 진입 후 카운트다운이 다 차면 전송 (CONFIRM은 즉시)
-  useEffect(() => {
-    if (stt.status !== "CANDIDATE") return;
-    const timer = setTimeout(() => sttConfirm(), BRIEFING_AUTO_CONFIRM_MS);
-    return () => clearTimeout(timer);
-  }, [stt.status, sttConfirm]);
 
   // 완료 연출 여운 후 세션 층에 신호
   useEffect(() => {
@@ -201,6 +194,9 @@ export function BriefingStage({
         inputMode={inputMode}
         stt={stt}
         onSubmitTyped={handleAnswer}
+        sttLabel="YOUR BRIEFING"
+        typedPlaceholder="내일의 상황을 입력해 주세요"
+        autoConfirmMs={BRIEFING_AUTO_CONFIRM_MS}
       />
     </div>
   );
@@ -266,109 +262,6 @@ function FollowUpQuestions({ questions }: { questions: string[] }) {
   );
 }
 
-/** 음성/키보드 답변 입력 영역. 높이를 고정해 상태 전환 때 질문이 출렁이지 않게 한다. */
-function AnswerArea({
-  inputMode,
-  stt,
-  onSubmitTyped,
-}: {
-  inputMode: InputMode;
-  stt: ReturnType<typeof useSpeechToText>;
-  onSubmitTyped: (text: string) => void;
-}) {
-  return (
-    <div className="flex min-h-44 w-full flex-col items-center justify-start gap-4">
-      {inputMode === "KEYBOARD" ? (
-        <TypedAnswerInput onSubmit={onSubmitTyped} />
-      ) : (
-        <VoiceAnswer stt={stt} />
-      )}
-    </div>
-  );
-}
-
-function VoiceAnswer({ stt }: { stt: ReturnType<typeof useSpeechToText> }) {
-  if (stt.status === "ERROR") {
-    // 복구 가능 에러만 여기 온다 — 비복구(미지원·권한)와 연속 실패는
-    // 부모 effect가 키보드 모드로 전환한다.
-    return (
-      <StatusLine
-        text="음성 인식에 실패했습니다 — 손바닥을 펴거나 Enter로 다시 시도"
-        error
-      />
-    );
-  }
-
-  if (stt.status === "CANDIDATE") {
-    return (
-      <>
-        <SttPanel text={stt.transcript} label="YOUR BRIEFING" />
-        <AutoConfirmCountdown />
-        <StatusLine text="이대로 전송 · ← 다시 말하기 · Enter 바로 전송" />
-      </>
-    );
-  }
-
-  if (stt.status === "LISTENING" && stt.transcript) {
-    return <SttPanel text={stt.transcript} label="LISTENING" />;
-  }
-
-  return (
-    <FadeIn>
-      <div className="flex flex-col items-center gap-2">
-        <motion.span
-          className="text-5xl"
-          animate={{ opacity: [0.5, 1, 0.5] }}
-          transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
-          aria-hidden
-        >
-          🎙️
-        </motion.span>
-        <StatusLine text="편하게 이야기해 주세요 — 듣고 있어요" />
-      </div>
-    </FadeIn>
-  );
-}
-
-/** CANDIDATE 자동 전송까지 차오르는 카운트다운 바 (타입 선택 차징 바와 같은 문법). */
-function AutoConfirmCountdown() {
-  return (
-    <div className="h-1 w-full max-w-3xl overflow-hidden rounded-full bg-white/10">
-      <motion.div
-        className="h-full rounded-full bg-white/80"
-        initial={{ width: "0%" }}
-        animate={{ width: "100%" }}
-        transition={{
-          duration: BRIEFING_AUTO_CONFIRM_MS / 1000,
-          ease: "linear",
-        }}
-      />
-    </div>
-  );
-}
-
-/** STT 불가 시의 키보드 대체 입력 — 타이핑된 텍스트도 같은 제출 경로로 합류한다. */
-function TypedAnswerInput({ onSubmit }: { onSubmit: (text: string) => void }) {
-  const [text, setText] = useState("");
-
-  return (
-    <div className="flex w-full max-w-3xl flex-col items-center gap-3">
-      <input
-        autoFocus
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        onKeyDown={(event) => {
-          if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
-          onSubmit(text);
-        }}
-        placeholder="내일의 상황을 입력해 주세요"
-        className="w-full rounded-2xl border border-white/20 bg-black/40 px-6 py-4 text-center text-xl font-extralight tracking-wide text-white/90 backdrop-blur-xl placeholder:text-white/35 focus:border-white/50 focus:outline-none"
-      />
-      <StatusLine text="음성 인식을 사용할 수 없어 키보드로 입력합니다 — Enter로 전송" />
-    </div>
-  );
-}
-
 function ProcessingView({
   serverStatus,
 }: {
@@ -426,18 +319,5 @@ function CenterColumn({ children }: { children: React.ReactNode }) {
     <div className="flex h-full flex-col items-center justify-center gap-6 px-8">
       {children}
     </div>
-  );
-}
-
-/** 안내 상태가 바뀔 때 툭 튀지 않게 공통 진입 페이드 (타입 선택과 동일 문법). */
-function FadeIn({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, ease: "easeOut" }}
-    >
-      {children}
-    </motion.div>
   );
 }

@@ -85,6 +85,7 @@ export function ExperienceSession({
     "type-select",
     "briefing",
     "outfit",
+    "simulation",
   ];
   const devAdvanceEnabled =
     !currentPhase || !stagesOwningInput.includes(currentPhase.id);
@@ -150,6 +151,7 @@ export function ExperienceSession({
               onSessionCreated: handleSessionCreated,
               onBriefingComplete: goToNextPhase,
               onOutfitConfirmed: goToNextPhase,
+              onSimulationComplete: goToNextPhase,
             })}
           </StageFrame>
         </motion.div>
@@ -203,6 +205,7 @@ interface StageContext {
   ) => void;
   onBriefingComplete: () => void;
   onOutfitConfirmed: () => void;
+  onSimulationComplete: () => void;
 }
 
 // 스테이지 선택과 props 주입은 세션 층의 책임 — StageFrame은 껍데기만 안다.
@@ -251,7 +254,20 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
         />
       );
     case "simulation":
-      return <SimulationStage />;
+      // 세션 null 가드는 브리핑과 동일 — 디버그 점프로 세션 없이 진입한 경우.
+      if (!context.session) {
+        return (
+          <StagePlaceholder label="시뮬레이션 (세션 없음 — 타입 선택부터 진행)" />
+        );
+      }
+      return (
+        <SimulationStage
+          sessionId={context.session.sessionId}
+          engine={context.engine}
+          stream={context.stream}
+          onComplete={context.onSimulationComplete}
+        />
+      );
     case "ticket":
       return <TicketStage />;
     default:
