@@ -1,8 +1,12 @@
 import { apiFetch } from "@/lib/api";
 import type {
   BriefingContent,
+  ConfirmOutfitResponse,
   CreateSessionResponse,
+  DecartSpec,
+  GetOutfitsResponse,
   GetSituationTypesResponse,
+  IssueDecartTokenResponse,
   SessionContextResponse,
   SubmitTranscriptResponse,
 } from "./types";
@@ -54,5 +58,39 @@ export function submitFollowUp(sessionId: string, transcript: string) {
 export function getSessionContext(sessionId: string) {
   return apiFetch<SessionContextResponse>(
     `/api/v1/sessions/${sessionId}/context`,
+  );
+}
+
+// --- 옷 입히기 & Decart (이슈 #69) ---
+// 아래 4종은 모두 세션이 TRANSFORMATION_READY일 때만 성공한다(아니면 409 S002).
+
+/** 옷 후보 목록 조회. 후보 0개는 404 C003 — 빈 배열로 오지 않는다. */
+export function getOutfits(sessionId: string) {
+  return apiFetch<GetOutfitsResponse>(`/api/v1/sessions/${sessionId}/outfits`);
+}
+
+/**
+ * Decart client token 발급. 백엔드가 Decart 토큰 API를 호출해 단기 토큰을
+ * 중계한다 — 세션당 한 번만 발급되므로 연결 직전에 받아 즉시 사용할 것.
+ */
+export function issueDecartToken(sessionId: string) {
+  return apiFetch<IssueDecartTokenResponse>(
+    `/api/v1/sessions/${sessionId}/decart-token`,
+    { method: "POST" },
+  );
+}
+
+/** 옷 스펙 조회 — 순수 조회라 세션 상태를 바꾸지 않는다(스와이프마다 호출 OK). */
+export function getOutfitSpec(sessionId: string, outfitId: string) {
+  return apiFetch<DecartSpec>(
+    `/api/v1/sessions/${sessionId}/outfit-spec?outfitId=${encodeURIComponent(outfitId)}`,
+  );
+}
+
+/** 옷 확정 — 성공 시 세션이 REHEARSAL_READY로 전이된다(시뮬레이션 진입 조건). */
+export function confirmOutfit(sessionId: string, selectedOutfitId: string) {
+  return apiFetch<ConfirmOutfitResponse>(
+    `/api/v1/sessions/${sessionId}/outfit`,
+    { method: "PATCH", body: JSON.stringify({ selectedOutfitId }) },
   );
 }

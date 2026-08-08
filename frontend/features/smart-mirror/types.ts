@@ -115,6 +115,77 @@ export interface BriefingFlowSnapshot {
   failReason: BriefingFlowFailReason | null;
 }
 
+// --- 옷 입히기 & Decart (이슈 #69) ---
+
+/**
+ * GET /sessions/{id}/outfits 응답 배열의 항목 하나 (2026-08-05 실서버 검증).
+ * 빈 배열 계약은 없다 — 후보 0개면 백엔드가 404 C003을 던진다(설정 오류로 처리).
+ */
+export interface OutfitCandidate {
+  /** outfit 식별자. outfit-spec 조회와 PATCH /outfit에 그대로 사용한다. */
+  outfitId: string;
+  /** UI 표시용 한글 라벨 (예: "네이비 정장"). */
+  label: string;
+  /** 옷 썸네일 이미지 URL (CloudFront). */
+  thumbnailUrl: string;
+  /** 진입 시 자동으로 입혀줄 기본 옷 여부 — 목록에 정확히 하나 있다. */
+  defaultOutfit: boolean;
+}
+
+/** GET /api/v1/sessions/{id}/outfits 응답(data 알맹이) — 배열이 그대로 온다. */
+export type GetOutfitsResponse = OutfitCandidate[];
+
+/**
+ * GET /sessions/{id}/outfit-spec 응답(data 알맹이). Decart VTON에 전달할
+ * 재료 — 프론트는 해석하지 않고 setImage(referenceImageUrl, {prompt, enhance})로
+ * 그대로 넘긴다. model은 연결 시점에 이미 고정되어 있어 소비하지 않는다.
+ */
+export interface DecartSpec {
+  model: string;
+  prompt: string;
+  referenceImageUrl: string;
+  enhance: boolean;
+}
+
+/** POST /api/v1/sessions/{id}/decart-token 응답(data 알맹이). */
+export interface IssueDecartTokenResponse {
+  /** Decart WebRTC 연결용 단기 client token. 세션당 한 번만 발급된다. */
+  clientToken: string;
+}
+
+/** PATCH /api/v1/sessions/{id}/outfit 응답(data 알맹이). */
+export interface ConfirmOutfitResponse {
+  sessionId: string;
+}
+
+/**
+ * Decart 연결 상태 (SDK의 소문자 ConnectionState를 대문자 컨벤션으로 매핑).
+ * IDLE        연결 전 (enabled=false 또는 재료 미비)
+ * CONNECTING  토큰 발급~WebRTC 수립 중 (SDK connecting/reconnecting 포함)
+ * CONNECTED   변환 스트림 수신 중 (SDK connected/generating)
+ * CLOSED      정상 종료 (해제 3지점: 언마운트/세션 종료/최대 연결 시간)
+ * ERROR       연결 실패 — 전시는 멈추지 않고 원본 거울로 진행한다
+ */
+export type DecartConnectionStatus =
+  | "IDLE"
+  | "CONNECTING"
+  | "CONNECTED"
+  | "CLOSED"
+  | "ERROR";
+
+/**
+ * useDecartConnection(세션 층 소유)이 스테이지로 내려주는 핸들.
+ * 출력 스트림을 세션 층이 소유해야 옷 입히기→시뮬레이션 전환에도 연결이
+ * 유지되고, 이후 녹화(#94)가 같은 스트림을 집어갈 수 있다.
+ */
+export interface DecartConnectionHandle {
+  status: DecartConnectionStatus;
+  /** Decart가 변환한 출력 스트림. CONNECTED 전에는 null. */
+  remoteStream: MediaStream | null;
+  /** 하이라이트된 옷의 스펙을 프리뷰에 적용한다. 연속 호출 시 마지막 것이 이긴다. */
+  applyOutfit: (spec: DecartSpec) => void;
+}
+
 /**
  * 스테이지(=전시 화면이 전환되는 단위) 식별자. 정의·용어는 frontend/CLAUDE.md의
  * "스테이지 용어 사전"이 기준이다. 라운드·턴 같은 반복은 스테이지 내부 상태로
