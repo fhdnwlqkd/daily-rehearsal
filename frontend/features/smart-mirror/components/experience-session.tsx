@@ -11,6 +11,7 @@ import type {
 } from "../types";
 import { experiencePhases } from "../data/phases";
 import { useDecartConnection } from "../hooks/use-decart-connection";
+import { useSessionRecorder } from "../hooks/use-session-recorder";
 import { DecartMirrorLayer } from "./decart-mirror-layer";
 import { StageFrame } from "./stage-frame";
 import { StagePlaceholder } from "./shared/stage-placeholder";
@@ -51,13 +52,26 @@ export function ExperienceSession({
   const currentPhase = experiencePhases[phaseIndex];
   const isLastPhase = phaseIndex === experiencePhases.length - 1;
 
-  // Decart 변환 연결 — 옷 입히기~시뮬레이션 구간에만 살아 있다.
-  // 스테이지가 아니라 세션 층이 소유한다: 스테이지 전환(언마운트)에도 프리뷰가
-  // 유지되어야 하고, 이후 녹화(#94)가 같은 스트림을 집어가기 때문.
+  // 옷 입히기~시뮬레이션 구간 — Decart 변환과 녹화가 함께 살아 있는 구간이다.
+  const isMirrorPhase =
+    currentPhase?.id === "outfit" || currentPhase?.id === "simulation";
+
+  // Decart 변환 연결 — 스테이지가 아니라 세션 층이 소유한다: 스테이지
+  // 전환(언마운트)에도 프리뷰가 유지되어야 하고, 녹화가 같은 스트림을 쓴다.
   const decart = useDecartConnection({
     sessionId: session?.sessionId ?? null,
     cameraStream: stream,
-    enabled: currentPhase?.id === "outfit" || currentPhase?.id === "simulation",
+    enabled: isMirrorPhase,
+  });
+
+  // 세션 녹화(#94) — 옷 입히기 진입~시뮬레이션 종료를 한 테이크로 담는다.
+  // 티켓 진입(구간 이탈) 시 정지된다. 업로드는 아직 연결하지 않는다(폐기).
+  const recorder = useSessionRecorder({
+    enabled: isMirrorPhase,
+    decartStatus: decart.status,
+    decartStream: decart.remoteStream,
+    cameraStream: stream,
+    syncDelayMs: decart.g2gMs,
   });
 
   const goToNextPhase = useCallback(() => {
@@ -85,6 +99,7 @@ export function ExperienceSession({
     "type-select",
     "briefing",
     "outfit",
+    "simulation",
   ];
   const devAdvanceEnabled =
     !currentPhase || !stagesOwningInput.includes(currentPhase.id);
@@ -127,6 +142,21 @@ export function ExperienceSession({
       {/* 변환 프리뷰 — 스테이지(아래 AnimatePresence)보다 먼저 그려 밑에 깔린다 */}
       <DecartMirrorLayer stream={decart.remoteStream} />
 
+      {/* 녹화 고지 — 촬영 중임을 관람객에게 알린다 (#94) */}
+      {recorder.status === "RECORDING" && (
+        <div className="absolute top-6 left-6 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-xl">
+          <motion.span
+            className="h-2 w-2 rounded-full bg-red-500"
+            animate={{ opacity: [1, 0.35, 1] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
+            aria-hidden
+          />
+          <span className="text-[10px] font-light tracking-[0.3em] text-white/70">
+            REC
+          </span>
+        </div>
+      )}
+
       <AnimatePresence mode="wait">
         <motion.div
           key={currentPhase.id}
@@ -150,6 +180,7 @@ export function ExperienceSession({
               onSessionCreated: handleSessionCreated,
               onBriefingComplete: goToNextPhase,
               onOutfitConfirmed: goToNextPhase,
+              onSimulationComplete: goToNextPhase,
             })}
           </StageFrame>
         </motion.div>
@@ -182,6 +213,7 @@ export function ExperienceSession({
             {session && situationType
               ? `${situationType.label}(${session.situationType}) · ${session.sessionId.slice(0, 8)}…`
               : "없음"}
+            {` · rec: ${recorder.status}`}
           </div>
         </div>
       )}
@@ -203,6 +235,7 @@ interface StageContext {
   ) => void;
   onBriefingComplete: () => void;
   onOutfitConfirmed: () => void;
+  onSimulationComplete: () => void;
 }
 
 // 스테이지 선택과 props 주입은 세션 층의 책임 — StageFrame은 껍데기만 안다.
@@ -251,7 +284,20 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
         />
       );
     case "simulation":
-      return <SimulationStage />;
+      // 세션 null 가드는 브리핑과 동일 — 디버그 점프로 세션 없이 진입한 경우.
+      if (!context.session) {
+        return (
+          <StagePlaceholder label="시뮬레이션 (세션 없음 — 타입 선택부터 진행)" />
+        );
+      }
+      return (
+        <SimulationStage
+          sessionId={context.session.sessionId}
+          engine={context.engine}
+          stream={context.stream}
+          onComplete={context.onSimulationComplete}
+        />
+      );
     case "ticket":
       return <TicketStage />;
     default:

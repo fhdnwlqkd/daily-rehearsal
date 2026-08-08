@@ -53,6 +53,7 @@ export function useDecartConnection({
   const [status, setStatus] =
     useState<DecartConnectionHandle["status"]>("IDLE");
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [g2gMs, setG2gMs] = useState<number | null>(null);
 
   const clientRef = useRef<RealTimeClient | null>(null);
   // 마지막 스펙이 이기는 적용 큐 — 빠른 스와이프 연타로 setImage가 겹치면
@@ -140,6 +141,7 @@ export function useDecartConnection({
     let watchdog: ReturnType<typeof setTimeout> | null = null;
 
     setStatus("CONNECTING");
+    setG2gMs(null);
 
     async function connect() {
       try {
@@ -155,6 +157,16 @@ export function useDecartConnection({
           model: models.realtime(DECART_MODEL),
           onRemoteStream: (stream) => {
             if (!isCancelled()) setRemoteStream(stream);
+          },
+          // g2g(카메라→변환→화면) 지연 실측 — 녹화(#94) A/V 싱크 보정값의 출처.
+          // 흔들리는 후속 측정으로 오디오가 출렁이지 않게 첫 안정값만 쓴다.
+          debugQuality: true,
+          onConnectionQuality: (report) => {
+            if (isCancelled() || report.warmingUp) return;
+            const measured = report.metrics.g2gMs;
+            if (measured != null) {
+              setG2gMs((current) => current ?? Math.round(measured));
+            }
           },
         });
 
@@ -206,5 +218,5 @@ export function useDecartConnection({
     };
   }, [enabled, sessionId, cameraStream, drainApplyQueue]);
 
-  return { status, remoteStream, applyOutfit };
+  return { status, remoteStream, g2gMs, applyOutfit };
 }

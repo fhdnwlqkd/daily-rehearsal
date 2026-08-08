@@ -138,7 +138,7 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
     "type-select": "키보드 ←/→·Enter로도 조작할 수 있어요",
     briefing: "마이크에 대고 답해주세요 · Enter 바로 전송 · ← 다시 말하기",
     outfit: "키보드 ←/→·Enter로도 조작할 수 있어요",
-    simulation: "탭하거나 Enter를 눌러 계속",
+    simulation: "마이크에 대고 답해주세요 · Enter 바로 전송 · ← 다시 말하기",
     ticket: "탭하거나 Enter를 눌러 다시 시작",
   };
 
