@@ -4,11 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type {
   CreateSessionResponse,
+  DecartConnectionHandle,
   ExperiencePhaseId,
   GestureEngineHandle,
   SituationType,
 } from "../types";
 import { experiencePhases } from "../data/phases";
+import { useDecartConnection } from "../hooks/use-decart-connection";
+import { DecartMirrorLayer } from "./decart-mirror-layer";
 import { StageFrame } from "./stage-frame";
 import { StagePlaceholder } from "./shared/stage-placeholder";
 import { TypeSelectStage } from "./stages/type-select-stage";
@@ -48,6 +51,15 @@ export function ExperienceSession({
   const currentPhase = experiencePhases[phaseIndex];
   const isLastPhase = phaseIndex === experiencePhases.length - 1;
 
+  // Decart 변환 연결 — 옷 입히기~시뮬레이션 구간에만 살아 있다.
+  // 스테이지가 아니라 세션 층이 소유한다: 스테이지 전환(언마운트)에도 프리뷰가
+  // 유지되어야 하고, 이후 녹화(#94)가 같은 스트림을 집어가기 때문.
+  const decart = useDecartConnection({
+    sessionId: session?.sessionId ?? null,
+    cameraStream: stream,
+    enabled: currentPhase?.id === "outfit" || currentPhase?.id === "simulation",
+  });
+
   const goToNextPhase = useCallback(() => {
     if (isLastPhase) {
       onRestart();
@@ -69,7 +81,11 @@ export function ExperienceSession({
   // 소유한 스테이지에서는 전역 진행을 끈다 — 안 끄면 Enter 한 번이 스테이지
   // 확정과 스테이지 스킵으로 이중 처리된다. 실제 흐름 게이트이기도 하다
   // (세션·context 없이 다음 화면으로 새는 것을 막는다).
-  const stagesOwningInput: ExperiencePhaseId[] = ["type-select", "briefing"];
+  const stagesOwningInput: ExperiencePhaseId[] = [
+    "type-select",
+    "briefing",
+    "outfit",
+  ];
   const devAdvanceEnabled =
     !currentPhase || !stagesOwningInput.includes(currentPhase.id);
 
@@ -108,6 +124,9 @@ export function ExperienceSession({
       onClick={devAdvanceEnabled ? goToNextPhase : undefined}
       role="presentation"
     >
+      {/* 변환 프리뷰 — 스테이지(아래 AnimatePresence)보다 먼저 그려 밑에 깔린다 */}
+      <DecartMirrorLayer stream={decart.remoteStream} />
+
       <AnimatePresence mode="wait">
         <motion.div
           key={currentPhase.id}
@@ -127,8 +146,10 @@ export function ExperienceSession({
               stream,
               session,
               situationType,
+              decart,
               onSessionCreated: handleSessionCreated,
               onBriefingComplete: goToNextPhase,
+              onOutfitConfirmed: goToNextPhase,
             })}
           </StageFrame>
         </motion.div>
@@ -174,11 +195,14 @@ interface StageContext {
   /** 타입 선택 완료 전에는 null — briefing 이후 스테이지가 소비한다. */
   session: CreateSessionResponse | null;
   situationType: SituationType | null;
+  /** Decart 연결 핸들(세션 층 소유) — 옷 입히기 스테이지가 소비한다. */
+  decart: DecartConnectionHandle;
   onSessionCreated: (
     session: CreateSessionResponse,
     situationType: SituationType,
   ) => void;
   onBriefingComplete: () => void;
+  onOutfitConfirmed: () => void;
 }
 
 // 스테이지 선택과 props 주입은 세션 층의 책임 — StageFrame은 껍데기만 안다.
@@ -211,7 +235,21 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
         />
       );
     case "outfit":
-      return <OutfitStage />;
+      // 세션 null 가드는 브리핑과 동일 — 디버그 점프로 세션 없이 진입한 경우.
+      if (!context.session) {
+        return (
+          <StagePlaceholder label="옷 입히기 (세션 없음 — 타입 선택부터 진행)" />
+        );
+      }
+      return (
+        <OutfitStage
+          sessionId={context.session.sessionId}
+          engine={context.engine}
+          stream={context.stream}
+          decart={context.decart}
+          onComplete={context.onOutfitConfirmed}
+        />
+      );
     case "simulation":
       return <SimulationStage />;
     case "ticket":
