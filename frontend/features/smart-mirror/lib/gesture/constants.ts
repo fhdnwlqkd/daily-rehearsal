@@ -18,6 +18,13 @@ export const PALM_MIN_SCORE = 0.6;
 export const PALM_HOLD_DURATION_MS = 1500;
 /** CONFIRM 발사 후 재누적 금지 시간 */
 export const PALM_REFRACTORY_MS = 1000;
+/**
+ * 한 프레임이 팜홀드 유지 시간에 가산할 수 있는 상한.
+ * Decart 스트림+MediaPipe 동시 구동 중 메인 스레드가 1초+ 얼면 그 프레임의
+ * dt가 통째로 가산돼 바가 20%인데 확정이 발사됐다 (2026-08-08 옷 스테이지
+ * 실테스트). 정상 프레임(16~60ms)은 영향 없고 스톨만 잘라낸다.
+ */
+export const PALM_MAX_FRAME_CREDIT_MS = 100;
 /** 이 속도(x/ms)를 넘으면 "정지"가 아니라서 유지 누적 리셋 — 스와이프와의 충돌 규칙 */
 export const PALM_MAX_SPEED = 0.0002;
 

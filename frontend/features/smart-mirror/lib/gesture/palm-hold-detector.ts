@@ -1,5 +1,6 @@
 import {
   PALM_HOLD_DURATION_MS,
+  PALM_MAX_FRAME_CREDIT_MS,
   PALM_MAX_SPEED,
   PALM_MIN_SCORE,
   PALM_REFRACTORY_MS,
@@ -58,7 +59,10 @@ export class PalmHoldDetector {
       return IDLE;
     }
 
-    this.heldMs += dt;
+    // 스톨 프레임(무거운 렌더링으로 dt가 수백 ms~수 초)의 가산을 상한으로
+    // 자른다 — 안 자르면 실제 유지 시간보다 훨씬 일찍 확정이 발사되고,
+    // 큰 dt는 속도 검사(Δx/dt)까지 무력화해 움직이는 손도 통과시킨다.
+    this.heldMs += Math.min(dt, PALM_MAX_FRAME_CREDIT_MS);
     if (this.heldMs >= PALM_HOLD_DURATION_MS) {
       this.heldMs = 0;
       this.refractoryUntil = timestampMs + PALM_REFRACTORY_MS;
