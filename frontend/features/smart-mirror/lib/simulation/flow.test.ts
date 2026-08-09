@@ -37,7 +37,12 @@ function createFakeApi() {
           status: "PENDING" as const,
         });
       },
-      getEvaluation: () => Promise.resolve(evaluations.shift()!),
+      getEvaluation: () => {
+        const response = evaluations.shift();
+        return response
+          ? Promise.resolve(response)
+          : Promise.reject(new Error("No evaluation response queued"));
+      },
       requestNextLine: (turnNo: number) => {
         nextLineRequests.push(turnNo);
         return Promise.resolve({
@@ -46,11 +51,16 @@ function createFakeApi() {
           status: "PENDING" as const,
         });
       },
-      getNextLine: () => Promise.resolve(nextLines.shift()!),
+      getNextLine: () => {
+        const response = nextLines.shift();
+        return response
+          ? Promise.resolve(response)
+          : Promise.reject(new Error("No next-line response queued"));
+      },
     },
     evaluationSubmits,
     nextLineRequests,
-    queueEvaluation(turnNo: number, outcome: TurnEvaluationOutcome) {
+    queueEvaluation: (turnNo: number, outcome: TurnEvaluationOutcome) => {
       evaluations.push({
         sessionId: "session-id",
         turnNo,
@@ -61,7 +71,7 @@ function createFakeApi() {
         fallback: false,
       });
     },
-    queueNextLine(turnNo: number, generationMode: "NORMAL" | "RECOVERY") {
+    queueNextLine: (turnNo: number, generationMode: "NORMAL" | "RECOVERY") => {
       nextLines.push({
         sessionId: "session-id",
         turnNo,
@@ -87,7 +97,11 @@ function setup() {
   return {
     ...fake,
     controller,
-    latest: () => snapshots.at(-1)!,
+    latest: () => {
+      const snapshot = snapshots.at(-1);
+      if (!snapshot) throw new Error("No simulation snapshot available");
+      return snapshot;
+    },
   };
 }
 

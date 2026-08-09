@@ -8,6 +8,7 @@ import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -44,6 +45,8 @@ class SimulationPollingIntegrationTest {
 
     SimulationStart started = startSimulationUseCase.startSimulation(session.getSessionId());
     assertThat(started.currentTurn()).isEqualTo(1);
+    assertThat(started.generationMode()).isEqualTo(TurnGenerationMode.STATIC);
+    assertThat(started.plan().actionPrompt()).isNotBlank();
 
     SimulationTurnAttempt submitted =
         submitTurnEvaluationUseCase.submit(
@@ -64,6 +67,9 @@ class SimulationPollingIntegrationTest {
     SimulationTurn completedNextLine =
         awaitOpponentLineStatus(session.getSessionId(), 2, OpponentLineStatus.COMPLETED);
     assertThat(completedNextLine.getPlan().opponentLine()).isNotBlank();
+    assertThat(completedNextLine.getPlan().sceneCue()).isNotBlank();
+    assertThat(completedNextLine.getPlan().actionPrompt()).isNotBlank();
+    assertThat(completedNextLine.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
   }
 
   private ClientSession rehearsalReadySession() {

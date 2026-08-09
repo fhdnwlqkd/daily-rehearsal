@@ -42,6 +42,23 @@ class SimulationServiceTest {
   }
 
   @Test
+  void everySupportedTypeStartsWithItsConfiguredThreeTurnPlan() {
+    for (SituationType situationType : SituationType.values()) {
+      ClientSession session = readySession(situationType);
+      InMemorySessionRepository repository = new InMemorySessionRepository(session);
+
+      SimulationStart result =
+          service(repository, new ArrayList<>()).startSimulation(session.getSessionId());
+
+      assertThat(result.maxTurn()).isEqualTo(3);
+      assertThat(result.generationMode()).isEqualTo(TurnGenerationMode.STATIC);
+      assertThat(result.plan().sceneCue()).isNotBlank();
+      assertThat(result.plan().opponentLine()).isNotBlank();
+      assertThat(result.plan().actionPrompt()).isNotBlank();
+    }
+  }
+
+  @Test
   void submitEvaluationPersistsAttemptAndPublishesAfterCommitRequest() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
@@ -170,9 +187,13 @@ class SimulationServiceTest {
   }
 
   private ClientSession readySession() {
+    return readySession(SituationType.DATE);
+  }
+
+  private ClientSession readySession(SituationType situationType) {
     return ClientSession.builder()
         .sessionId("session-id")
-        .situationType(SituationType.DATE)
+        .situationType(situationType)
         .status(SessionStatus.REHEARSAL_READY)
         .contextStatus(ContextStatus.COMPLETED)
         .selectedOutfitId("outfit-1")
