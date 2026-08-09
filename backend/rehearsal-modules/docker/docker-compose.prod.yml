@@ -45,12 +45,21 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     env_file:
-      - .env
+      - .env.backend
     depends_on:
       mysql:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  web:
+    image: ${ECR_IMAGE_FRONTEND}:${IMAGE_TAG_FRONTEND}
+    container_name: rehearsal-web
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.frontend
 
 volumes:
   mysql_data:

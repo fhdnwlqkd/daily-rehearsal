@@ -29,11 +29,13 @@ rehearsal:
     defaults:
       provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:gemini}
     gemini:
+      enabled: ${GEMINI_ENABLED:true}
       api-key: ${GEMINI_API_KEY:}
       model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
       temperature: ${GEMINI_TEMPERATURE:0.0}
       thinking-budget: ${GEMINI_THINKING_BUDGET:0}
   decart:
+    enabled: ${DECART_ENABLED:true}
     api-key: ${DECART_API_KEY:}
     model: ${DECART_MODEL:lucy-vton-latest}
     token-endpoint: ${DECART_TOKEN_ENDPOINT:https://api.decart.ai/v1/client/tokens}

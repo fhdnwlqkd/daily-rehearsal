@@ -33,7 +33,7 @@ public class AiClientConfiguration {
   @Bean
   @ConditionalOnMissingBean(SlotExtractorClient.class)
   public SlotExtractorClient slotExtractorClient(AiClientProperties properties) {
-    return switch (properties.getDefaults().getProvider()) {
+    return switch (provider(properties)) {
       case FAKE -> new FakeSlotExtractorClient();
       case GEMINI -> geminiSlotExtractorClient(properties.getGemini());
     };
@@ -42,7 +42,7 @@ public class AiClientConfiguration {
   @Bean
   @ConditionalOnMissingBean(TurnEvaluationClient.class)
   public TurnEvaluationClient turnEvaluationClient(AiClientProperties properties) {
-    return switch (properties.getDefaults().getProvider()) {
+    return switch (provider(properties)) {
       case FAKE -> new FakeTurnEvaluationClient();
       case GEMINI -> geminiTurnEvaluationClient(properties.getGemini());
     };
@@ -51,7 +51,7 @@ public class AiClientConfiguration {
   @Bean
   @ConditionalOnMissingBean(OpponentLineGeneratorClient.class)
   public OpponentLineGeneratorClient opponentLineGeneratorClient(AiClientProperties properties) {
-    return switch (properties.getDefaults().getProvider()) {
+    return switch (provider(properties)) {
       case FAKE -> new FakeOpponentLineGeneratorClient();
       case GEMINI -> geminiOpponentLineGeneratorClient(properties.getGemini());
     };
@@ -60,7 +60,7 @@ public class AiClientConfiguration {
   @Bean
   @ConditionalOnMissingBean(TicketCopyGeneratorClient.class)
   public TicketCopyGeneratorClient ticketCopyGeneratorClient(AiClientProperties properties) {
-    return switch (properties.getDefaults().getProvider()) {
+    return switch (provider(properties)) {
       case FAKE -> new FakeTicketCopyGeneratorClient();
       case GEMINI -> geminiTicketCopyGeneratorClient(properties.getGemini());
     };
@@ -116,5 +116,12 @@ public class AiClientConfiguration {
       throw new IllegalStateException(provider + " api-key must be configured");
     }
     return apiKey;
+  }
+
+  private AiClientProperties.Provider provider(AiClientProperties properties) {
+    if (!properties.getGemini().isEnabled()) {
+      return AiClientProperties.Provider.FAKE;
+    }
+    return properties.getDefaults().getProvider();
   }
 }
