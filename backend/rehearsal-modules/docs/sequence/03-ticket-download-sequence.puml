@@ -1,0 +1,42 @@
+@startuml
+title P1 Change Card and Mobile Download Sequence
+
+actor User as user
+participant "Smart Mirror Frontend" as front
+participant "Rehearsal API" as api
+participant "Video Storage" as storage
+participant "Gemini" as gemini
+participant "Mobile Download Page" as mobile
+
+== Record and upload ==
+front -> front: Stop MediaRecorder and keep recorded video blob
+front -> api: POST /api/v1/sessions/{sessionId}/video\nmultipart file
+api -> api: Save videoUrl and PENDING status
+api -> storage: Upload video asynchronously
+api --> front: 202 Accepted (status=PENDING)
+
+loop Until video status is terminal
+  front -> api: GET /api/v1/sessions/{sessionId}/video
+  api --> front: PENDING | COMPLETED | FAILED
+end
+
+== Generate change card ==
+front -> api: POST /api/v1/sessions/{sessionId}/ticket
+api -> api: Save ticket job as PENDING
+api --> front: 202 Accepted (status=PENDING)
+api -> gemini: Generate todayAction, tomorrowAttitude, ifThenPlan
+gemini --> api: Change card JSON or failure
+api -> api: Save completed ticket or static fallback
+
+loop Until ticket status is terminal
+  front -> api: GET /api/v1/sessions/{sessionId}/ticket
+  api --> front: PENDING | COMPLETED | FAILED
+end
+
+front -> front: Render snapshot + change card + QR(downloadUrl)
+user -> front: Scan QR
+front -> mobile: GET /download/{sessionId}
+mobile -> api: GET /api/v1/sessions/{sessionId}/ticket
+api --> mobile: Completed ticket payload
+mobile --> user: Show change card and video download when available
+@enduml

@@ -305,4 +305,29 @@ class SessionControllerDocsTest {
                 requestFields(fieldWithPath("selectedOutfitId").description("사용자가 확정한 옷 후보 ID")),
                 relaxedResponseFields(fieldWithPath("data.sessionId").description("세션 ID"))));
   }
+
+  @Test
+  void pollVideoUpload() throws Exception {
+    ClientSession session = session();
+    session.assignVideoUrl("https://video.example.com/session-id.webm");
+    session.completeVideoUpload();
+    given(getSessionVideoUploadUseCase.getVideoUpload(SESSION_ID)).willReturn(session);
+
+    mockMvc
+        .perform(get("/api/v1/sessions/{sessionId}/video", SESSION_ID).header("X-API-KEY", API_KEY))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andDo(
+            document(
+                "video-upload-poll",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("세션 ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data.sessionId").description("세션 ID"),
+                    fieldWithPath("data.videoUrl").description("업로드 대상 영상 URL"),
+                    fieldWithPath("data.status").description("영상 업로드 상태"))));
+  }
 }
