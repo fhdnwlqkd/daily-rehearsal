@@ -89,12 +89,7 @@ export interface SessionContextResponse {
  * FAILED      종결 실패 — retry 가능
  */
 export type BriefingFlowStatus =
-  | "IDLE"
-  | "SUBMITTING"
-  | "PROCESSING"
-  | "FOLLOW_UP"
-  | "COMPLETED"
-  | "FAILED";
+  "IDLE" | "SUBMITTING" | "PROCESSING" | "FOLLOW_UP" | "COMPLETED" | "FAILED";
 
 /**
  * SERVER_FAILED 서버가 status=FAILED를 반환
@@ -167,11 +162,7 @@ export interface ConfirmOutfitResponse {
  * ERROR       연결 실패 — 전시는 멈추지 않고 원본 거울로 진행한다
  */
 export type DecartConnectionStatus =
-  | "IDLE"
-  | "CONNECTING"
-  | "CONNECTED"
-  | "CLOSED"
-  | "ERROR";
+  "IDLE" | "CONNECTING" | "CONNECTED" | "CLOSED" | "ERROR";
 
 /**
  * useDecartConnection(세션 층 소유)이 스테이지로 내려주는 핸들.
@@ -204,9 +195,18 @@ export interface SimulationStartResponse {
   currentTurn: number;
   /** 성공해야 하는 턴 수 — 실패 재시도는 턴을 늘리지 않는다(성공 횟수 기준). */
   maxTurn: number;
+  generationMode: TurnGenerationMode;
+  sceneCue: string;
   /** 첫 상대 발화 — AI가 아니라 타입별 고정 문구다(백엔드 registry). */
   opponentLine: string;
+  actionPrompt: string;
 }
+
+export type TurnGenerationMode =
+  "STATIC" | "NORMAL" | "RECOVERY" | "TECHNICAL_FALLBACK";
+
+export type TurnEvaluationOutcome =
+  "ACCEPTED" | "RETRY_REQUIRED" | "FORCED_ADVANCE";
 
 /**
  * 판정·다음 발화 비동기 작업의 서버 상태. PENDING만 비종결(계속 폴링).
@@ -234,7 +234,7 @@ export interface TurnEvaluationResponse {
   attemptNo: number;
   status: SimulationJobStatus;
   /** 답변이 판정을 통과했는가 — 통과 시에만 백엔드 currentTurn이 전진한다. */
-  success?: boolean;
+  outcome?: TurnEvaluationOutcome;
   feedback?: string;
   /** AI 호출 실패로 백엔드 고정 피드백이 채워졌는지. */
   fallback?: boolean;
@@ -256,7 +256,10 @@ export interface NextLineResponse {
   sessionId: string;
   turnNo: number;
   status: SimulationJobStatus;
+  generationMode: TurnGenerationMode;
+  sceneCue?: string;
   opponentLine?: string;
+  actionPrompt?: string;
   failureReason?: string;
 }
 
@@ -288,7 +291,7 @@ export type SimulationFlowFailReason = "SERVER_FAILED" | "TIMEOUT" | "NETWORK";
 
 /** 화면에 보여줄 판정 결과 — TurnEvaluationResponse에서 표시 필드만 추린 것. */
 export interface SimulationFeedback {
-  success: boolean;
+  outcome: TurnEvaluationOutcome;
   feedback: string;
   /** AI 실패로 백엔드/프론트 고정 문구가 채워진 경우 (연출 구분용). */
   fallback: boolean;
@@ -303,6 +306,9 @@ export interface SimulationFlowSnapshot {
   maxTurn: number;
   /** 지금 상대가 한 말. start 응답 전에는 null. */
   opponentLine: string | null;
+  sceneCue: string | null;
+  actionPrompt: string | null;
+  generationMode: TurnGenerationMode | null;
   /** 마지막으로 제출한 답변 — EVALUATING 표시용. */
   transcript: string | null;
   /** 마지막 판정 결과. 새 턴의 상대 발화가 나오면 지운다. */
@@ -316,11 +322,7 @@ export interface SimulationFlowSnapshot {
  * 관리하며 여기에 추가하지 않는다 (예: briefing의 재질문, simulation의 턴).
  */
 export type ExperiencePhaseId =
-  | "type-select"
-  | "briefing"
-  | "outfit"
-  | "simulation"
-  | "ticket";
+  "type-select" | "briefing" | "outfit" | "simulation" | "ticket";
 
 export interface ExperiencePhase {
   id: ExperiencePhaseId;

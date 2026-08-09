@@ -2,6 +2,7 @@ package com.rehearsal.api.rehearsal.controller;
 
 import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
 import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
+import static com.rehearsal.api.support.SimulationTestFixtures.plan;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,6 +33,7 @@ import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -66,7 +68,9 @@ class SimulationControllerDocsTest {
   @Test
   void startSimulation() throws Exception {
     given(startSimulationUseCase.startSimulation(SESSION_ID))
-        .willReturn(new SimulationStart(SESSION_ID, 1, 3, "Hello, nice to meet you."));
+        .willReturn(
+            new SimulationStart(
+                SESSION_ID, 1, 3, TurnGenerationMode.STATIC, plan("Hello, nice to meet you.")));
 
     mockMvc
         .perform(
@@ -87,7 +91,10 @@ class SimulationControllerDocsTest {
                     fieldWithPath("data.sessionId").description("Session ID"),
                     fieldWithPath("data.currentTurn").description("Current simulation turn number"),
                     fieldWithPath("data.maxTurn").description("Maximum turn count"),
-                    fieldWithPath("data.opponentLine").description("First opponent line"))));
+                    fieldWithPath("data.generationMode").description("Turn generation mode"),
+                    fieldWithPath("data.sceneCue").description("Scene shown before the line"),
+                    fieldWithPath("data.opponentLine").description("First opponent line"),
+                    fieldWithPath("data.actionPrompt").description("Action requested from user"))));
   }
 
   @Test
@@ -230,7 +237,10 @@ class SimulationControllerDocsTest {
                         .description(
                             "Opponent line status. Values: "
                                 + RestDocsEnumValues.names(OpponentLineStatus.class)),
+                    fieldWithPath("data.generationMode").description("Turn generation mode"),
+                    fieldWithPath("data.sceneCue").description("Scene shown before the line"),
                     fieldWithPath("data.opponentLine").description("Generated opponent line"),
+                    fieldWithPath("data.actionPrompt").description("Action requested from user"),
                     fieldWithPath("data.failureReason")
                         .type(JsonFieldType.STRING)
                         .optional()

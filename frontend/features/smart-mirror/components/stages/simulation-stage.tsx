@@ -202,10 +202,12 @@ export function SimulationStage({
       <OpponentLine
         turn={flow.currentTurn}
         maxTurn={flow.maxTurn}
+        sceneCue={flow.sceneCue ?? ""}
         line={flow.opponentLine ?? ""}
+        actionPrompt={flow.actionPrompt ?? ""}
       />
 
-      {flow.evaluation && !flow.evaluation.success && (
+      {flow.evaluation && flow.evaluation.outcome === "RETRY_REQUIRED" && (
         <FeedbackPanel evaluation={flow.evaluation} />
       )}
 
@@ -225,17 +227,22 @@ export function SimulationStage({
 function OpponentLine({
   turn,
   maxTurn,
+  sceneCue,
   line,
+  actionPrompt,
 }: {
   turn: number;
   maxTurn: number;
+  sceneCue: string;
   line: string;
+  actionPrompt: string;
 }) {
   return (
     <div className="max-w-4xl text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
       <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
         SIMULATION · TURN {turn} / {maxTurn}
       </p>
+      <p className="mb-3 text-base font-light text-white/65">{sceneCue}</p>
       {/* 발화가 바뀔 때만 다시 페이드 — 같은 턴 재시도에선 출렁이지 않는다 */}
       <motion.h2
         key={`${turn}-${line}`}
@@ -246,6 +253,7 @@ function OpponentLine({
       >
         “{line}”
       </motion.h2>
+      <p className="mt-5 text-lg font-light text-white/75">{actionPrompt}</p>
     </div>
   );
 }
@@ -260,19 +268,25 @@ function FeedbackPanel({ evaluation }: { evaluation: SimulationFeedback }) {
     >
       <GlassPanel
         className={`max-w-3xl px-8 py-5 ${
-          evaluation.success ? "border-white/45" : "border-white/15"
+          evaluation.outcome === "ACCEPTED"
+            ? "border-white/45"
+            : "border-white/15"
         }`}
       >
         <div className="flex flex-col items-center gap-2 text-center">
           <span className="text-xs font-light tracking-[0.3em] text-white/55">
-            {evaluation.success ? "GOOD" : "TRY AGAIN"}
+            {evaluation.outcome === "ACCEPTED"
+              ? "GOOD"
+              : evaluation.outcome === "RETRY_REQUIRED"
+                ? "TRY AGAIN"
+                : "NEXT TURN"}
           </span>
           {evaluation.feedback && (
             <p className="text-xl font-extralight tracking-wide text-white/90">
               {evaluation.feedback}
             </p>
           )}
-          {!evaluation.success && (
+          {evaluation.outcome === "RETRY_REQUIRED" && (
             <p className="text-sm font-light text-white/60">
               같은 질문에 다시 답해 볼까요 — 준비되면 이야기해 주세요
             </p>

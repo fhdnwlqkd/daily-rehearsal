@@ -53,7 +53,11 @@ public class SimulationService
             sessionId, session.getCurrentTurn(), TurnGenerationMode.STATIC, config.firstTurn()));
 
     return new SimulationStart(
-        sessionId, session.getCurrentTurn(), config.maxTurn(), config.firstTurn().opponentLine());
+        sessionId,
+        session.getCurrentTurn(),
+        config.maxTurn(),
+        TurnGenerationMode.STATIC,
+        config.firstTurn());
   }
 
   @Override
