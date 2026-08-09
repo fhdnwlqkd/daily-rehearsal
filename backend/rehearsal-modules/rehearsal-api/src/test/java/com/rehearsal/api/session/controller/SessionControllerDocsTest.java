@@ -29,6 +29,7 @@ import com.rehearsal.domain.session.model.ContextCollectionState;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
+import com.rehearsal.domain.session.usecase.GetSessionVideoUploadUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
@@ -58,6 +59,7 @@ class SessionControllerDocsTest {
   @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
   @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
   @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
+  @MockitoBean private GetSessionVideoUploadUseCase getSessionVideoUploadUseCase;
 
   @Test
   void createSession() throws Exception {
@@ -302,5 +304,30 @@ class SessionControllerDocsTest {
                 pathParameters(parameterWithName("sessionId").description("Session ID")),
                 requestFields(fieldWithPath("selectedOutfitId").description("사용자가 확정한 옷 후보 ID")),
                 relaxedResponseFields(fieldWithPath("data.sessionId").description("세션 ID"))));
+  }
+
+  @Test
+  void pollVideoUpload() throws Exception {
+    ClientSession session = session();
+    session.assignVideoUrl("https://video.example.com/session-id.webm");
+    session.completeVideoUpload();
+    given(getSessionVideoUploadUseCase.getVideoUpload(SESSION_ID)).willReturn(session);
+
+    mockMvc
+        .perform(get("/api/v1/sessions/{sessionId}/video", SESSION_ID).header("X-API-KEY", API_KEY))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andDo(
+            document(
+                "video-upload-poll",
+                preprocessRequest(prettyPrint()),
+                preprocessResponse(prettyPrint()),
+                requestHeaders(headerWithName("X-API-KEY").description("Client API key")),
+                pathParameters(parameterWithName("sessionId").description("세션 ID")),
+                relaxedResponseFields(
+                    fieldWithPath("data.sessionId").description("세션 ID"),
+                    fieldWithPath("data.videoUrl").description("업로드 대상 영상 URL"),
+                    fieldWithPath("data.status").description("영상 업로드 상태"))));
   }
 }

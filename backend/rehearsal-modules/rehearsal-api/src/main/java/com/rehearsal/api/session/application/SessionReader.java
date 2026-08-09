@@ -18,4 +18,10 @@ public class SessionReader {
         .findSession(sessionId)
         .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
   }
+
+  public ClientSession getForUpdate(String sessionId) {
+    return sessionRepository
+        .findSessionForUpdate(sessionId)
+        .orElseThrow(() -> new BusinessException(ErrorCode.SESSION_NOT_FOUND));
+  }
 }

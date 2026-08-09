@@ -174,13 +174,10 @@ class TicketServiceTest {
 
   private TicketPayload samplePayload() {
     return new TicketPayload(
-        "리허설 완료!",
-        "잘 하셨어요.",
+        new com.rehearsal.domain.ticket.model.TicketSnapshot("소개팅", "첫 인사", "따뜻하고 자연스럽게", "네이비 정장"),
+        new com.rehearsal.domain.ticket.model.ChangeCard(
+            "첫 문장을 천천히 시작하기", "여유 있게 듣기", "긴장되면 숨을 고르고 말하기"),
         false,
-        com.rehearsal.domain.situation.model.SituationType.DATE,
-        "test-outfit-id",
-        java.util.List.of(),
-        java.util.List.of(),
         "http://localhost/mock-videos/test-session-id.webm",
         true,
         "http://localhost/mock-videos/test-session-id.webm",

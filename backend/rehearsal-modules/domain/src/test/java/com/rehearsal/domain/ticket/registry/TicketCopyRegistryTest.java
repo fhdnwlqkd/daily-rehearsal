@@ -8,22 +8,24 @@ import org.junit.jupiter.api.Test;
 class TicketCopyRegistryTest {
 
   @Test
-  void findsTicketCopyForDate() {
+  void findsChangeCardFallbackForDate() {
     TicketCopyDefinition definition =
         TicketCopyRegistry.findByType(SituationType.DATE).orElseThrow();
 
     assertThat(definition.situationType()).isEqualTo(SituationType.DATE);
-    assertThat(definition.fallbackTitle()).isNotBlank();
-    assertThat(definition.fallbackMessage()).isNotBlank();
+    assertThat(definition.fallbackChangeCard().todayAction()).isNotBlank();
+    assertThat(definition.fallbackChangeCard().tomorrowAttitude()).isNotBlank();
+    assertThat(definition.fallbackChangeCard().ifThenPlan()).isNotBlank();
   }
 
   @Test
-  void findsTicketCopyForBusinessMeeting() {
+  void findsChangeCardFallbackForBusinessMeeting() {
     TicketCopyDefinition definition =
         TicketCopyRegistry.findByType(SituationType.BUSINESS_MEETING).orElseThrow();
 
     assertThat(definition.situationType()).isEqualTo(SituationType.BUSINESS_MEETING);
-    assertThat(definition.fallbackTitle()).isNotBlank();
-    assertThat(definition.fallbackMessage()).isNotBlank();
+    assertThat(definition.fallbackChangeCard().todayAction()).isNotBlank();
+    assertThat(definition.fallbackChangeCard().tomorrowAttitude()).isNotBlank();
+    assertThat(definition.fallbackChangeCard().ifThenPlan()).isNotBlank();
   }
 }

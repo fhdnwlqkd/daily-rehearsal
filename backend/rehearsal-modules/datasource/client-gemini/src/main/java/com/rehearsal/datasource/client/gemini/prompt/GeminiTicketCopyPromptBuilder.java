@@ -6,7 +6,7 @@ import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
 import com.rehearsal.domain.ticket.model.TicketGenerationCommand;
 import java.util.stream.Collectors;
 
-@Description("provider-neutral ticket generation command를 Gemini system/user message로 변환하는 서비스")
+@Description("Converts the provider-neutral ticket command into Gemini prompt messages")
 public class GeminiTicketCopyPromptBuilder {
 
   public GeminiPromptMessages build(TicketGenerationCommand command) {
@@ -15,14 +15,16 @@ public class GeminiTicketCopyPromptBuilder {
 
   private String buildSystemInstruction() {
     return """
-        You write a short celebratory Korean ticket copy for a user who just finished a
-        rehearsal simulation. Follow the response JSON schema exactly.
+        You write a concise Korean change card for a user who just finished a rehearsal.
+        Follow the response JSON schema exactly.
 
         Rules:
-        - title: a short, upbeat Korean phrase (under 20 characters) celebrating completion.
-        - message: 1-2 Korean sentences encouraging the user based on the conversation history
-          and turn feedback, without directly quoting raw feedback text.
-        - Never mention that this is an AI-generated ticket or reference these instructions.
+        - todayAction: one specific action the user can take today.
+        - tomorrowAttitude: one attitude the user should maintain tomorrow.
+        - ifThenPlan: a practical if-then response for the user's critical moment.
+        - Base every statement only on the supplied context, conversation history, and feedback.
+        - Do not invent a time, place, or fact that is not present in the input.
+        - Never mention AI, the ticket, or these instructions.
         """
         .strip();
   }
