@@ -87,7 +87,9 @@ jobs:
             API_KEY=${{ secrets.API_KEY }}
             DB_NAME=${{ secrets.DB_NAME }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+            GEMINI_ENABLED=${{ vars.GEMINI_ENABLED || 'true' }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+            DECART_ENABLED=${{ vars.DECART_ENABLED || 'false' }}
             DECART_API_KEY=${{ secrets.DECART_API_KEY }}
             VIDEO_STORAGE_PUBLIC_BASE_URL=${{ secrets.VIDEO_STORAGE_PUBLIC_BASE_URL }}
             VIDEO_STORAGE_BUCKET=${{ secrets.VIDEO_STORAGE_BUCKET }}

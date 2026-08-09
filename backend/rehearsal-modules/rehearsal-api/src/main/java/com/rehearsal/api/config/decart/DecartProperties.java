@@ -15,6 +15,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "rehearsal.decart")
 public class DecartProperties {
 
+  private boolean enabled = true;
   private String apiKey = "";
   private String model = "lucy-vton-latest";
   private String tokenEndpoint = "https://api.decart.ai/v1/client/tokens";

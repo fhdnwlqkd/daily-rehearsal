@@ -1,0 +1,2 @@
+cd frontend || exit 1
+pnpm exec lint-staged && pnpm typecheck
