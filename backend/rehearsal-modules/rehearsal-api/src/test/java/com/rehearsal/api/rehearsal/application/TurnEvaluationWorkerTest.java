@@ -8,7 +8,9 @@ import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationRawResult;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
@@ -30,7 +32,7 @@ class TurnEvaluationWorkerTest {
     SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
     SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 1).orElseThrow();
     assertThat(attempt.getEvaluationStatus()).isEqualTo(EvaluationStatus.COMPLETED);
-    assertThat(attempt.getSuccess()).isTrue();
+    assertThat(attempt.getOutcome()).isEqualTo(TurnEvaluationOutcome.ACCEPTED);
     assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(2);
   }
 
@@ -50,7 +52,26 @@ class TurnEvaluationWorkerTest {
     SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 1).orElseThrow();
     assertThat(attempt.getEvaluationStatus()).isEqualTo(EvaluationStatus.COMPLETED);
     assertThat(attempt.getFallback()).isTrue();
-    assertThat(attempt.getSuccess()).isFalse();
+    assertThat(attempt.getOutcome()).isEqualTo(TurnEvaluationOutcome.RETRY_REQUIRED);
+  }
+
+  @Test
+  void secondRejectedAttemptForcesAdvanceWithoutAddingFailedAnswerToHistory() {
+    InMemorySessionRepository repository = repositoryWithPendingAttempt();
+    SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
+    SimulationTurnAttempt first = repository.findAttempt(turn.getId(), 1).orElseThrow();
+    first.complete(new TurnEvaluationResult(TurnEvaluationOutcome.RETRY_REQUIRED, "retry", false));
+    repository.saveAttempt(first);
+    repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 2, "still off topic"));
+    TurnEvaluationWorker worker =
+        worker(repository, command -> new TurnEvaluationRawResult(false, "next turn"));
+
+    worker.evaluate(new TurnEvaluationRequested("session-id", 1, 2, null));
+
+    SimulationTurnAttempt second = repository.findAttempt(turn.getId(), 2).orElseThrow();
+    assertThat(second.getOutcome()).isEqualTo(TurnEvaluationOutcome.FORCED_ADVANCE);
+    assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(2);
+    assertThat(new SimulationContextReader(repository).history("session-id", 2)).isEmpty();
   }
 
   private TurnEvaluationWorker worker(

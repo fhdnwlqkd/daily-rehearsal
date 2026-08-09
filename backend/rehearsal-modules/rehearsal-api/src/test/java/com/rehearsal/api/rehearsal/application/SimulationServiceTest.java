@@ -13,6 +13,8 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
@@ -79,6 +81,24 @@ class SimulationServiceTest {
         repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "first"));
     failed.fail("failed");
     repository.saveAttempt(failed);
+
+    SimulationTurnAttempt retried =
+        service(repository, new ArrayList<>()).submit(session.getSessionId(), 1, "retry", null);
+
+    assertThat(retried.getAttemptNo()).isEqualTo(2);
+    assertThat(retried.getEvaluationStatus()).isEqualTo(EvaluationStatus.PENDING);
+  }
+
+  @Test
+  void retryRequiredEvaluationCreatesSecondAttempt() {
+    ClientSession session = playingSession(1);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
+    SimulationTurnAttempt first =
+        repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "off topic"));
+    first.complete(
+        new TurnEvaluationResult(TurnEvaluationOutcome.RETRY_REQUIRED, "질문에 맞게 다시 답해보세요.", false));
+    repository.saveAttempt(first);
 
     SimulationTurnAttempt retried =
         service(repository, new ArrayList<>()).submit(session.getSessionId(), 1, "retry", null);

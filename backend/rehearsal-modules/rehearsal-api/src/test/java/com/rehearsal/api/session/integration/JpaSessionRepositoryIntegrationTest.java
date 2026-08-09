@@ -9,6 +9,8 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.RehearsalResult;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.repository.SessionRepository;
@@ -49,8 +51,7 @@ class JpaSessionRepositoryIntegrationTest {
         sessionRepository.saveAttempt(
             SimulationTurnAttempt.pending(turn.getId(), 1, "It was good."));
     attempt.complete(
-        new com.rehearsal.domain.rehearsal.model.TurnEvaluationResult(
-            true, "Natural response", false));
+        new TurnEvaluationResult(TurnEvaluationOutcome.ACCEPTED, "Natural response", false));
     sessionRepository.saveAttempt(attempt);
     sessionRepository.saveResult(
         RehearsalResult.create(

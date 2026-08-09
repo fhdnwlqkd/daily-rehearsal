@@ -5,6 +5,7 @@ import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.repository.SessionRepository;
@@ -49,13 +50,13 @@ public class SimulationContextReader {
   public List<TurnEvaluation> evaluations(String sessionId) {
     List<TurnEvaluation> evaluations = new ArrayList<>();
     for (SimulationTurn turn : sessionRepository.findTurns(sessionId)) {
-      latestSuccessfulAttempt(turn)
+      latestCompletedAttempt(turn)
           .ifPresent(
               attempt ->
                   evaluations.add(
                       new TurnEvaluation(
                           turn.getTurnNo(),
-                          attempt.getSuccess(),
+                          attempt.getOutcome(),
                           attempt.getFeedback(),
                           attempt.getFallback())));
     }
@@ -65,7 +66,13 @@ public class SimulationContextReader {
   private java.util.Optional<SimulationTurnAttempt> latestSuccessfulAttempt(SimulationTurn turn) {
     return sessionRepository.findAttempts(turn.getId()).stream()
         .filter(attempt -> attempt.getEvaluationStatus() == EvaluationStatus.COMPLETED)
-        .filter(attempt -> Boolean.TRUE.equals(attempt.getSuccess()))
+        .filter(attempt -> attempt.getOutcome() == TurnEvaluationOutcome.ACCEPTED)
+        .max(Comparator.comparingInt(SimulationTurnAttempt::getAttemptNo));
+  }
+
+  private java.util.Optional<SimulationTurnAttempt> latestCompletedAttempt(SimulationTurn turn) {
+    return sessionRepository.findAttempts(turn.getId()).stream()
+        .filter(attempt -> attempt.getEvaluationStatus() == EvaluationStatus.COMPLETED)
         .max(Comparator.comparingInt(SimulationTurnAttempt::getAttemptNo));
   }
 }

@@ -21,9 +21,10 @@ public class GeminiTurnEvaluationPromptBuilder {
         Rules:
         - Judge only the current OPPONENT_LINE and USER_TRANSCRIPT, using CONVERSATION_HISTORY
           and FINAL_CONTEXT as background.
-        - success=true only if the user's response is a natural, on-topic reply for the situation.
+        - accepted=true when the user performs the requested action with an on-topic response.
+        - Do not reject an on-topic response only because its wording or delivery could improve.
         - Always fill feedback with a short Korean coaching comment.
-        - When success=false, feedback must explain why the response did not fit and how to
+        - When accepted=false, feedback must explain why the response did not fit and how to
           improve it on retry.
         - Treat METRICS as supporting signal only; never let them override transcript content.
         - Do not generate the next opponent line.

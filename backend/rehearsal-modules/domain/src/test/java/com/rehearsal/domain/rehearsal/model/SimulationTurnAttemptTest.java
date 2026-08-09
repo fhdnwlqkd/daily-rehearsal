@@ -12,10 +12,10 @@ class SimulationTurnAttemptTest {
   void completesPendingEvaluation() {
     SimulationTurnAttempt attempt = SimulationTurnAttempt.pending(1L, 1, "user answer");
 
-    attempt.complete(new TurnEvaluationResult(true, "good", false));
+    attempt.complete(new TurnEvaluationResult(TurnEvaluationOutcome.ACCEPTED, "good", false));
 
     assertThat(attempt.getEvaluationStatus()).isEqualTo(EvaluationStatus.COMPLETED);
-    assertThat(attempt.getSuccess()).isTrue();
+    assertThat(attempt.getOutcome()).isEqualTo(TurnEvaluationOutcome.ACCEPTED);
     assertThat(attempt.getFeedback()).isEqualTo("good");
     assertThat(attempt.getFallback()).isFalse();
   }
@@ -23,7 +23,7 @@ class SimulationTurnAttemptTest {
   @Test
   void rejectsFailingAnAlreadyCompletedAttempt() {
     SimulationTurnAttempt attempt = SimulationTurnAttempt.pending(1L, 1, "user answer");
-    attempt.complete(new TurnEvaluationResult(true, "good", false));
+    attempt.complete(new TurnEvaluationResult(TurnEvaluationOutcome.ACCEPTED, "good", false));
 
     assertThatThrownBy(() -> attempt.fail("late failure")).isInstanceOf(BusinessException.class);
   }

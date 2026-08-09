@@ -79,7 +79,7 @@ public class GeminiTicketCopyPromptBuilder {
   }
 
   private String turnEvaluationLine(TurnEvaluation evaluation) {
-    return "- turn %d: success=%s feedback=\"%s\""
-        .formatted(evaluation.turnNo(), evaluation.success(), evaluation.feedback());
+    return "- turn %d: outcome=%s feedback=\"%s\""
+        .formatted(evaluation.turnNo(), evaluation.outcome(), evaluation.feedback());
   }
 }

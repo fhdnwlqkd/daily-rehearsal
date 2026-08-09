@@ -7,6 +7,7 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -51,7 +52,7 @@ class SimulationPollingIntegrationTest {
 
     SimulationTurnAttempt completedEvaluation =
         awaitEvaluationStatus(session.getSessionId(), 1, EvaluationStatus.COMPLETED);
-    assertThat(completedEvaluation.getSuccess()).isTrue();
+    assertThat(completedEvaluation.getOutcome()).isEqualTo(TurnEvaluationOutcome.ACCEPTED);
     assertThat(completedEvaluation.getFeedback()).isNotBlank();
     assertThat(sessionRepository.findSession(session.getSessionId()).orElseThrow().getCurrentTurn())
         .isEqualTo(2);

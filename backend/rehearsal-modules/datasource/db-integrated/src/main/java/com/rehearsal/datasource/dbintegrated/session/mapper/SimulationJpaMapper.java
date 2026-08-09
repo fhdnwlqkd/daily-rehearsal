@@ -61,7 +61,7 @@ public class SimulationJpaMapper {
       SimulationTurnAttemptJpaEntity entity, SimulationTurnAttempt attempt) {
     entity.updateEvaluation(
         attempt.getEvaluationStatus(),
-        attempt.getSuccess(),
+        attempt.getOutcome(),
         attempt.getFeedback(),
         attempt.getFallback(),
         attempt.getFailureReason());
@@ -74,7 +74,7 @@ public class SimulationJpaMapper {
         entity.getAttemptNo(),
         entity.getUserTranscript(),
         entity.getEvaluationStatus(),
-        entity.getSuccess(),
+        entity.getEvaluationOutcome(),
         entity.getFeedback(),
         entity.getFallback(),
         entity.getEvaluationFailureReason());

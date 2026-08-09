@@ -9,6 +9,7 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
@@ -68,8 +69,17 @@ public class SimulationService
 
     SimulationTurnAttempt latest =
         sessionRepository.findLatestAttempt(sessionId, turnNo).orElse(null);
-    if (latest != null && latest.getEvaluationStatus() != EvaluationStatus.FAILED) {
-      return latest;
+    if (latest != null) {
+      if (latest.getEvaluationStatus() == EvaluationStatus.PENDING) {
+        return latest;
+      }
+      if (latest.getEvaluationStatus() == EvaluationStatus.COMPLETED
+          && latest.getOutcome() != TurnEvaluationOutcome.RETRY_REQUIRED) {
+        return latest;
+      }
+      if (!latest.canRetry()) {
+        return latest;
+      }
     }
 
     int attemptNo = latest == null ? 1 : latest.getAttemptNo() + 1;

@@ -30,6 +30,7 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
@@ -128,7 +129,9 @@ class SimulationControllerDocsTest {
   @Test
   void pollTurnEvaluation() throws Exception {
     SimulationTurnAttempt completed = SimulationTurnAttempt.pending(1L, 1, "Nice to meet you too.");
-    completed.complete(new TurnEvaluationResult(true, "Clear and natural response.", false));
+    completed.complete(
+        new TurnEvaluationResult(
+            TurnEvaluationOutcome.ACCEPTED, "Clear and natural response.", false));
     given(getTurnEvaluationUseCase.get(SESSION_ID, 1)).willReturn(completed);
 
     mockMvc
@@ -138,7 +141,7 @@ class SimulationControllerDocsTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-        .andExpect(jsonPath("$.data.success").value(true))
+        .andExpect(jsonPath("$.data.outcome").value("ACCEPTED"))
         .andExpect(jsonPath("$.data.feedback").isNotEmpty())
         .andDo(
             document(
@@ -157,8 +160,8 @@ class SimulationControllerDocsTest {
                         .description(
                             "Evaluation status. Values: "
                                 + RestDocsEnumValues.names(EvaluationStatus.class)),
-                    fieldWithPath("data.success")
-                        .description("Whether the response passes evaluation"),
+                    fieldWithPath("data.outcome")
+                        .description("Turn outcome: ACCEPTED, RETRY_REQUIRED, or FORCED_ADVANCE"),
                     fieldWithPath("data.feedback").description("Evaluation feedback"),
                     fieldWithPath("data.fallback")
                         .description("Whether fallback feedback was used"),

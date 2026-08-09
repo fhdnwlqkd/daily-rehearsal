@@ -51,7 +51,7 @@ public class TurnEvaluationWorker {
 
       attempt.complete(result);
       sessionRepository.saveAttempt(attempt);
-      if (result.success()) {
+      if (result.outcome().advancesTurn()) {
         session.advanceTurn();
         sessionRepository.saveSession(session);
       }
@@ -82,10 +82,20 @@ public class TurnEvaluationWorker {
             event.metrics());
     try {
       TurnEvaluationRawResult raw = turnEvaluationClient.evaluate(command);
-      return new TurnEvaluationResult(raw.success(), raw.feedback(), false);
+      return TurnEvaluationResult.classify(
+          raw.accepted(),
+          attempt.getAttemptNo(),
+          SimulationTurnAttempt.MAX_ATTEMPT,
+          raw.feedback(),
+          false);
     } catch (RuntimeException exception) {
       log.warn("Turn evaluation AI call failed for session {}", session.getSessionId(), exception);
-      return new TurnEvaluationResult(false, AI_FAILURE_FEEDBACK, true);
+      return TurnEvaluationResult.classify(
+          false,
+          attempt.getAttemptNo(),
+          SimulationTurnAttempt.MAX_ATTEMPT,
+          AI_FAILURE_FEEDBACK,
+          true);
     }
   }
 

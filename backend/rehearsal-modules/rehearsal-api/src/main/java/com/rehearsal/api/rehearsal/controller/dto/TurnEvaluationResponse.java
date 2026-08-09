@@ -3,6 +3,7 @@ package com.rehearsal.api.rehearsal.controller.dto;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record TurnEvaluationResponse(
@@ -10,7 +11,7 @@ public record TurnEvaluationResponse(
     int turnNo,
     int attemptNo,
     EvaluationStatus status,
-    Boolean success,
+    TurnEvaluationOutcome outcome,
     String feedback,
     Boolean fallback,
     String failureReason) {
@@ -22,7 +23,7 @@ public record TurnEvaluationResponse(
         turnNo,
         attempt.getAttemptNo(),
         attempt.getEvaluationStatus(),
-        attempt.getSuccess(),
+        attempt.getOutcome(),
         attempt.getFeedback(),
         attempt.getFallback(),
         attempt.getFailureReason());

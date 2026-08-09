@@ -92,7 +92,7 @@ public class InMemorySessionRepository implements SessionRepository {
                 attempt.getAttemptNo(),
                 attempt.getUserTranscript(),
                 attempt.getEvaluationStatus(),
-                attempt.getSuccess(),
+                attempt.getOutcome(),
                 attempt.getFeedback(),
                 attempt.getFallback(),
                 attempt.getFailureReason())
