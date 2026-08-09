@@ -19,6 +19,7 @@ import com.rehearsal.domain.session.model.ContextCollectionState;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
+import com.rehearsal.domain.session.usecase.GetSessionVideoUploadUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
@@ -46,6 +47,7 @@ class SessionControllerTest {
   @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
   @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
   @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
+  @MockitoBean private GetSessionVideoUploadUseCase getSessionVideoUploadUseCase;
 
   @Test
   void createSession() throws Exception {
@@ -148,6 +150,21 @@ class SessionControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.success").value(false))
         .andExpect(jsonPath("$.error.code").value("S008"));
+  }
+
+  @Test
+  void getVideoUploadPollsStoredVideoStatus() throws Exception {
+    ClientSession session = rehearsalReadySession();
+    session.assignVideoUrl("http://localhost/mock-videos/" + SESSION_ID + ".webm");
+    session.completeVideoUpload();
+    given(getSessionVideoUploadUseCase.getVideoUpload(SESSION_ID)).willReturn(session);
+
+    mockMvc
+        .perform(get("/api/v1/sessions/{sessionId}/video", SESSION_ID))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.data.videoUrl").isString());
   }
 
   private ClientSession extractingSession() {

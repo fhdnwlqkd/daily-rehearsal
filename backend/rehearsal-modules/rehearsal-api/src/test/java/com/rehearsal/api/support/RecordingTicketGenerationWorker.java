@@ -14,7 +14,7 @@ public class RecordingTicketGenerationWorker extends TicketGenerationWorker {
   private boolean rejectNextDispatch = false;
 
   public RecordingTicketGenerationWorker() {
-    super(null, null, null, null, null, null);
+    super(null, null, null, null, null, null, null);
   }
 
   public void rejectNextDispatch() {

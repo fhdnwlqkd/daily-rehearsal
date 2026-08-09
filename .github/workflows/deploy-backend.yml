@@ -83,7 +83,7 @@ jobs:
               | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}
             cd /opt/daily-rehearsal
             umask 077
-            cat > .env <<'EOF'
+            cat > .env.backend <<'EOF'
             API_KEY=${{ secrets.API_KEY }}
             DB_NAME=${{ secrets.DB_NAME }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
@@ -92,12 +92,13 @@ jobs:
             DECART_ENABLED=${{ vars.DECART_ENABLED || 'false' }}
             DECART_API_KEY=${{ secrets.DECART_API_KEY }}
             VIDEO_STORAGE_PUBLIC_BASE_URL=${{ secrets.VIDEO_STORAGE_PUBLIC_BASE_URL }}
+            TICKET_DOWNLOAD_PAGE_BASE_URL=${{ secrets.TICKET_DOWNLOAD_PAGE_BASE_URL }}
             VIDEO_STORAGE_BUCKET=${{ secrets.VIDEO_STORAGE_BUCKET }}
             AWS_REGION=${{ secrets.AWS_REGION }}
             ECR_IMAGE=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}
             IMAGE_TAG=${{ needs.build-and-push.outputs.image-tag }}
             EOF
-            chmod 600 .env
-            docker compose -f docker-compose.prod.yml pull app
-            docker compose -f docker-compose.prod.yml up -d app
+            chmod 600 .env.backend
+            docker compose --env-file .env.backend -f docker-compose.prod.yml pull app
+            docker compose --env-file .env.backend -f docker-compose.prod.yml up -d app
             docker image prune -f
