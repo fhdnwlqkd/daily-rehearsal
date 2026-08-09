@@ -77,7 +77,7 @@ public class TurnEvaluationWorker {
             session.getSelectedOutfitId(),
             simulationContextReader.history(session.getSessionId(), event.turnNo()),
             event.turnNo(),
-            turn.getOpponentLine(),
+            turn.getPlan().opponentLine(),
             attempt.getUserTranscript(),
             event.metrics());
     try {

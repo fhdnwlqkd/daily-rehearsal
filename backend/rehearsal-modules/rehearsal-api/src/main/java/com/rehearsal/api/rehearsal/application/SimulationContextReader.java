@@ -39,7 +39,9 @@ public class SimulationContextReader {
               attempt ->
                   history.add(
                       new ConversationHistory(
-                          turn.getTurnNo(), turn.getOpponentLine(), attempt.getUserTranscript())));
+                          turn.getTurnNo(),
+                          turn.getPlan().opponentLine(),
+                          attempt.getUserTranscript())));
     }
     return List.copyOf(history);
   }

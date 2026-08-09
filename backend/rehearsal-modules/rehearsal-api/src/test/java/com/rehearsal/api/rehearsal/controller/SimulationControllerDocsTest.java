@@ -1,5 +1,7 @@
 package com.rehearsal.api.rehearsal.controller;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -168,7 +170,7 @@ class SimulationControllerDocsTest {
 
   @Test
   void submitNextOpponentLine() throws Exception {
-    SimulationTurn pending = SimulationTurn.pending(SESSION_ID, 2);
+    SimulationTurn pending = pendingTurn(SESSION_ID, 2);
     given(submitNextOpponentLineUseCase.submitNextLine(SESSION_ID, 2)).willReturn(pending);
 
     mockMvc
@@ -198,7 +200,7 @@ class SimulationControllerDocsTest {
 
   @Test
   void pollNextOpponentLine() throws Exception {
-    SimulationTurn completed = SimulationTurn.completed(SESSION_ID, 2, "What do you enjoy doing?");
+    SimulationTurn completed = completedTurn(SESSION_ID, 2, "What do you enjoy doing?");
     given(getNextOpponentLineUseCase.getNextLine(SESSION_ID, 2)).willReturn(completed);
 
     mockMvc

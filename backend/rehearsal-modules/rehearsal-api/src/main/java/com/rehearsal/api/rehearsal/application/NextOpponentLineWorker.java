@@ -9,6 +9,7 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineCommand;
 import com.rehearsal.domain.rehearsal.model.OpponentLineResult;
 import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnPlan;
 import com.rehearsal.domain.rehearsal.port.OpponentLineGeneratorClient;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
@@ -48,7 +49,7 @@ public class NextOpponentLineWorker {
       ClientSession session = sessionReader.get(event.sessionId());
       SimulationTurn turn = requiredTurn(event.sessionId(), event.turnNo());
       OpponentLineResult result = generate(session, event.turnNo());
-      turn.complete(result.opponentLine());
+      turn.complete(result.plan());
       sessionRepository.saveTurn(turn);
     } catch (RuntimeException exception) {
       log.error(
@@ -69,10 +70,17 @@ public class NextOpponentLineWorker {
             simulationContextReader.history(session.getSessionId(), turnNo),
             turnNo);
     try {
-      return new OpponentLineResult(opponentLineGeneratorClient.generate(command), false);
+      RehearsalConfigDefinition config = config(session);
+      return new OpponentLineResult(
+          new SimulationTurnPlan(
+              "상대가 대화를 이어갑니다.",
+              opponentLineGeneratorClient.generate(command),
+              config.objectiveFor(turnNo),
+              config.objectiveFor(turnNo)),
+          false);
     } catch (RuntimeException exception) {
       log.warn("Opponent line AI call failed for session {}", session.getSessionId(), exception);
-      return new OpponentLineResult(fallbackLine(session), true);
+      return new OpponentLineResult(config(session).technicalFallback(), true);
     }
   }
 
@@ -91,10 +99,8 @@ public class NextOpponentLineWorker {
     return sessionRepository.findTurn(sessionId, turnNo).orElseThrow();
   }
 
-  private String fallbackLine(ClientSession session) {
-    RehearsalConfigDefinition config =
-        RehearsalConfigRegistry.findByType(session.getSituationType())
-            .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
-    return config.nextLineFallback();
+  private RehearsalConfigDefinition config(ClientSession session) {
+    return RehearsalConfigRegistry.findByType(session.getSituationType())
+        .orElseThrow(() -> new BusinessException(ErrorCode.INTERNAL_SERVER_ERROR));
   }
 }

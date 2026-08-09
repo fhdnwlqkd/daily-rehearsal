@@ -1,5 +1,6 @@
 package com.rehearsal.api.rehearsal.application;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rehearsal.api.session.application.SessionReader;
@@ -25,7 +26,7 @@ class NextOpponentLineWorkerTest {
 
     SimulationTurn turn = repository.findTurn("session-id", 2).orElseThrow();
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.COMPLETED);
-    assertThat(turn.getOpponentLine()).isEqualTo("next line");
+    assertThat(turn.getPlan().opponentLine()).isEqualTo("next line");
   }
 
   @Test
@@ -42,7 +43,7 @@ class NextOpponentLineWorkerTest {
 
     SimulationTurn turn = repository.findTurn("session-id", 2).orElseThrow();
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.COMPLETED);
-    assertThat(turn.getOpponentLine()).isNotBlank();
+    assertThat(turn.getPlan().opponentLine()).isNotBlank();
   }
 
   private NextOpponentLineWorker worker(
@@ -66,7 +67,7 @@ class NextOpponentLineWorkerTest {
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
     repository.saveContext(
         "session-id", SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm")));
-    repository.saveTurn(SimulationTurn.pending("session-id", 2));
+    repository.saveTurn(pendingTurn("session-id", 2));
     return repository;
   }
 }

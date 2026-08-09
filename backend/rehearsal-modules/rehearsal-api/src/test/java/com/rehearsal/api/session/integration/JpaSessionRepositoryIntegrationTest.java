@@ -1,5 +1,6 @@
 package com.rehearsal.api.session.integration;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -43,8 +44,7 @@ class JpaSessionRepositoryIntegrationTest {
             SituationType.DATE,
             Map.of("desired_persona", "warm_natural", "critical_moment", "first_greeting")));
     SimulationTurn turn =
-        sessionRepository.saveTurn(
-            SimulationTurn.completed(session.getSessionId(), 1, "How was your day?"));
+        sessionRepository.saveTurn(completedTurn(session.getSessionId(), 1, "How was your day?"));
     SimulationTurnAttempt attempt =
         sessionRepository.saveAttempt(
             SimulationTurnAttempt.pending(turn.getId(), 1, "It was good."));

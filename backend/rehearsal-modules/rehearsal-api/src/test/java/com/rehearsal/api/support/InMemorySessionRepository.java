@@ -60,8 +60,9 @@ public class InMemorySessionRepository implements SessionRepository {
                 turnSequence++,
                 turn.getSessionId(),
                 turn.getTurnNo(),
+                turn.getGenerationMode(),
                 turn.getOpponentLineStatus(),
-                turn.getOpponentLine(),
+                turn.getPlan(),
                 turn.getFailureReason())
             : turn;
     turns.put(turnKey(saved.getSessionId(), saved.getTurnNo()), saved);

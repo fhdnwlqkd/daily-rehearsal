@@ -1,5 +1,6 @@
 package com.rehearsal.api.rehearsal.controller;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -75,7 +76,7 @@ class SimulationControllerTest {
 
   @Test
   void submitAndPollOpponentLine() throws Exception {
-    SimulationTurn turn = SimulationTurn.pending("session-id", 2);
+    SimulationTurn turn = pendingTurn("session-id", 2);
     given(submitNextOpponentLineUseCase.submitNextLine("session-id", 2)).willReturn(turn);
     given(getNextOpponentLineUseCase.getNextLine("session-id", 2)).willReturn(turn);
 

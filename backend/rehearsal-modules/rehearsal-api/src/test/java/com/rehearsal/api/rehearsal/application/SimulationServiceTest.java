@@ -1,5 +1,7 @@
 package com.rehearsal.api.rehearsal.application;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -40,8 +42,7 @@ class SimulationServiceTest {
   void submitEvaluationPersistsAttemptAndPublishesAfterCommitRequest() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
     List<Object> events = new ArrayList<>();
 
     SimulationTurnAttempt attempt =
@@ -57,8 +58,7 @@ class SimulationServiceTest {
   void duplicateEvaluationSubmissionReusesPendingAttempt() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
     SimulationTurnAttempt pending =
         repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "answer"));
     List<Object> events = new ArrayList<>();
@@ -74,8 +74,7 @@ class SimulationServiceTest {
   void failedEvaluationIsRetriedAsNextAttempt() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
     SimulationTurnAttempt failed =
         repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "first"));
     failed.fail("failed");
@@ -104,7 +103,7 @@ class SimulationServiceTest {
   void duplicateNextLineSubmissionReusesPendingTurn() {
     ClientSession session = playingSession(2);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn pending = repository.saveTurn(SimulationTurn.pending(session.getSessionId(), 2));
+    SimulationTurn pending = repository.saveTurn(pendingTurn(session.getSessionId(), 2));
     List<Object> events = new ArrayList<>();
 
     SimulationTurn duplicated =

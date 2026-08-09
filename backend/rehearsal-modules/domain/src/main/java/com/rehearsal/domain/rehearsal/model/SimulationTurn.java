@@ -12,56 +12,63 @@ public class SimulationTurn {
   private final Long id;
   private final String sessionId;
   private final int turnNo;
+  private final TurnGenerationMode generationMode;
   private OpponentLineStatus opponentLineStatus;
-  private String opponentLine;
+  private SimulationTurnPlan plan;
   private String failureReason;
 
   private SimulationTurn(
       Long id,
       String sessionId,
       int turnNo,
+      TurnGenerationMode generationMode,
       OpponentLineStatus opponentLineStatus,
-      String opponentLine,
+      SimulationTurnPlan plan,
       String failureReason) {
     this.id = id;
     this.sessionId = sessionId;
     this.turnNo = turnNo;
+    this.generationMode = generationMode;
     this.opponentLineStatus = opponentLineStatus;
-    this.opponentLine = opponentLine;
+    this.plan = plan;
     this.failureReason = failureReason;
   }
 
-  public static SimulationTurn pending(String sessionId, int turnNo) {
-    return new SimulationTurn(null, sessionId, turnNo, OpponentLineStatus.PENDING, null, null);
+  public static SimulationTurn pending(
+      String sessionId, int turnNo, TurnGenerationMode generationMode) {
+    return new SimulationTurn(
+        null, sessionId, turnNo, generationMode, OpponentLineStatus.PENDING, null, null);
   }
 
-  public static SimulationTurn completed(String sessionId, int turnNo, String opponentLine) {
+  public static SimulationTurn completed(
+      String sessionId, int turnNo, TurnGenerationMode generationMode, SimulationTurnPlan plan) {
     return new SimulationTurn(
-        null, sessionId, turnNo, OpponentLineStatus.COMPLETED, opponentLine, null);
+        null, sessionId, turnNo, generationMode, OpponentLineStatus.COMPLETED, plan, null);
   }
 
   public static SimulationTurn restore(
       Long id,
       String sessionId,
       int turnNo,
+      TurnGenerationMode generationMode,
       OpponentLineStatus opponentLineStatus,
-      String opponentLine,
+      SimulationTurnPlan plan,
       String failureReason) {
     return new SimulationTurn(
-        id, sessionId, turnNo, opponentLineStatus, opponentLine, failureReason);
+        id, sessionId, turnNo, generationMode, opponentLineStatus, plan, failureReason);
   }
 
-  public void complete(String opponentLine) {
+  public void complete(SimulationTurnPlan plan) {
     validatePending();
     this.opponentLineStatus = OpponentLineStatus.COMPLETED;
-    this.opponentLine = opponentLine;
+    this.plan = plan;
     this.failureReason = null;
   }
 
   public void fail(String failureReason) {
     validatePending();
     this.opponentLineStatus = OpponentLineStatus.FAILED;
-    this.opponentLine = null;
+    this.plan = null;
     this.failureReason = failureReason;
   }
 

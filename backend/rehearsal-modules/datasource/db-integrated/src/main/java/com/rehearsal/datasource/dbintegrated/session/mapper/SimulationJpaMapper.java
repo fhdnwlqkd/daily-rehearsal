@@ -5,6 +5,7 @@ import com.rehearsal.datasource.dbintegrated.session.entity.SimulationTurnAttemp
 import com.rehearsal.datasource.dbintegrated.session.entity.SimulationTurnJpaEntity;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnPlan;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -13,12 +14,19 @@ public class SimulationJpaMapper {
   public SimulationTurnJpaEntity toNewTurnEntity(
       RehearsalSessionJpaEntity session, SimulationTurn turn) {
     return SimulationTurnJpaEntity.create(
-        session, turn.getTurnNo(), turn.getOpponentLineStatus(), turn.getOpponentLine());
+        session,
+        turn.getTurnNo(),
+        turn.getGenerationMode(),
+        turn.getOpponentLineStatus(),
+        turn.getPlan());
   }
 
   public void updateTurnEntity(SimulationTurnJpaEntity entity, SimulationTurn turn) {
-    entity.updateOpponentLine(
-        turn.getOpponentLineStatus(), turn.getOpponentLine(), turn.getFailureReason());
+    entity.updateTurn(
+        turn.getGenerationMode(),
+        turn.getOpponentLineStatus(),
+        turn.getPlan(),
+        turn.getFailureReason());
   }
 
   public SimulationTurn toDomain(SimulationTurnJpaEntity entity) {
@@ -26,9 +34,21 @@ public class SimulationJpaMapper {
         entity.getId(),
         entity.getSession().getSessionId(),
         entity.getTurnNo(),
+        entity.getGenerationMode(),
         entity.getOpponentLineStatus(),
-        entity.getOpponentLine(),
+        plan(entity),
         entity.getOpponentLineFailureReason());
+  }
+
+  private SimulationTurnPlan plan(SimulationTurnJpaEntity entity) {
+    if (entity.getOpponentLine() == null) {
+      return null;
+    }
+    return new SimulationTurnPlan(
+        entity.getSceneCue(),
+        entity.getOpponentLine(),
+        entity.getActionPrompt(),
+        entity.getAcceptedIntentHint());
   }
 
   public SimulationTurnAttemptJpaEntity toNewAttemptEntity(

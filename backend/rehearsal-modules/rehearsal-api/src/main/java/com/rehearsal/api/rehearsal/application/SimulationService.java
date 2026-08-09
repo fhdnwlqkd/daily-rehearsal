@@ -9,6 +9,7 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
@@ -47,10 +48,11 @@ public class SimulationService
     session.startSimulation(config.maxTurn());
     sessionRepository.saveSession(session);
     sessionRepository.saveTurn(
-        SimulationTurn.completed(sessionId, session.getCurrentTurn(), config.firstOpponentLine()));
+        SimulationTurn.completed(
+            sessionId, session.getCurrentTurn(), TurnGenerationMode.STATIC, config.firstTurn()));
 
     return new SimulationStart(
-        sessionId, session.getCurrentTurn(), config.maxTurn(), config.firstOpponentLine());
+        sessionId, session.getCurrentTurn(), config.maxTurn(), config.firstTurn().opponentLine());
   }
 
   @Override
@@ -99,7 +101,9 @@ public class SimulationService
       return existing;
     }
 
-    SimulationTurn pending = sessionRepository.saveTurn(SimulationTurn.pending(sessionId, turnNo));
+    SimulationTurn pending =
+        sessionRepository.saveTurn(
+            SimulationTurn.pending(sessionId, turnNo, TurnGenerationMode.NORMAL));
     eventPublisher.publishEvent(new OpponentLineRequested(sessionId, turnNo));
     return pending;
   }

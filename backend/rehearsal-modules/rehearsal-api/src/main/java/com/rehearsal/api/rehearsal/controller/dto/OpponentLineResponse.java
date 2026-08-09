@@ -17,7 +17,7 @@ public record OpponentLineResponse(
         turn.getSessionId(),
         turn.getTurnNo(),
         turn.getOpponentLineStatus(),
-        turn.getOpponentLine(),
+        turn.getPlan() == null ? null : turn.getPlan().opponentLine(),
         turn.getFailureReason());
   }
 }

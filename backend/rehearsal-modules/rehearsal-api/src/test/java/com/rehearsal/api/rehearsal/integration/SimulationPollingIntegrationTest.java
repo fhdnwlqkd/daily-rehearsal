@@ -62,7 +62,7 @@ class SimulationPollingIntegrationTest {
 
     SimulationTurn completedNextLine =
         awaitOpponentLineStatus(session.getSessionId(), 2, OpponentLineStatus.COMPLETED);
-    assertThat(completedNextLine.getOpponentLine()).isNotBlank();
+    assertThat(completedNextLine.getPlan().opponentLine()).isNotBlank();
   }
 
   private ClientSession rehearsalReadySession() {

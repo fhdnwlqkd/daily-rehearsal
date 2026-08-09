@@ -1,5 +1,6 @@
 package com.rehearsal.api.rehearsal.application;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rehearsal.api.session.application.SessionReader;
@@ -73,7 +74,7 @@ class TurnEvaluationWorkerTest {
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
     repository.saveContext(
         "session-id", SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm")));
-    SimulationTurn turn = repository.saveTurn(SimulationTurn.completed("session-id", 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn("session-id", 1, "hello"));
     repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "answer"));
     return repository;
   }
