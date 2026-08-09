@@ -1,102 +1,45 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { WebcamBackground } from "./components/webcam-background";
 import { PermissionGuide } from "./components/permission-guide";
-import { ExperienceStage } from "./components/stage-router";
+import { ExperienceSession } from "./components/experience-session";
 import { useCamera } from "./hooks/use-camera";
-import { experiencePhases } from "./data/phases";
+import { useGestureEngine } from "./hooks/use-gesture-engine";
 
+/**
+ * 부스 수명 층. 전시 내내 유지되는 장비(카메라 stream, 추후 제스처 engine)만
+ * 소유하고, 관람객 한 명의 세션 상태는 전부 ExperienceSession이 가진다.
+ * 세션 초기화 = sessionEpoch 증가 → key 리마운트 (수동 state 리셋 금지 —
+ * frontend/CLAUDE.md "수명 2층 구조").
+ */
 export function SmartMirror() {
-  const [phaseIndex, setPhaseIndex] = useState(0);
-  const [showDebug, setShowDebug] = useState(false);
+  const [sessionEpoch, setSessionEpoch] = useState(0);
   // 카메라/마이크 단일 소유권. stream은 WebcamBackground로 내려준다.
   const { stream, status, retry } = useCamera();
+  // 제스처 엔진(MediaPipe)도 부스 수명 — 모델 로딩이 수 초라 세션마다 재로딩 금지.
+  const engine = useGestureEngine();
 
   const showPermissionGuide = status === "denied";
-  const currentPhase = experiencePhases[phaseIndex];
-
-  const goToNextPhase = useCallback(() => {
-    setPhaseIndex((current) => (current + 1) % experiencePhases.length);
-  }, []);
-
-  const goToPhase = useCallback((index: number) => {
-    setPhaseIndex(index);
-  }, []);
-
-  useEffect(() => {
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === " " || event.key === "Enter") {
-        event.preventDefault();
-        goToNextPhase();
-      }
-
-      if (event.key.toLowerCase() === "d") {
-        setShowDebug((visible) => !visible);
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [goToNextPhase]);
-
-  if (!currentPhase) return null;
 
   return (
-    <div
-      className="relative h-screen w-screen cursor-none overflow-hidden bg-black"
-      onClick={goToNextPhase}
-      role="presentation"
-    >
+    <div className="relative h-screen w-screen cursor-none overflow-hidden bg-black">
       {/* Permission Guide Overlay */}
       <AnimatePresence>
         {showPermissionGuide && <PermissionGuide onRetry={retry} />}
       </AnimatePresence>
 
-      {/* Webcam Background Layer (z-0) */}
+      {/* Webcam Background Layer (z-0) — 세션이 리셋돼도 깜빡이지 않는다 */}
       <WebcamBackground stream={stream} />
 
-      {/* State Content Layer */}
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentPhase.id}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.65, ease: "easeInOut" }}
-          className="absolute inset-0 z-10"
-        >
-          <ExperienceStage
-            phase={currentPhase}
-            phaseIndex={phaseIndex}
-            totalPhases={experiencePhases.length}
-          />
-        </motion.div>
-      </AnimatePresence>
-
-      {showDebug && (
-        <div className="absolute top-6 right-6 z-50 flex gap-2">
-          {experiencePhases.map((phase, index) => (
-            <motion.button
-              key={phase.id}
-              onClick={(event) => {
-                event.stopPropagation();
-                goToPhase(index);
-              }}
-              className={`flex h-10 min-w-10 items-center justify-center rounded-xl border px-3 text-xs backdrop-blur-xl transition-all ${
-                phaseIndex === index
-                  ? "border-white/40 bg-white/20 text-white"
-                  : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white/80"
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              {index + 1}
-            </motion.button>
-          ))}
-        </div>
-      )}
+      {/* Session Layer (z-10) */}
+      <ExperienceSession
+        key={sessionEpoch}
+        engine={engine}
+        stream={stream}
+        onRestart={() => setSessionEpoch((epoch) => epoch + 1)}
+      />
     </div>
   );
 }
