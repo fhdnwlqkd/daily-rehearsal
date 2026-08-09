@@ -1,0 +1,95 @@
+package com.rehearsal.datasource.client.gemini.prompt;
+
+import com.rehearsal.domain.core.annotation.Description;
+import com.rehearsal.domain.rehearsal.model.ConversationHistory;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationCommand;
+import com.rehearsal.domain.rehearsal.model.TurnMetrics;
+import java.util.stream.Collectors;
+
+@Description("provider-neutral turn evaluation command를 Gemini system/user message로 변환하는 서비스")
+public class GeminiTurnEvaluationPromptBuilder {
+
+  public GeminiPromptMessages build(TurnEvaluationCommand command) {
+    return new GeminiPromptMessages(buildSystemInstruction(), buildUserMessage(command));
+  }
+
+  private String buildSystemInstruction() {
+    return """
+        You judge whether a single rehearsal turn succeeds and give feedback in Korean.
+        Follow the response JSON schema exactly.
+
+        Rules:
+        - Judge only the current OPPONENT_LINE and USER_TRANSCRIPT, using CONVERSATION_HISTORY
+          and FINAL_CONTEXT as background.
+        - success=true only if the user's response is a natural, on-topic reply for the situation.
+        - Always fill feedback with a short Korean coaching comment.
+        - When success=false, feedback must explain why the response did not fit and how to
+          improve it on retry.
+        - Treat METRICS as supporting signal only; never let them override transcript content.
+        - Do not generate the next opponent line.
+        - Do not decide whether the simulation itself should end.
+        """
+        .strip();
+  }
+
+  private String buildUserMessage(TurnEvaluationCommand command) {
+    return """
+        SITUATION_TYPE:
+        %s
+
+        FINAL_CONTEXT:
+        %s
+
+        SELECTED_OUTFIT:
+        %s
+
+        CONVERSATION_HISTORY:
+        %s
+
+        CURRENT_TURN:
+        %d
+
+        OPPONENT_LINE:
+        %s
+
+        USER_TRANSCRIPT:
+        %s
+
+        METRICS:
+        %s
+        """
+        .formatted(
+            command.situationType(),
+            command.finalContext(),
+            command.selectedOutfitId(),
+            conversationHistory(command),
+            command.currentTurn(),
+            command.opponentLine(),
+            command.userTranscript(),
+            metrics(command.metrics()))
+        .strip();
+  }
+
+  private String conversationHistory(TurnEvaluationCommand command) {
+    if (command.conversationHistory().isEmpty()) {
+      return "(none)";
+    }
+
+    return command.conversationHistory().stream()
+        .map(this::conversationLine)
+        .collect(Collectors.joining("\n"));
+  }
+
+  private String conversationLine(ConversationHistory history) {
+    return "- turn %d: opponent=\"%s\" user=\"%s\""
+        .formatted(history.turnNo(), history.opponentLine(), history.userTranscript());
+  }
+
+  private String metrics(TurnMetrics metrics) {
+    if (metrics == null) {
+      return "(none)";
+    }
+    return "responseDelayMs=%s, speechRate=%s, volume=%s"
+        .formatted(metrics.responseDelayMs(), metrics.speechRate(), metrics.volume());
+  }
+}

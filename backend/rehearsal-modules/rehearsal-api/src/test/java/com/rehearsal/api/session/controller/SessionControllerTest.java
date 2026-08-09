@@ -1,188 +1,174 @@
 package com.rehearsal.api.session.controller;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
-import com.rehearsal.domain.core.exception.BusinessException;
-import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.extraction.usecase.GetContextExtractionUseCase;
+import com.rehearsal.domain.extraction.usecase.SubmitContextExtractionUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.ContextCollectionState;
 import com.rehearsal.domain.session.model.ContextStatus;
-import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
-import com.rehearsal.domain.session.usecase.GetSessionUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
+import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
+import com.rehearsal.domain.situation.model.SituationType;
+import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.test.web.servlet.MvcResult;
 
 @WebMvcTest(controllers = SessionController.class)
-@Import({
-  GlobalExceptionHandler.class,
-  ApiResponseBodyAdvice.class,
-  SessionControllerTest.TestUseCaseConfiguration.class
-})
+@Import({GlobalExceptionHandler.class, ApiResponseBodyAdvice.class})
 class SessionControllerTest {
+
+  private static final String SESSION_ID = "session-id";
 
   @Autowired private MockMvc mockMvc;
 
+  @MockitoBean private CreateSessionUseCase createSessionUseCase;
+  @MockitoBean private UpdateClientSessionUseCase updateClientSessionUseCase;
+  @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
+  @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
+  @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
+
   @Test
   void createSession() throws Exception {
+    given(createSessionUseCase.createSession(any()))
+        .willReturn(ClientSession.create(SituationType.DATE));
+
     mockMvc
-        .perform(post("/api/v1/sessions"))
+        .perform(
+            post("/api/v1/sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"situationType\":\"date\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.sessionId").isString())
-        .andExpect(jsonPath("$.data.channel").value("P1_OFFLINE"))
-        .andExpect(jsonPath("$.data.status").value("BRIEFING"))
-        .andExpect(jsonPath("$.data.contextStatus").value("NOT_STARTED"))
-        .andExpect(jsonPath("$.data.followUpAttempt").value(0));
+        .andExpect(jsonPath("$.data.situationType").value("date"));
   }
 
   @Test
-  void getSession() throws Exception {
-    MvcResult createResult =
-        mockMvc.perform(post("/api/v1/sessions")).andExpect(status().isOk()).andReturn();
-
-    String sessionId =
-        com.jayway.jsonpath.JsonPath.read(
-            createResult.getResponse().getContentAsString(), "$.data.sessionId");
+  void submitBriefingReturnsExtractingStateWithoutJobId() throws Exception {
+    ClientSession session = extractingSession();
+    given(submitContextExtractionUseCase.submitBriefingExtraction(anyString(), anyString()))
+        .willReturn(session);
 
     mockMvc
-        .perform(get("/api/v1/sessions/{sessionId}", sessionId))
+        .perform(
+            post("/api/v1/sessions/{sessionId}/briefing", SESSION_ID)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"transcript\":\"briefing transcript\"}"))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
+        .andExpect(jsonPath("$.data.status").value("EXTRACTING"))
+        .andExpect(jsonPath("$.data.jobId").doesNotExist());
+  }
+
+  @Test
+  void getContextPollsSessionAndContextRows() throws Exception {
+    ContextCollectionState state =
+        new ContextCollectionState(
+            SESSION_ID,
+            ContextStatus.COMPLETED,
+            SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm_natural")),
+            List.of(),
+            List.of());
+    given(getContextExtractionUseCase.getContext(SESSION_ID)).willReturn(state);
+
+    mockMvc
+        .perform(get("/api/v1/sessions/{sessionId}/context", SESSION_ID))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.status").value("BRIEFING"))
-        .andExpect(jsonPath("$.data.contextStatus").value("NOT_STARTED"))
-        .andExpect(jsonPath("$.data.followUpAttempt").value(0));
+        .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+        .andExpect(jsonPath("$.data.context.situation_type").value("date"))
+        .andExpect(jsonPath("$.data.context.desired_persona").value("warm_natural"));
   }
 
   @Test
-  void getSessionWhenSessionNotFound() throws Exception {
-    mockMvc
-        .perform(get("/api/v1/sessions/{sessionId}", "missing-session-id"))
-        .andExpect(status().isNotFound())
-        .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.code").value("S001"))
-        .andExpect(jsonPath("$.error.name").value("SESSION_NOT_FOUND"))
-        .andExpect(jsonPath("$.error.message").value("Session not found."));
-  }
-
-  @Test
-  void submitBriefing() throws Exception {
-    String sessionId = createSessionId();
+  void confirmOutfitReturnsOnlySessionId() throws Exception {
+    ClientSession session =
+        ClientSession.builder()
+            .sessionId(SESSION_ID)
+            .situationType(SituationType.DATE)
+            .status(com.rehearsal.domain.session.model.SessionStatus.REHEARSAL_READY)
+            .contextStatus(ContextStatus.COMPLETED)
+            .selectedOutfitId("outfit-1")
+            .build();
+    given(updateClientSessionUseCase.confirmOutfit(anyString(), anyString())).willReturn(session);
 
     mockMvc
         .perform(
-            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
+            patch("/api/v1/sessions/{sessionId}/outfit", SESSION_ID)
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"transcript\":\"tomorrow interview rehearsal\"}"))
+                .content("{\"selectedOutfitId\":\"outfit-1\"}"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.sessionId").value(sessionId))
-        .andExpect(jsonPath("$.data.status").value("CONTEXT_EXTRACTING"))
-        .andExpect(jsonPath("$.data.contextStatus").value("EXTRACTING"))
-        .andExpect(jsonPath("$.data.briefingTranscript").value("tomorrow interview rehearsal"));
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
+        .andExpect(jsonPath("$.data.selectedOutfitId").doesNotExist());
   }
 
   @Test
-  void submitBriefingWhenInvalidSessionState() throws Exception {
-    String sessionId = createSessionId();
+  void uploadVideo() throws Exception {
+    ClientSession session = rehearsalReadySession();
+    session.assignVideoUrl("http://localhost/mock-videos/" + SESSION_ID + ".webm");
+    given(uploadSessionVideoUseCase.upload(anyString(), any(), anyString(), anyString()))
+        .willReturn(session);
 
     mockMvc
         .perform(
-            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"transcript\":\"first briefing\"}"))
-        .andExpect(status().isOk());
+            multipart("/api/v1/sessions/{sessionId}/video", SESSION_ID)
+                .file(
+                    new MockMultipartFile(
+                        "file", "recording.webm", "video/webm", "video-bytes".getBytes())))
+        .andExpect(status().isAccepted())
+        .andExpect(jsonPath("$.data.sessionId").value(SESSION_ID))
+        .andExpect(jsonPath("$.data.videoUrl").isString())
+        .andExpect(jsonPath("$.data.status").value("PENDING"));
+  }
 
+  @Test
+  void uploadVideoWhenFileIsEmpty() throws Exception {
     mockMvc
         .perform(
-            post("/api/v1/sessions/{sessionId}/briefing", sessionId)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"transcript\":\"second briefing\"}"))
-        .andExpect(status().isConflict())
+            multipart("/api/v1/sessions/{sessionId}/video", SESSION_ID)
+                .file(new MockMultipartFile("file", "recording.webm", "video/webm", new byte[0])))
+        .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.success").value(false))
-        .andExpect(jsonPath("$.error.code").value("S002"))
-        .andExpect(jsonPath("$.error.name").value("INVALID_SESSION_STATE"))
-        .andExpect(jsonPath("$.error.message").value("Invalid session state."));
+        .andExpect(jsonPath("$.error.code").value("S008"));
   }
 
-  private String createSessionId() throws Exception {
-    MvcResult createResult =
-        mockMvc.perform(post("/api/v1/sessions")).andExpect(status().isOk()).andReturn();
-    return com.jayway.jsonpath.JsonPath.read(
-        createResult.getResponse().getContentAsString(), "$.data.sessionId");
+  private ClientSession extractingSession() {
+    ClientSession session =
+        ClientSession.builder()
+            .sessionId(SESSION_ID)
+            .situationType(SituationType.DATE)
+            .status(com.rehearsal.domain.session.model.SessionStatus.BRIEFING)
+            .contextStatus(ContextStatus.NOT_STARTED)
+            .build();
+    session.startContextExtraction();
+    return session;
   }
 
-  @TestConfiguration
-  static class TestUseCaseConfiguration {
-
-    @Bean
-    TestSessionUseCase testSessionUseCase() {
-      return new TestSessionUseCase();
-    }
-
-    @Bean
-    CreateSessionUseCase createSessionUseCase(TestSessionUseCase testSessionUseCase) {
-      return testSessionUseCase;
-    }
-
-    @Bean
-    GetSessionUseCase getSessionUseCase(TestSessionUseCase testSessionUseCase) {
-      return testSessionUseCase;
-    }
-
-    @Bean
-    UpdateClientSessionUseCase updateClientSessionUseCase(TestSessionUseCase testSessionUseCase) {
-      return testSessionUseCase;
-    }
-  }
-
-  static class TestSessionUseCase
-      implements CreateSessionUseCase, GetSessionUseCase, UpdateClientSessionUseCase {
-
-    private final Map<String, ClientSession> sessions = new ConcurrentHashMap<>();
-
-    @Override
-    public ClientSession createSession() {
-      ClientSession session = ClientSession.create(ClientSession.DEFAULT_CHANNEL);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
-
-    @Override
-    public ClientSession getSession(String sessionId) {
-      ClientSession session = sessions.get(sessionId);
-      if (session == null) {
-        throw new BusinessException(ErrorCode.SESSION_NOT_FOUND);
-      }
-      return session;
-    }
-
-    @Override
-    public ClientSession submitBriefing(String sessionId, String transcript) {
-      ClientSession session = getSession(sessionId);
-      if (session.getStatus() != SessionStatus.BRIEFING) {
-        throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
-      }
-
-      session.updateBriefingTranscript(transcript);
-      session.updateStatus(SessionStatus.CONTEXT_EXTRACTING);
-      session.updateContextStatus(ContextStatus.EXTRACTING);
-      sessions.put(session.getSessionId(), session);
-      return session;
-    }
+  private ClientSession rehearsalReadySession() {
+    return ClientSession.builder()
+        .sessionId(SESSION_ID)
+        .situationType(SituationType.DATE)
+        .status(com.rehearsal.domain.session.model.SessionStatus.REHEARSAL_READY)
+        .contextStatus(ContextStatus.COMPLETED)
+        .selectedOutfitId("outfit-1")
+        .build();
   }
 }

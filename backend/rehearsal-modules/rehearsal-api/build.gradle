@@ -1,12 +1,24 @@
 plugins {
     id 'org.springframework.boot'
+    id 'org.asciidoctor.jvm.convert' version '3.3.2'
+}
+
+ext {
+    set('snippetsDir', file("build/generated-snippets"))
+}
+
+configurations {
+    asciidoctorExt
 }
 
 dependencies {
     implementation project(':domain')
-    implementation project(':datasource')
-    implementation project(':datasource:client-openai')
+    implementation project(':datasource:db-integrated')
+    implementation project(':datasource:cache-session')
     implementation project(':datasource:client-gemini')
+    implementation project(':datasource:client-decart')
+    implementation project(':datasource:storage-local')
+    implementation project(':datasource:storage-s3')
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
@@ -23,6 +35,39 @@ dependencies {
     runtimeOnly 'com.mysql:mysql-connector-j'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    testImplementation 'org.springframework.restdocs:spring-restdocs-mockmvc'
+    asciidoctorExt 'org.springframework.restdocs:spring-restdocs-asciidoctor'
     testRuntimeOnly 'com.h2database:h2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    outputs.dir snippetsDir
+}
+
+tasks.named('asciidoctor') {
+    configurations 'asciidoctorExt'
+    inputs.dir snippetsDir
+    dependsOn test
+    attributes 'snippets': snippetsDir
+    baseDirFollowsSourceFile()
+}
+
+task copyDocument(type: Copy) {
+    dependsOn asciidoctor, processResources
+    from file("build/docs/asciidoc")
+    into file("build/resources/main/static/docs")
+}
+
+bootJar {
+    dependsOn copyDocument
+}
+
+tasks.named('resolveMainClassName') {
+    dependsOn copyDocument
+}
+
+jar {
+    dependsOn copyDocument
 }

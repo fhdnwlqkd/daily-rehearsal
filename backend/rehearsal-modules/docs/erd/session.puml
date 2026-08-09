@@ -1,0 +1,161 @@
+@startuml
+title Daily Rehearsal - RDB Only Session Schema
+
+hide methods
+hide stereotypes
+
+package "RDB (MySQL) - Single Source of Truth" <<Database>> {
+
+  entity "rehearsal_session" as session {
+    * session_id : VARCHAR(36) <<PK>>
+    --
+    * situation_type : VARCHAR(50)
+    * status : VARCHAR(50)
+    * context_status : VARCHAR(50)
+    * follow_up_attempt : INT
+    selected_outfit_id : VARCHAR(100) <<NULLable>>
+    * current_turn : INT
+    * max_turn : INT
+    * version : BIGINT
+    * created_at : DATETIME(6)
+    * updated_at : DATETIME(6)
+    completed_at : DATETIME(6) <<NULLable>>
+  }
+
+  entity "session_context_value" as context_value {
+    * id : BIGINT <<PK>>
+    --
+    * session_id : VARCHAR(36) <<FK>>
+    * context_key : VARCHAR(100)
+    * context_value : TEXT
+    * created_at : DATETIME(6)
+    * updated_at : DATETIME(6)
+    --
+    UNIQUE(session_id, context_key)
+  }
+
+  entity "simulation_turn" as turn {
+    * id : BIGINT <<PK>>
+    --
+    * session_id : VARCHAR(36) <<FK>>
+    * turn_no : INT
+    * opponent_line_status : VARCHAR(30)
+    opponent_line : TEXT <<NULLable>>
+    opponent_line_failure_reason : TEXT <<NULLable>>
+    * created_at : DATETIME(6)
+    * updated_at : DATETIME(6)
+    --
+    UNIQUE(session_id, turn_no)
+  }
+
+  entity "simulation_turn_attempt" as turn_attempt {
+    * id : BIGINT <<PK>>
+    --
+    * simulation_turn_id : BIGINT <<FK>>
+    * attempt_no : INT
+    * user_transcript : TEXT
+    * evaluation_status : VARCHAR(30)
+    success : BOOLEAN <<NULLable>>
+    feedback : TEXT <<NULLable>>
+    fallback : BOOLEAN <<NULLable>>
+    evaluation_failure_reason : TEXT <<NULLable>>
+    * created_at : DATETIME(6)
+    * updated_at : DATETIME(6)
+    --
+    UNIQUE(simulation_turn_id, attempt_no)
+  }
+
+  entity "rehearsal_result" as result {
+    * id : BIGINT <<PK>>
+    --
+    * session_id : VARCHAR(36) <<FK, UNIQUE>>
+    video_url : VARCHAR(500) <<NULLable>>
+    ticket_summary : TEXT <<NULLable>>
+    download_url : VARCHAR(500) <<NULLable>>
+    * created_at : DATETIME(6)
+    * updated_at : DATETIME(6)
+  }
+
+  session ||--o{ context_value : "collected context"
+  session ||--o{ turn : "simulation turns"
+  turn ||--o{ turn_attempt : "answer attempts"
+  session ||--o| result : "final result"
+
+  note right of session
+    세션과 context 수집 상태의 유일한 원본이다.
+    별도 Redis session/cache/job을 두지 않는다.
+
+    Context polling:
+    contextStatus를 조회해
+    EXTRACTING / FOLLOW_UP_REQUIRED /
+    COMPLETED / FAILED를 반환한다.
+
+    version은 비동기 worker 간
+    동시 갱신 충돌을 감지한다.
+  end note
+
+  note left of session
+    JPA mapping policy:
+    - child entity owns the FK association
+    - child -> parent uses LAZY reference
+    - parent has no OneToMany collection
+    - child rows are queried explicitly
+    - one domain port: SessionRepository
+  end note
+
+  note right of context_value
+    실제로 수집된 context key/value만 저장한다.
+    Partial/Final 여부는 contextStatus로 판단한다.
+
+    missingSlotKeys와 followUpQuestions는
+    현재 값과 정적 registry에서 계산한다.
+  end note
+
+  note right of turn
+    상대 발화 생성 작업과 결과를 함께 표현한다.
+
+    Opponent-line polling:
+    opponentLineStatus를 조회해
+    PENDING / COMPLETED / FAILED를 반환한다.
+  end note
+
+  note right of turn_attempt
+    한 row는 한 번의 사용자 답변과 평가 작업이다.
+    같은 turn에서 실패 후 다시 답할 수 있으므로
+    attemptNo를 별도로 둔다.
+
+    Evaluation polling:
+    evaluationStatus를 조회해
+    PENDING / COMPLETED / FAILED를 반환한다.
+  end note
+}
+
+note bottom
+  Context normalize
+  POST briefing/follow-up
+    -> rehearsal_session.context_status 변경
+    -> RDB transaction commit
+    -> worker 실행
+    -> context value 저장과 context_status 완료를 한 transaction으로 처리
+  GET context
+    -> rehearsal_session + session_context_value SELECT
+
+  Opponent line
+  POST next line
+    -> simulation_turn을 PENDING으로 INSERT
+  GET turn
+    -> simulation_turn SELECT
+
+  Turn evaluation
+  POST evaluation
+    -> simulation_turn_attempt를 PENDING으로 INSERT
+  GET attempt
+    -> simulation_turn_attempt SELECT
+
+  Polling 상태와 실제 결과가 같은 row에 있으므로
+  별도 job/result 동기화가 필요하지 않다.
+  여러 row 변경은 application service의
+  transaction 경계 안에서 처리한다.
+end note
+
+@enduml

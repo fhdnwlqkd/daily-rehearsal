@@ -8,6 +8,10 @@ spring:
     active: local
   main:
     allow-bean-definition-overriding: true
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 management:
   endpoints:
@@ -16,21 +20,24 @@ management:
         include: health,info,metrics
 
 rehearsal:
+  security:
+    api-key:
+      enabled: ${API_KEY_AUTH_ENABLED:true}
+      key: ${API_KEY:}
+      header-name: X-API-KEY
   ai:
     defaults:
-      provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:none}
-    tasks:
-      slot-extraction:
-        provider: ${SLOT_EXTRACTION_AI_PROVIDER:${REHEARSAL_AI_DEFAULT_PROVIDER:none}}
-        model: ${SLOT_EXTRACTION_AI_MODEL:}
-    openai:
-      api-key: ${OPENAI_API_KEY:}
-      model: ${OPENAI_MODEL:gpt-5.4-nano}
-      max-output-tokens: ${OPENAI_MAX_OUTPUT_TOKENS:512}
-      temperature: ${OPENAI_TEMPERATURE:0.0}
-      store: ${OPENAI_STORE:false}
+      provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:gemini}
     gemini:
       api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+      model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
       temperature: ${GEMINI_TEMPERATURE:0.0}
       thinking-budget: ${GEMINI_THINKING_BUDGET:0}
+  decart:
+    api-key: ${DECART_API_KEY:}
+    model: ${DECART_MODEL:lucy-vton-latest}
+    token-endpoint: ${DECART_TOKEN_ENDPOINT:https://api.decart.ai/v1/client/tokens}
+    outfits: {}
+  video-storage:
+    local-root: ${VIDEO_STORAGE_LOCAL_ROOT:./data/videos}
+    public-base-url: ${VIDEO_STORAGE_PUBLIC_BASE_URL:http://localhost:8080/mock-videos}

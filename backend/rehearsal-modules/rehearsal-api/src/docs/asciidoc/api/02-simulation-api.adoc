@@ -1,0 +1,50 @@
+[[Simulation-API]]
+== 4. 시뮬레이션 API
+
+시뮬레이션은 context 수집과 의상 확정이 완료된 세션에서만 시작할 수 있습니다.
+모든 요청에는 인증 항목에서 설명한 `X-API-KEY` 헤더가 필요합니다.
+
+[[Simulation-Start]]
+=== 4.1. 시뮬레이션 시작
+
+`POST /api/v1/sessions/{sessionId}/simulation/start`
+
+첫 번째 turn을 동기적으로 시작하고 첫 상대 발화를 반환합니다.
+
+operation::simulation-start[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Simulation-Submit-Evaluation]]
+=== 4.2. Turn 평가 제출
+
+`POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
+
+`202 Accepted` 응답은 `PENDING` 상태의 평가 시도를 저장했음을 뜻합니다. 완료 결과는 평가 조회 API를 polling하여 확인합니다.
+
+operation::simulation-submit-evaluation[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
+
+[[Simulation-Poll-Evaluation]]
+=== 4.3. Turn 평가 상태 조회
+
+`GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
+
+이 API는 RDB에 저장된 최신 평가 시도만 읽으며 AI를 다시 호출하지 않습니다.
+
+operation::simulation-poll-evaluation[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Simulation-Submit-Next-Line]]
+=== 4.4. 다음 상대 발화 요청
+
+`POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
+
+`202 Accepted` 응답은 `PENDING` 상태의 turn을 저장했음을 뜻합니다. 완료 결과는 다음 상대 발화 조회 API를 polling하여 확인합니다.
+
+operation::simulation-submit-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Simulation-Poll-Next-Line]]
+=== 4.5. 다음 상대 발화 상태 조회
+
+`GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
+
+이 API는 RDB에 저장된 turn만 읽으며 AI를 다시 호출하지 않습니다.
+
+operation::simulation-poll-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
