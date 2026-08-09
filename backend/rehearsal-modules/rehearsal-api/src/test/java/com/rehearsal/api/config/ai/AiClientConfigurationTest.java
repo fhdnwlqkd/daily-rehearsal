@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.rehearsal.datasource.client.gemini.GeminiSlotExtractorClient;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
+import com.rehearsal.domain.rehearsal.port.OpponentLineGeneratorClient;
+import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
+import com.rehearsal.domain.ticket.port.TicketCopyGeneratorClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 
@@ -46,6 +49,24 @@ class AiClientConfigurationTest {
               assertThat(context).hasSingleBean(SlotExtractorClient.class);
               assertThat(context.getBean(SlotExtractorClient.class))
                   .isInstanceOf(FakeSlotExtractorClient.class);
+            });
+  }
+
+  @Test
+  void disablesEveryGeminiClientWithoutApiKey() {
+    contextRunner
+        .withPropertyValues("rehearsal.ai.gemini.enabled=false")
+        .run(
+            context -> {
+              assertThat(context).hasNotFailed();
+              assertThat(context.getBean(SlotExtractorClient.class))
+                  .isInstanceOf(FakeSlotExtractorClient.class);
+              assertThat(context.getBean(TurnEvaluationClient.class))
+                  .isInstanceOf(FakeTurnEvaluationClient.class);
+              assertThat(context.getBean(OpponentLineGeneratorClient.class))
+                  .isInstanceOf(FakeOpponentLineGeneratorClient.class);
+              assertThat(context.getBean(TicketCopyGeneratorClient.class))
+                  .isInstanceOf(FakeTicketCopyGeneratorClient.class);
             });
   }
 

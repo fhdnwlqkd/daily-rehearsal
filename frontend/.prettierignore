@@ -1,0 +1,8 @@
+.next
+out
+dist
+node_modules
+pnpm-lock.yaml
+*.tsbuildinfo
+next-env.d.ts
+public/mediapipe/

@@ -15,6 +15,11 @@ public class DecartConfiguration {
 
   @Bean
   public DecartTokenPort decartTokenPort(DecartProperties properties) {
+    if (!properties.isEnabled()) {
+      return () -> {
+        throw new IllegalStateException("Decart is disabled for this deployment");
+      };
+    }
     return new DecartTokenAdapter(
         properties.getApiKey(),
         DecartWebTokenClient.of(properties.getApiKey(), properties.getTokenEndpoint()));

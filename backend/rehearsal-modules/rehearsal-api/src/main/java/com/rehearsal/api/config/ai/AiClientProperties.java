@@ -32,6 +32,7 @@ public class AiClientProperties {
   @Setter
   public static class Gemini {
 
+    private boolean enabled = true;
     private String apiKey = "";
     private String model = GeminiSlotExtractorClient.DEFAULT_MODEL;
     private float temperature = GeminiGenerateContentConfigBuilder.DEFAULT_TEMPERATURE;
