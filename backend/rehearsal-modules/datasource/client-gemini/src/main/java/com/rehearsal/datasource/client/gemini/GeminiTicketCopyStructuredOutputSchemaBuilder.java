@@ -5,19 +5,29 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Description("ticket copy 응답 스키마를 Gemini responseJsonSchema용 JSON Schema map으로 만드는 서비스")
+@Description("Builds the Gemini JSON schema for a ticket change card")
 public class GeminiTicketCopyStructuredOutputSchemaBuilder {
 
   public Map<String, Object> build() {
+    Map<String, Object> changeCardProperties = new LinkedHashMap<>();
+    changeCardProperties.put("todayAction", stringSchema());
+    changeCardProperties.put("tomorrowAttitude", stringSchema());
+    changeCardProperties.put("ifThenPlan", stringSchema());
+
+    Map<String, Object> changeCardSchema = new LinkedHashMap<>();
+    changeCardSchema.put("type", "object");
+    changeCardSchema.put("additionalProperties", false);
+    changeCardSchema.put("properties", changeCardProperties);
+    changeCardSchema.put("required", List.of("todayAction", "tomorrowAttitude", "ifThenPlan"));
+
     Map<String, Object> properties = new LinkedHashMap<>();
-    properties.put("title", stringSchema());
-    properties.put("message", stringSchema());
+    properties.put("changeCard", changeCardSchema);
 
     Map<String, Object> root = new LinkedHashMap<>();
     root.put("type", "object");
     root.put("additionalProperties", false);
     root.put("properties", properties);
-    root.put("required", List.of("title", "message"));
+    root.put("required", List.of("changeCard"));
     return root;
   }
 

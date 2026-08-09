@@ -2,54 +2,65 @@ package com.rehearsal.api.ticket.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.rehearsal.api.config.decart.DecartProperties;
 import com.rehearsal.api.config.ticket.TicketProperties;
+import com.rehearsal.api.decart.application.OutfitSpecResolver;
 import com.rehearsal.api.rehearsal.application.SimulationContextReader;
 import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.api.support.InMemoryTicketJobStore;
 import com.rehearsal.api.support.TestClientSessions;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.ticket.model.ChangeCard;
 import com.rehearsal.domain.ticket.model.TicketCopyRawResult;
 import com.rehearsal.domain.ticket.model.TicketJob;
 import com.rehearsal.domain.ticket.model.TicketJobStatus;
 import com.rehearsal.domain.ticket.port.TicketCopyGeneratorClient;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 class TicketGenerationWorkerTest {
 
-  private static final String FALLBACK_DOWNLOAD_URL =
-      "http://localhost:8080/mock-videos/unavailable.webm";
+  private static final String DOWNLOAD_PAGE_BASE_URL = "http://localhost:3000";
 
   @Test
-  void completesJobAndCompletesSessionOnSuccessfulGeneration() {
+  void completesJobWithChangeCardSnapshotAndVideo() {
     ClientSession session = finishedSession();
     session.assignVideoUrl("http://localhost/mock-videos/test-session-id.webm");
     session.completeVideoUpload();
     InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
+    sessionRepository.saveContext(
+        session.getSessionId(),
+        SessionContext.from(
+            session.getSituationType(),
+            Map.of("critical_moment", "첫 인사", "desired_persona", "warm_natural")));
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
-        workerWith(
-            sessionRepository, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+        workerWith(sessionRepository, jobStore, command -> new TicketCopyRawResult(changeCard()));
 
     worker.generateAsync(session.getSessionId());
 
     Optional<TicketJob> job = jobStore.findById(session.getSessionId());
     assertThat(job).isPresent();
     assertThat(job.get().status()).isEqualTo(TicketJobStatus.COMPLETED);
-    assertThat(job.get().result().title()).isEqualTo("리허설 완료!");
-    assertThat(job.get().result().message()).isEqualTo("잘 하셨어요.");
+    assertThat(job.get().result().changeCard()).isEqualTo(changeCard());
+    assertThat(job.get().result().snapshot().situationLabel()).isEqualTo("소개팅");
+    assertThat(job.get().result().snapshot().criticalMoment()).isEqualTo("첫 인사");
+    assertThat(job.get().result().snapshot().desiredPersonaLabel()).isEqualTo("따뜻하고 자연스럽게");
+    assertThat(job.get().result().snapshot().selectedOutfitLabel()).isEqualTo("네이비 정장");
     assertThat(job.get().result().fallback()).isFalse();
     assertThat(job.get().result().videoAvailable()).isTrue();
     assertThat(job.get().result().downloadUrl())
-        .isEqualTo("http://localhost/mock-videos/test-session-id.webm");
+        .isEqualTo("http://localhost:3000/download/test-session-id");
     assertThat(job.get().result().qrPayload()).isEqualTo(job.get().result().downloadUrl());
     assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
   }
 
   @Test
-  void completesJobWithCopyFallbackWhenAiCallFails() {
+  void completesJobWithChangeCardFallbackWhenAiCallFails() {
     ClientSession session = finishedSession();
     InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
@@ -66,26 +77,28 @@ class TicketGenerationWorkerTest {
     TicketJob job = jobStore.findById(session.getSessionId()).orElseThrow();
     assertThat(job.status()).isEqualTo(TicketJobStatus.COMPLETED);
     assertThat(job.result().fallback()).isTrue();
-    assertThat(job.result().title()).isNotBlank();
-    assertThat(job.result().message()).isNotBlank();
+    assertThat(job.result().changeCard().todayAction()).isNotBlank();
+    assertThat(job.result().changeCard().tomorrowAttitude()).isNotBlank();
+    assertThat(job.result().changeCard().ifThenPlan()).isNotBlank();
     assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
   }
 
   @Test
-  void fallsBackDownloadUrlWhenVideoUploadIsNotCompleted() {
+  void createsMobileDownloadUrlWhenVideoUploadIsNotCompleted() {
     ClientSession session = finishedSession();
     InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
-        workerWith(
-            sessionRepository, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+        workerWith(sessionRepository, jobStore, command -> new TicketCopyRawResult(changeCard()));
 
     worker.generateAsync(session.getSessionId());
 
     TicketJob job = jobStore.findById(session.getSessionId()).orElseThrow();
     assertThat(job.result().videoAvailable()).isFalse();
-    assertThat(job.result().downloadUrl()).isEqualTo(FALLBACK_DOWNLOAD_URL);
-    assertThat(job.result().qrPayload()).isEqualTo(FALLBACK_DOWNLOAD_URL);
+    assertThat(job.result().downloadUrl())
+        .isEqualTo("http://localhost:3000/download/test-session-id");
+    assertThat(job.result().qrPayload())
+        .isEqualTo("http://localhost:3000/download/test-session-id");
   }
 
   @Test
@@ -95,7 +108,7 @@ class TicketGenerationWorkerTest {
         workerWith(
             new InMemorySessionRepository(),
             jobStore,
-            command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+            command -> new TicketCopyRawResult(changeCard()));
 
     worker.generateAsync("unknown-session-id");
 
@@ -106,14 +119,12 @@ class TicketGenerationWorkerTest {
 
   @Test
   void marksJobFailedWhenSimulationIsNotActuallyCompleted() {
-    // AI 카피 생성까지는 성공하지만 completeSimulation()에서 검증에 실패하는 경우를 재현한다.
     ClientSession session = TestClientSessions.sessionWith(SessionStatus.REHEARSAL_READY);
     session.startSimulation(3);
     InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
     TicketGenerationWorker worker =
-        workerWith(
-            sessionRepository, jobStore, command -> new TicketCopyRawResult("리허설 완료!", "잘 하셨어요."));
+        workerWith(sessionRepository, jobStore, command -> new TicketCopyRawResult(changeCard()));
 
     worker.generateAsync(session.getSessionId());
 
@@ -125,18 +136,24 @@ class TicketGenerationWorkerTest {
       InMemorySessionRepository sessionRepository,
       InMemoryTicketJobStore jobStore,
       TicketCopyGeneratorClient ticketCopyGeneratorClient) {
-    SessionReader sessionReader = new SessionReader(sessionRepository);
-    SimulationContextReader simulationContextReader =
-        new SimulationContextReader(sessionRepository);
     TicketProperties ticketProperties = new TicketProperties();
-    ticketProperties.setDownloadFallbackUrl(FALLBACK_DOWNLOAD_URL);
+    ticketProperties.setDownloadPageBaseUrl(DOWNLOAD_PAGE_BASE_URL);
     return new TicketGenerationWorker(
-        sessionReader,
+        new SessionReader(sessionRepository),
         sessionRepository,
-        simulationContextReader,
+        new SimulationContextReader(sessionRepository),
+        outfitSpecResolver(),
         ticketCopyGeneratorClient,
         jobStore,
         ticketProperties);
+  }
+
+  private OutfitSpecResolver outfitSpecResolver() {
+    DecartProperties properties = new DecartProperties();
+    DecartProperties.OutfitSpec outfit = new DecartProperties.OutfitSpec();
+    outfit.setLabel("네이비 정장");
+    properties.getOutfits().put("test-outfit-id", outfit);
+    return new OutfitSpecResolver(properties);
   }
 
   private ClientSession finishedSession() {
@@ -144,5 +161,9 @@ class TicketGenerationWorkerTest {
     session.startSimulation(1);
     session.advanceTurn();
     return session;
+  }
+
+  private ChangeCard changeCard() {
+    return new ChangeCard("첫 문장을 천천히 시작하기", "여유 있게 듣기", "긴장되면 숨을 고르고 말하기");
   }
 }

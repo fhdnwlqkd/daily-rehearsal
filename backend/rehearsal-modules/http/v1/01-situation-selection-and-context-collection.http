@@ -155,3 +155,75 @@ Accept: application/json
     }
   });
 %}
+
+### 5-1. Upload the rehearsal recording after the simulation is complete
+# Set recordingPath to an actual WebM recording in your IntelliJ HTTP environment before sending.
+POST {{host}}/api/v1/sessions/{{sessionId}}/video
+X-API-KEY: {{apiKey}}
+Content-Type: multipart/form-data; boundary=Boundary
+Accept: application/json
+
+--Boundary
+Content-Disposition: form-data; name="file"; filename="session-recording.webm"
+Content-Type: video/webm
+
+< {{recordingPath}}
+--Boundary--
+
+> {%
+  client.test("video upload is accepted", function () {
+    client.assert(response.status === 202, "Expected 202 Accepted");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert(["PENDING", "COMPLETED", "FAILED"].includes(response.body.data.status), "Expected a known upload status");
+  });
+%}
+
+### 5-2. Poll the recording upload until it is complete
+GET {{host}}/api/v1/sessions/{{sessionId}}/video
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("video upload returns its current status", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(["PENDING", "COMPLETED", "FAILED"].includes(response.body.data.status), "Expected a known upload status");
+  });
+%}
+
+### 5-3. Request change card generation
+POST {{host}}/api/v1/sessions/{{sessionId}}/ticket
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("ticket generation is accepted", function () {
+    client.assert(response.status === 202, "Expected 202 Accepted");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert(response.body.data.status === "PENDING", "Expected pending ticket generation");
+  });
+%}
+
+### 5-4. Poll the change card until it is complete
+GET {{host}}/api/v1/sessions/{{sessionId}}/ticket
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("ticket polling returns a completed card", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(["PENDING", "COMPLETED", "FAILED"].includes(response.body.data.status), "Expected a known ticket status");
+
+    if (response.body.data.status === "COMPLETED") {
+      client.assert(response.body.data.snapshot.selectedOutfitLabel, "Expected a readable outfit label");
+      client.assert(response.body.data.changeCard.todayAction, "Expected today's action");
+      client.assert(response.body.data.changeCard.tomorrowAttitude, "Expected tomorrow's attitude");
+      client.assert(response.body.data.changeCard.ifThenPlan, "Expected an if-then plan");
+      client.assert(response.body.data.downloadUrl, "Expected a mobile download URL");
+      client.assert(response.body.data.qrPayload === response.body.data.downloadUrl, "Expected QR payload to match download URL");
+    }
+  });
+%}

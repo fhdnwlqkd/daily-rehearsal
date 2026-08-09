@@ -12,6 +12,10 @@ import type {
 import { experiencePhases } from "../data/phases";
 import { useDecartConnection } from "../hooks/use-decart-connection";
 import { useSessionRecorder } from "../hooks/use-session-recorder";
+import type {
+  SessionRecorderStatus,
+  SessionRecording,
+} from "../hooks/use-session-recorder";
 import { DecartMirrorLayer } from "./decart-mirror-layer";
 import { StageFrame } from "./stage-frame";
 import { StagePlaceholder } from "./shared/stage-placeholder";
@@ -177,6 +181,8 @@ export function ExperienceSession({
               session,
               situationType,
               decart,
+              recorderStatus: recorder.status,
+              recording: recorder.recording,
               onSessionCreated: handleSessionCreated,
               onBriefingComplete: goToNextPhase,
               onOutfitConfirmed: goToNextPhase,
@@ -229,6 +235,8 @@ interface StageContext {
   situationType: SituationType | null;
   /** Decart 연결 핸들(세션 층 소유) — 옷 입히기 스테이지가 소비한다. */
   decart: DecartConnectionHandle;
+  recorderStatus: SessionRecorderStatus;
+  recording: SessionRecording | null;
   onSessionCreated: (
     session: CreateSessionResponse,
     situationType: SituationType,
@@ -299,7 +307,16 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
         />
       );
     case "ticket":
-      return <TicketStage />;
+      if (!context.session) {
+        return <StagePlaceholder label="티켓을 만들 세션이 없습니다" />;
+      }
+      return (
+        <TicketStage
+          sessionId={context.session.sessionId}
+          recorderStatus={context.recorderStatus}
+          recording={context.recording}
+        />
+      );
     default:
       return phaseId satisfies never;
   }
