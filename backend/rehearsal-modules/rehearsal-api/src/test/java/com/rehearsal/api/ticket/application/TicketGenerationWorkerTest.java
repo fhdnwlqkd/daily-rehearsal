@@ -24,8 +24,7 @@ import org.junit.jupiter.api.Test;
 
 class TicketGenerationWorkerTest {
 
-  private static final String FALLBACK_DOWNLOAD_URL =
-      "http://localhost:8080/mock-videos/unavailable.webm";
+  private static final String DOWNLOAD_PAGE_BASE_URL = "http://localhost:3000";
 
   @Test
   void completesJobWithChangeCardSnapshotAndVideo() {
@@ -55,7 +54,7 @@ class TicketGenerationWorkerTest {
     assertThat(job.get().result().fallback()).isFalse();
     assertThat(job.get().result().videoAvailable()).isTrue();
     assertThat(job.get().result().downloadUrl())
-        .isEqualTo("http://localhost/mock-videos/test-session-id.webm");
+        .isEqualTo("http://localhost:3000/download/test-session-id");
     assertThat(job.get().result().qrPayload()).isEqualTo(job.get().result().downloadUrl());
     assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
   }
@@ -85,7 +84,7 @@ class TicketGenerationWorkerTest {
   }
 
   @Test
-  void fallsBackDownloadUrlWhenVideoUploadIsNotCompleted() {
+  void createsMobileDownloadUrlWhenVideoUploadIsNotCompleted() {
     ClientSession session = finishedSession();
     InMemorySessionRepository sessionRepository = new InMemorySessionRepository(session);
     InMemoryTicketJobStore jobStore = new InMemoryTicketJobStore();
@@ -96,8 +95,10 @@ class TicketGenerationWorkerTest {
 
     TicketJob job = jobStore.findById(session.getSessionId()).orElseThrow();
     assertThat(job.result().videoAvailable()).isFalse();
-    assertThat(job.result().downloadUrl()).isEqualTo(FALLBACK_DOWNLOAD_URL);
-    assertThat(job.result().qrPayload()).isEqualTo(FALLBACK_DOWNLOAD_URL);
+    assertThat(job.result().downloadUrl())
+        .isEqualTo("http://localhost:3000/download/test-session-id");
+    assertThat(job.result().qrPayload())
+        .isEqualTo("http://localhost:3000/download/test-session-id");
   }
 
   @Test
@@ -136,7 +137,7 @@ class TicketGenerationWorkerTest {
       InMemoryTicketJobStore jobStore,
       TicketCopyGeneratorClient ticketCopyGeneratorClient) {
     TicketProperties ticketProperties = new TicketProperties();
-    ticketProperties.setDownloadFallbackUrl(FALLBACK_DOWNLOAD_URL);
+    ticketProperties.setDownloadPageBaseUrl(DOWNLOAD_PAGE_BASE_URL);
     return new TicketGenerationWorker(
         new SessionReader(sessionRepository),
         sessionRepository,

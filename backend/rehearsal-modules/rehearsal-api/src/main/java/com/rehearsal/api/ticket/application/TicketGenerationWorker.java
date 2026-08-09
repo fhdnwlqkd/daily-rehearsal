@@ -101,8 +101,7 @@ public class TicketGenerationWorker {
   private TicketPayload buildPayload(
       ClientSession session, SessionContext context, TicketCopyResult copy) {
     boolean videoAvailable = session.getVideoUploadStatus() == VideoUploadStatus.COMPLETED;
-    String downloadUrl =
-        videoAvailable ? session.getVideoUrl() : ticketProperties.getDownloadFallbackUrl();
+    String downloadUrl = mobileDownloadUrl(session.getSessionId());
 
     return new TicketPayload(
         snapshotOf(session, context),
@@ -112,6 +111,13 @@ public class TicketGenerationWorker {
         videoAvailable,
         downloadUrl,
         downloadUrl);
+  }
+
+  private String mobileDownloadUrl(String sessionId) {
+    String baseUrl = ticketProperties.getDownloadPageBaseUrl();
+    String normalizedBaseUrl =
+        baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
+    return normalizedBaseUrl + "/download/" + sessionId;
   }
 
   private SessionContext contextOf(ClientSession session) {
