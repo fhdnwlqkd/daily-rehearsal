@@ -20,7 +20,7 @@ class TurnEvaluationWorkerTest {
 
   @Test
   void completesAttemptAndAdvancesSessionOnSuccess() {
-    InMemorySessionRepository repository = repositoryWithPendingAttempt();
+    InMemorySessionRepository repository = repositoryWithPendingAttempt(1);
     TurnEvaluationWorker worker =
         worker(repository, command -> new TurnEvaluationRawResult(true, "good"));
 
@@ -34,8 +34,39 @@ class TurnEvaluationWorkerTest {
   }
 
   @Test
-  void AIErrorUsesCompletedFallbackResult() {
-    InMemorySessionRepository repository = repositoryWithPendingAttempt();
+  void firstFailureCompletesAttemptWithoutAdvancingSession() {
+    InMemorySessionRepository repository = repositoryWithPendingAttempt(1);
+    TurnEvaluationWorker worker =
+        worker(repository, command -> new TurnEvaluationRawResult(false, "try again"));
+
+    worker.evaluate(new TurnEvaluationRequested("session-id", 1, 1, null));
+
+    SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
+    SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 1).orElseThrow();
+    assertThat(attempt.getSuccess()).isFalse();
+    assertThat(attempt.getFeedback()).isEqualTo("try again");
+    assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(1);
+  }
+
+  @Test
+  void secondFailureKeepsFailureResultAndAdvancesSession() {
+    InMemorySessionRepository repository = repositoryWithPendingAttempt(2);
+    TurnEvaluationWorker worker =
+        worker(repository, command -> new TurnEvaluationRawResult(false, "try again"));
+
+    worker.evaluate(new TurnEvaluationRequested("session-id", 1, 2, null));
+
+    SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
+    SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 2).orElseThrow();
+    assertThat(attempt.getSuccess()).isFalse();
+    assertThat(attempt.getFallback()).isFalse();
+    assertThat(attempt.getFeedback()).isEqualTo("두 번의 연습을 마쳤어요. 다음 단계로 넘어갈게요.");
+    assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(2);
+  }
+
+  @Test
+  void AIErrorKeepsFailureFallbackAndAdvancesSession() {
+    InMemorySessionRepository repository = repositoryWithPendingAttempt(1);
     TurnEvaluationWorker worker =
         worker(
             repository,
@@ -50,6 +81,8 @@ class TurnEvaluationWorkerTest {
     assertThat(attempt.getEvaluationStatus()).isEqualTo(EvaluationStatus.COMPLETED);
     assertThat(attempt.getFallback()).isTrue();
     assertThat(attempt.getSuccess()).isFalse();
+    assertThat(attempt.getFeedback()).isEqualTo("답변을 확인했습니다. 다음 단계로 진행할게요.");
+    assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(2);
   }
 
   private TurnEvaluationWorker worker(
@@ -59,7 +92,7 @@ class TurnEvaluationWorkerTest {
         new SessionReader(repository), repository, new SimulationContextReader(repository), client);
   }
 
-  private InMemorySessionRepository repositoryWithPendingAttempt() {
+  private InMemorySessionRepository repositoryWithPendingAttempt(int attemptNo) {
     ClientSession session =
         ClientSession.builder()
             .sessionId("session-id")
@@ -74,7 +107,7 @@ class TurnEvaluationWorkerTest {
     repository.saveContext(
         "session-id", SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm")));
     SimulationTurn turn = repository.saveTurn(SimulationTurn.completed("session-id", 1, "hello"));
-    repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "answer"));
+    repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), attemptNo, "answer"));
     return repository;
   }
 }

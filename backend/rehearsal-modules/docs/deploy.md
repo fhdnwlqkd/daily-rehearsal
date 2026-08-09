@@ -50,16 +50,16 @@ sudo chown $USER:$USER /opt/daily-rehearsal
 
 레포의 `backend/rehearsal-modules/docker/docker-compose.prod.yml`을 `/opt/daily-rehearsal/docker-compose.prod.yml`로 복사한다 (scp 또는 직접 붙여넣기).
 
-`.env` 파일은 GitHub Actions가 배포할 때 GitHub Secrets 값으로 `/opt/daily-rehearsal/.env`에 생성한다.
-서버에서 직접 `.env`를 수정하지 않는다.
+`.env.backend` 파일은 GitHub Actions가 배포할 때 GitHub Secrets 값으로
+`/opt/daily-rehearsal/.env.backend`에 생성한다. 서버에서 직접 수정하지 않는다.
 
 ### 5. 최초 수동 기동으로 확인
 
 ```bash
 cd /opt/daily-rehearsal
 aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <ECR_REGISTRY>
-# 첫 배포 전 수동 기동이 필요하면 docker/.env.example을 참고해 임시 .env를 만든다.
-# 일반적으로는 release/backend 배포 workflow가 .env를 생성하고 컨테이너를 기동한다.
+# 첫 배포 전 수동 기동이 필요하면 docker/.env.example을 참고해 임시 .env.backend를 만든다.
+# 일반적으로는 release/backend 배포 workflow가 .env.backend를 생성하고 컨테이너를 기동한다.
 curl http://localhost:8080/actuator/health   # {"status":"UP"} 확인
 ```
 
@@ -100,7 +100,7 @@ Decart는 `false`, Gemini는 `true`로 배포한다.
 
 - **인스턴스 스펙만 변경**: EC2 stop → 타입 변경 → start. `EC2_HOST` secret만 최신 IP로 갱신하면 끝.
 - **EC2 → ECS/Fargate 같은 다른 배포 대상으로 전환**: `test`, `build-and-push` job은 그대로 재사용하고, `deploy` job만 SSH 방식에서 `aws ecs update-service` 등으로 교체하면 된다.
-- **MySQL/Redis를 RDS/ElastiCache로 분리**: 앱은 `DB_HOST`/`REDIS_HOST`를 포함한 모든 연결 정보를 환경변수로만 읽는다(`application-prod.yml`). `.env`의 호스트값을 관리형 서비스 엔드포인트로 바꾸고 `docker-compose.prod.yml`에서 `mysql`/`redis` 서비스를 빼면 된다. 이미지 재빌드나 코드 변경은 필요 없다.
+- **MySQL/Redis를 RDS/ElastiCache로 분리**: 앱은 `DB_HOST`/`REDIS_HOST`를 포함한 모든 연결 정보를 환경변수로만 읽는다(`application-prod.yml`). `.env.backend`의 호스트값을 관리형 서비스 엔드포인트로 바꾸고 `docker-compose.prod.yml`에서 `mysql`/`redis` 서비스를 빼면 된다. 이미지 재빌드나 코드 변경은 필요 없다.
 
 ## 로컬 검증
 
@@ -108,9 +108,9 @@ Decart는 `false`, Gemini는 `true`로 배포한다.
 # 이미지 빌드
 docker build -f backend/rehearsal-modules/rehearsal-api/Dockerfile -t rehearsal-api backend/rehearsal-modules
 
-# compose로 mysql+redis+app 기동 (.env는 로컬 테스트용 더미 값)
+# compose로 mysql+redis+app 기동 (.env.backend는 로컬 테스트용 더미 값)
 cd backend/rehearsal-modules/docker
-ECR_IMAGE=rehearsal-api IMAGE_TAG=latest docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env.backend -f docker-compose.prod.yml up -d
 
 curl http://localhost:8080/actuator/health
 ```
