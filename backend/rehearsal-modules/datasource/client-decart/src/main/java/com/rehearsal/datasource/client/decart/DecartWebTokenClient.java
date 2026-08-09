@@ -1,6 +1,7 @@
 package com.rehearsal.datasource.client.decart;
 
 import com.rehearsal.domain.core.annotation.Description;
+import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -13,6 +14,7 @@ public class DecartWebTokenClient implements DecartTokenClient {
   private final WebClient webClient;
 
   private static final String API_KEY_HEADER = "x-api-key";
+  private static final int CLIENT_TOKEN_TTL_SECONDS = 300;
 
   public static DecartWebTokenClient of(String apiKey, String tokenEndpoint) {
     WebClient webClient =
@@ -28,6 +30,7 @@ public class DecartWebTokenClient implements DecartTokenClient {
   public DecartTokenCreateResponse createToken() {
     return webClient
         .post()
+        .bodyValue(Map.of("expiresIn", CLIENT_TOKEN_TTL_SECONDS))
         .retrieve()
         .onStatus(
             status -> !status.is2xxSuccessful(),

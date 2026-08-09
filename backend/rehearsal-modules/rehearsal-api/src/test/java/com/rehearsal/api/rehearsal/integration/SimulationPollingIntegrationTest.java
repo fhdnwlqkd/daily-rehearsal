@@ -21,6 +21,12 @@ import com.rehearsal.domain.situation.model.SituationType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -70,6 +76,35 @@ class SimulationPollingIntegrationTest {
     assertThat(completedNextLine.getPlan().sceneCue()).isNotBlank();
     assertThat(completedNextLine.getPlan().actionPrompt()).isNotBlank();
     assertThat(completedNextLine.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
+  }
+
+  @Test
+  void concurrentSimulationStartsReturnTheSameFirstTurn() throws Exception {
+    ClientSession session = rehearsalReadySession();
+    CountDownLatch ready = new CountDownLatch(2);
+    CountDownLatch start = new CountDownLatch(1);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    Callable<SimulationStart> request =
+        () -> {
+          ready.countDown();
+          start.await();
+          return startSimulationUseCase.startSimulation(session.getSessionId());
+        };
+
+    try {
+      Future<SimulationStart> first = executor.submit(request);
+      Future<SimulationStart> second = executor.submit(request);
+      assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+      start.countDown();
+
+      SimulationStart firstResult = first.get(5, TimeUnit.SECONDS);
+      SimulationStart secondResult = second.get(5, TimeUnit.SECONDS);
+
+      assertThat(secondResult).isEqualTo(firstResult);
+      assertThat(sessionRepository.findTurns(session.getSessionId())).hasSize(1);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   private ClientSession rehearsalReadySession() {

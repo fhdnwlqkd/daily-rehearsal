@@ -4,6 +4,7 @@ import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.port.VideoStoragePort;
 import com.rehearsal.domain.session.repository.SessionRepository;
+import com.rehearsal.domain.session.usecase.GetSessionVideoUploadUseCase;
 import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import java.io.IOException;
 import java.io.InputStream;
@@ -17,7 +18,7 @@ import org.springframework.stereotype.Service;
 @Description("영상 업로드 요청을 접수해 videoUrl을 즉시 확정하고 실제 저장은 워커에 위임하는 서비스")
 @Service
 @RequiredArgsConstructor
-public class VideoUploadService implements UploadSessionVideoUseCase {
+public class VideoUploadService implements UploadSessionVideoUseCase, GetSessionVideoUploadUseCase {
 
   private final SessionReader sessionReader;
   private final SessionRepository sessionRepository;
@@ -40,6 +41,11 @@ public class VideoUploadService implements UploadSessionVideoUseCase {
     videoUploadWorker.uploadAsync(sessionId, tempFile, originalFilename, contentType);
 
     return session;
+  }
+
+  @Override
+  public ClientSession getVideoUpload(String sessionId) {
+    return sessionReader.get(sessionId);
   }
 
   private Path copyToTempFile(InputStream content) {

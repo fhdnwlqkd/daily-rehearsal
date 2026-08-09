@@ -14,10 +14,11 @@ public record TurnEvaluationResponse(
     TurnEvaluationOutcome outcome,
     String feedback,
     Boolean fallback,
+    boolean turnCompleted,
     String failureReason) {
 
   public static TurnEvaluationResponse from(
-      String sessionId, int turnNo, SimulationTurnAttempt attempt) {
+      String sessionId, int turnNo, SimulationTurnAttempt attempt, boolean turnCompleted) {
     return new TurnEvaluationResponse(
         sessionId,
         turnNo,
@@ -26,6 +27,7 @@ public record TurnEvaluationResponse(
         attempt.getOutcome(),
         attempt.getFeedback(),
         attempt.getFallback(),
+        turnCompleted,
         attempt.getFailureReason());
   }
 }

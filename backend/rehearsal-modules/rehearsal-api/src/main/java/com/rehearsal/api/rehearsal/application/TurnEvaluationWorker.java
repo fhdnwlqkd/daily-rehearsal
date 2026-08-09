@@ -7,9 +7,11 @@ import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationCommand;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationRawResult;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
+import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.repository.SessionRepository;
@@ -29,7 +31,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class TurnEvaluationWorker {
 
   private static final Logger log = LoggerFactory.getLogger(TurnEvaluationWorker.class);
-  private static final String AI_FAILURE_FEEDBACK = "Please try again.";
+  private static final String AI_FAILURE_FEEDBACK = "답변을 확인했습니다. 다음 단계로 진행할게요.";
+  private static final String ATTEMPTS_EXHAUSTED_FEEDBACK = "두 번의 연습을 마쳤어요. 다음 단계로 넘어갈게요.";
 
   private final SessionReader sessionReader;
   private final SessionRepository sessionRepository;
@@ -49,6 +52,11 @@ public class TurnEvaluationWorker {
       SimulationTurn turn = requiredTurn(event.sessionId(), event.turnNo());
       SimulationTurnAttempt attempt = requiredAttempt(turn.getId(), event.attemptNo());
       TurnEvaluationResult result = evaluate(session, turn, attempt, event);
+      if (result.outcome() == TurnEvaluationOutcome.FORCED_ADVANCE && !result.fallback()) {
+        result =
+            new TurnEvaluationResult(
+                TurnEvaluationOutcome.FORCED_ADVANCE, ATTEMPTS_EXHAUSTED_FEEDBACK, false);
+      }
 
       attempt.complete(result);
       sessionRepository.saveAttempt(attempt);
@@ -92,17 +100,13 @@ public class TurnEvaluationWorker {
       return TurnEvaluationResult.classify(
           raw.accepted(),
           attempt.getAttemptNo(),
-          SimulationTurnAttempt.MAX_ATTEMPT,
+          requiredConfig(session).maxAttemptsPerTurn(),
           raw.feedback(),
           false);
     } catch (RuntimeException exception) {
       log.warn("Turn evaluation AI call failed for session {}", session.getSessionId(), exception);
-      return TurnEvaluationResult.classify(
-          false,
-          attempt.getAttemptNo(),
-          SimulationTurnAttempt.MAX_ATTEMPT,
-          AI_FAILURE_FEEDBACK,
-          true);
+      return new TurnEvaluationResult(
+          TurnEvaluationOutcome.FORCED_ADVANCE, AI_FAILURE_FEEDBACK, true);
     }
   }
 
@@ -124,5 +128,9 @@ public class TurnEvaluationWorker {
 
   private SimulationTurnAttempt requiredAttempt(Long turnId, int attemptNo) {
     return sessionRepository.findAttempt(turnId, attemptNo).orElseThrow();
+  }
+
+  private RehearsalConfigDefinition requiredConfig(ClientSession session) {
+    return RehearsalConfigRegistry.findByType(session.getSituationType()).orElseThrow();
   }
 }

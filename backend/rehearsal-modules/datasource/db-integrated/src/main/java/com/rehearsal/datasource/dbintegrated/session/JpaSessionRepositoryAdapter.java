@@ -64,6 +64,12 @@ public class JpaSessionRepositoryAdapter implements SessionRepository {
 
   @Override
   @Transactional
+  public Optional<ClientSession> findSessionForUpdate(String sessionId) {
+    return sessionJpaRepository.findByIdForUpdate(sessionId).map(clientSessionMapper::toDomain);
+  }
+
+  @Override
+  @Transactional
   public SessionContext saveContext(String sessionId, SessionContext context) {
     RehearsalSessionJpaEntity session = requiredSession(sessionId);
     List<SessionContextValueJpaEntity> entities = new ArrayList<>();

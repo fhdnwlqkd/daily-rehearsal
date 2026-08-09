@@ -268,7 +268,7 @@ function FeedbackPanel({ evaluation }: { evaluation: SimulationFeedback }) {
     >
       <GlassPanel
         className={`max-w-3xl px-8 py-5 ${
-          evaluation.outcome === "ACCEPTED"
+          evaluation.outcome === "ACCEPTED" || evaluation.turnCompleted
             ? "border-white/45"
             : "border-white/15"
         }`}
@@ -286,7 +286,7 @@ function FeedbackPanel({ evaluation }: { evaluation: SimulationFeedback }) {
               {evaluation.feedback}
             </p>
           )}
-          {evaluation.outcome === "RETRY_REQUIRED" && (
+          {!evaluation.turnCompleted && (
             <p className="text-sm font-light text-white/60">
               같은 질문에 다시 답해 볼까요 — 준비되면 이야기해 주세요
             </p>

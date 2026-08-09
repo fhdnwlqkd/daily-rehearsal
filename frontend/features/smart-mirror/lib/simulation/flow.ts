@@ -41,6 +41,23 @@ type RetryStep =
   | { kind: "EVALUATION"; transcript: string }
   | { kind: "NEXT_LINE"; turnNo: number };
 
+/**
+ * 시뮬레이션 스테이지의 턴 진행 상태머신 (React 무관 순수 로직 —
+ * BriefingFlowController와 같은 구조: 컨트롤러가 상태를 소유하고 매 변화를
+ * 불변 스냅샷으로 통지한다. 훅은 얇은 바인딩만 한다).
+ *
+ * 상태 전이는 SimulationFlowStatus 타입 주석 참고. 핵심 규칙:
+ * - 턴은 스테이지 내부 상태다: 첫 실패는 같은 턴을 한 번 재시도하고,
+ *   두 번째 실패나 AI fallback은 실패 결과를 유지한 채 다음 턴으로 전진한다.
+ * - 종료 판정은 프론트 책임: currentTurn == maxTurn에서 턴이 완료되면 next-line을
+ *   요청하지 않고 COMPLETED로 끝낸다 (초과 요청은 서버가 409로 거부).
+ * - 판정 워커 장애(status=FAILED)는 flow 실패가 아니라 "실패 판정 + 고정
+ *   피드백"으로 흡수한다 — 전시 안 멈춤. 서버는 FAILED attempt 뒤 재제출을
+ *   새 시도로 받아준다.
+ * - FAILED에서 retry()는 마지막 단계(start/판정 제출/다음 발화 요청)를
+ *   그대로 다시 밟는다. 202 이후 폴링만 실패한 경우에도 POST부터 다시 하지만,
+ *   서버가 진행 중·완료된 작업을 그대로 돌려주므로(idempotent) 안전하다.
+ */
 export class SimulationFlowController {
   private readonly api: SimulationFlowApi;
   private readonly onChange: (snapshot: SimulationFlowSnapshot) => void;
@@ -153,20 +170,28 @@ export class SimulationFlowController {
       () => this.api.getEvaluation(turnNo),
       (response) => {
         if (response.status === "FAILED") {
-          this.fail("SERVER_FAILED");
+          // 판정 워커 장애 — 실패 판정 + 고정 피드백으로 흡수한다(전시 안 멈춤).
+          this.handleEvaluationOutcome({
+            outcome: "RETRY_REQUIRED",
+            feedback: EVALUATION_FALLBACK_FEEDBACK,
+            fallback: true,
+            turnCompleted: false,
+          });
           return;
         }
         this.handleEvaluationOutcome({
           outcome: response.outcome ?? "RETRY_REQUIRED",
           feedback: response.feedback ?? EVALUATION_FALLBACK_FEEDBACK,
           fallback: response.fallback ?? false,
+          turnCompleted: response.turnCompleted,
         });
       },
     );
   }
 
   private handleEvaluationOutcome(feedback: SimulationFeedback): void {
-    if (feedback.outcome === "RETRY_REQUIRED") {
+    if (!feedback.turnCompleted) {
+      // 같은 턴 재시도 — 상대 발화는 그대로 두고 피드백만 얹는다.
       this.update({ status: "ANSWERING", evaluation: feedback });
       return;
     }

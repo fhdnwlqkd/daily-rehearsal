@@ -20,6 +20,7 @@ import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,8 +44,14 @@ public class SimulationService
   @Override
   @Transactional
   public SimulationStart startSimulation(String sessionId) {
-    ClientSession session = sessionReader.get(sessionId);
+    ClientSession session = sessionReader.getForUpdate(sessionId);
     RehearsalConfigDefinition config = config(session);
+
+    if (session.getStatus() == SessionStatus.REHEARSAL_PLAYING) {
+      SimulationTurn firstTurn = requiredTurn(sessionId, 1);
+      return new SimulationStart(
+          sessionId, 1, session.getMaxTurn(), firstTurn.getGenerationMode(), firstTurn.getPlan());
+    }
 
     session.startSimulation(config.maxTurn());
     sessionRepository.saveSession(session);

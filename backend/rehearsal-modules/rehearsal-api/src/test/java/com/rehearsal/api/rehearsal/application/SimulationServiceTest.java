@@ -59,6 +59,22 @@ class SimulationServiceTest {
   }
 
   @Test
+  void duplicateSimulationStartReusesFirstTurn() {
+    ClientSession session = readySession();
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    SimulationService service = service(repository, new ArrayList<>());
+
+    SimulationStart first = service.startSimulation(session.getSessionId());
+    Long firstTurnId = repository.findTurn(session.getSessionId(), 1).orElseThrow().getId();
+    SimulationStart duplicated = service.startSimulation(session.getSessionId());
+
+    assertThat(duplicated).isEqualTo(first);
+    assertThat(repository.findTurns(session.getSessionId())).hasSize(1);
+    assertThat(repository.findTurn(session.getSessionId(), 1).orElseThrow().getId())
+        .isEqualTo(firstTurnId);
+  }
+
+  @Test
   void submitEvaluationPersistsAttemptAndPublishesAfterCommitRequest() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
@@ -117,12 +133,16 @@ class SimulationServiceTest {
     first.complete(
         new TurnEvaluationResult(TurnEvaluationOutcome.RETRY_REQUIRED, "질문에 맞게 다시 답해보세요.", false));
     repository.saveAttempt(first);
+    List<Object> events = new ArrayList<>();
 
     SimulationTurnAttempt retried =
-        service(repository, new ArrayList<>()).submit(session.getSessionId(), 1, "retry", null);
+        service(repository, events).submit(session.getSessionId(), 1, "retry", null);
 
     assertThat(retried.getAttemptNo()).isEqualTo(2);
+    assertThat(retried.getUserTranscript()).isEqualTo("retry");
     assertThat(retried.getEvaluationStatus()).isEqualTo(EvaluationStatus.PENDING);
+    assertThat(events)
+        .containsExactly(new TurnEvaluationRequested(session.getSessionId(), 1, 2, null));
   }
 
   @Test

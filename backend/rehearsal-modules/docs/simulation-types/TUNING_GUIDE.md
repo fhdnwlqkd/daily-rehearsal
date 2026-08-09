@@ -83,10 +83,11 @@
 
 ## TicketCopyRegistry.java
 
-`TicketCopyRegistry`의 문구는 정상적인 티켓 내용의 주 공급원이 아니다. Gemini 기반 티켓 생성이 실패했을 때도 결과 화면을 완성하기 위한 타입별 fallback이다.
+`TicketCopyRegistry`의 문구는 정상적인 티켓 내용의 주 공급원이 아니다. Gemini 기반 티켓 생성이 실패했을 때도 결과 화면을 완성하기 위한 타입별 `ChangeCard` fallback이다.
 
-- 첫 문자열: fallback 티켓 제목
-- 두 번째 문자열: fallback 메시지
+- `todayAction`: 오늘 연습에서 바꾼 행동
+- `tomorrowAttitude`: 실전에서 유지할 태도
+- `ifThenPlan`: 어려운 상황이 생겼을 때 실행할 행동 계획
 
 정상 흐름의 변화 카드 내용은 briefing context와 턴 평가 결과를 이용해 생성한다. 따라서 상세한 개인화 문구를 이 registry에 하드코딩하지 않는다.
 

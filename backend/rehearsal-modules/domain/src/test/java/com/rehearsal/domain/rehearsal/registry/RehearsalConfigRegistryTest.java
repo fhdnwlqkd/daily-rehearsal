@@ -14,6 +14,7 @@ class RehearsalConfigRegistryTest {
 
     assertThat(definition.situationType()).isEqualTo(SituationType.DATE);
     assertThat(definition.maxTurn()).isEqualTo(3);
+    assertThat(definition.maxAttemptsPerTurn()).isEqualTo(2);
     assertThat(definition.firstTurn().opponentLine()).isNotBlank();
     assertThat(definition.technicalFallback().opponentLine()).isNotBlank();
   }
@@ -26,6 +27,7 @@ class RehearsalConfigRegistryTest {
 
       assertThat(definition.situationType()).isEqualTo(situationType);
       assertThat(definition.maxTurn()).isEqualTo(3);
+      assertThat(definition.maxAttemptsPerTurn()).isEqualTo(2);
       assertThat(definition.firstTurn().sceneCue()).isNotBlank();
       assertThat(definition.firstTurn().actionPrompt()).isNotBlank();
       assertThat(definition.firstTurn().acceptedIntentHint()).isNotBlank();

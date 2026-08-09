@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
+import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
@@ -22,6 +23,7 @@ import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
+import com.rehearsal.domain.session.model.ClientSession;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -41,6 +43,7 @@ class SimulationControllerTest {
   @MockitoBean private GetTurnEvaluationUseCase getTurnEvaluationUseCase;
   @MockitoBean private SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase;
   @MockitoBean private GetNextOpponentLineUseCase getNextOpponentLineUseCase;
+  @MockitoBean private SessionReader sessionReader;
 
   @Test
   void startSimulation() throws Exception {
@@ -62,6 +65,9 @@ class SimulationControllerTest {
     given(submitTurnEvaluationUseCase.submit(anyString(), anyInt(), anyString(), any()))
         .willReturn(attempt);
     given(getTurnEvaluationUseCase.get("session-id", 1)).willReturn(attempt);
+    ClientSession session = org.mockito.Mockito.mock(ClientSession.class);
+    given(session.getCurrentTurn()).willReturn(1);
+    given(sessionReader.get("session-id")).willReturn(session);
 
     mockMvc
         .perform(
@@ -70,12 +76,14 @@ class SimulationControllerTest {
                 .content("{\"transcript\":\"answer\"}"))
         .andExpect(status().isAccepted())
         .andExpect(jsonPath("$.data.status").value("PENDING"))
-        .andExpect(jsonPath("$.data.attemptNo").value(1));
+        .andExpect(jsonPath("$.data.attemptNo").value(1))
+        .andExpect(jsonPath("$.data.turnCompleted").value(false));
 
     mockMvc
         .perform(get("/api/v1/sessions/session-id/simulation/turns/1/evaluation"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.data.status").value("PENDING"));
+        .andExpect(jsonPath("$.data.status").value("PENDING"))
+        .andExpect(jsonPath("$.data.turnCompleted").value(false));
   }
 
   @Test

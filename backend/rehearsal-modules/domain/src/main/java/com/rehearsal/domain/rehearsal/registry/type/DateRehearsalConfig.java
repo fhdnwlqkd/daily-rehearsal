@@ -13,6 +13,7 @@ public final class DateRehearsalConfig {
     return new RehearsalConfigDefinition(
         SituationType.DATE,
         3,
+        2,
         new SimulationTurnPlan(
             "소개팅 상대가 약속 장소에 도착해 자리에 앉았습니다.",
             "안녕하세요. 기다리게 한 건 아니죠?",

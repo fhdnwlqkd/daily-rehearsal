@@ -7,6 +7,7 @@ import java.util.List;
 public record RehearsalConfigDefinition(
     SituationType situationType,
     int maxTurn,
+    int maxAttemptsPerTurn,
     SimulationTurnPlan firstTurn,
     List<String> turnObjectives,
     String feedbackFocus,

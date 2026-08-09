@@ -27,6 +27,7 @@ operation::simulation-start[snippets='http-request,request-headers,path-paramete
 
 사용자의 STT transcript를 저장하고 `202 Accepted`와 `PENDING` 상태를 반환합니다.
 AI 평가는 transaction commit 이후 한 번 실행되며 결과는 RDB에 저장됩니다.
+이 시점의 `turnCompleted`는 항상 `false`이며, 완료 결과는 평가 조회 API를 polling하여 확인합니다.
 
 operation::simulation-submit-evaluation[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
@@ -40,6 +41,9 @@ operation::simulation-submit-evaluation[snippets='http-request,request-headers,p
 * `ACCEPTED`: 현재 답변을 인정하고 다음 턴으로 이동
 * `RETRY_REQUIRED`: 첫 번째 부적합 답변으로, 같은 턴에서 한 번 재시도
 * `FORCED_ADVANCE`: 두 번째 답변도 부적합하여 feedback을 남기고 다음 턴으로 이동
+
+`turnCompleted`는 클라이언트가 다음 턴으로 진행해야 하는지를 나타냅니다.
+`RETRY_REQUIRED`에서는 `false`, `ACCEPTED`·`FORCED_ADVANCE`·AI fallback에서는 `true`입니다.
 
 operation::simulation-poll-evaluation[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 

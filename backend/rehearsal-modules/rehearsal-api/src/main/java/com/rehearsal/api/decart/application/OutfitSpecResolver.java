@@ -70,6 +70,14 @@ public class OutfitSpecResolver {
         .toList();
   }
 
+  public String resolveLabel(String outfitId) {
+    DecartProperties.OutfitSpec outfitSpec = decartProperties.getOutfits().get(outfitId);
+    if (outfitSpec == null || outfitSpec.getLabel().isBlank()) {
+      return outfitId;
+    }
+    return outfitSpec.getLabel();
+  }
+
   private boolean matchesSituationType(
       DecartProperties.OutfitSpec outfitSpec, SituationType situationType) {
     return outfitSpec.getSituationTypes().isEmpty()
