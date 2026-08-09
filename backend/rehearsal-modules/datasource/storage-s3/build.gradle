@@ -1,0 +1,12 @@
+dependencies {
+    implementation project(':domain')
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+
+    implementation platform('software.amazon.awssdk:bom:2.46.18')
+    implementation 'software.amazon.awssdk:s3'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}

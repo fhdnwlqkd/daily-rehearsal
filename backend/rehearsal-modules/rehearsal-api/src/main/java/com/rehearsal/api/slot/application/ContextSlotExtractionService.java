@@ -9,9 +9,8 @@ import com.rehearsal.domain.extraction.model.SlotExtractionProcessingResult;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
-import com.rehearsal.domain.slot.usecase.GetContextSlotSchemaUseCase;
-import com.rehearsal.domain.slot.usecase.command.GetContextSlotSchemaCommand;
+import com.rehearsal.domain.situation.model.SituationType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
@@ -22,28 +21,26 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class ContextSlotExtractionService {
 
-  private final GetContextSlotSchemaUseCase getContextSlotSchemaUseCase;
   private final SlotExtractorClient slotExtractorClient;
   private final SlotExtractionProcessor slotExtractionProcessor;
 
   public ExtractContextSlotsResult extract(ExtractContextSlotsCommand command) {
-    ContextSlotSchema schema =
-        getContextSlotSchemaUseCase.getContextSlotSchema(
-            new GetContextSlotSchemaCommand(command.schemaKey()));
-    SlotExtractionRawResult rawResult =
-        slotExtractorClient.extract(
-            new SlotExtractionCommand(
-                schema,
-                command.transcript(),
-                command.followUpAttempt(),
-                command.mode(),
-                command.currentSlots(),
-                command.targetSlotKeys()));
+    SituationType situationType = SituationType.fromKey(command.schemaKey());
+    ContextSlotSchemaType schema =
+        ContextSlotSchemaType.findBySituationType(situationType)
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException("Unsupported schema key: " + command.schemaKey()));
+
+    RawExtraction rawExtraction = extractRawSlots(schema, command);
+    SlotExtractionRawResult rawResult = rawExtraction.rawResult();
+    int processingAttempt =
+        rawExtraction.fallback() ? schema.getMaxFollowUpAttempt() : command.followUpAttempt();
     SlotExtractionProcessingResult processingResult =
-        slotExtractionProcessor.process(schema, rawResult, command.followUpAttempt());
+        slotExtractionProcessor.process(schema, rawResult, processingAttempt);
 
     return new ExtractContextSlotsResult(
-        schema.schemaKey(),
+        situationType.getKey(),
         rawResult.rawSlots(),
         processingResult.slots(),
         context(processingResult.slots()),
@@ -51,6 +48,26 @@ public class ContextSlotExtractionService {
         processingResult.followUpQuestion(),
         processingResult.readyForSimulation());
   }
+
+  private RawExtraction extractRawSlots(
+      ContextSlotSchemaType schema, ExtractContextSlotsCommand command) {
+    try {
+      return new RawExtraction(
+          slotExtractorClient.extract(
+              new SlotExtractionCommand(
+                  schema,
+                  command.transcript(),
+                  command.followUpAttempt(),
+                  command.mode(),
+                  command.currentSlots(),
+                  command.targetSlotKeys())),
+          false);
+    } catch (RuntimeException exception) {
+      return new RawExtraction(new SlotExtractionRawResult(Map.of()), true);
+    }
+  }
+
+  private record RawExtraction(SlotExtractionRawResult rawResult, boolean fallback) {}
 
   private Map<String, Object> context(Map<String, ContextSlotValue> slots) {
     Map<String, Object> context = new LinkedHashMap<>();

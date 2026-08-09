@@ -1,0 +1,25 @@
+name: Backend CI
+
+on:
+  pull_request:
+    paths:
+      - "backend/rehearsal-modules/**"
+
+defaults:
+  run:
+    working-directory: backend/rehearsal-modules
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Build
+        run: ./gradlew build --no-daemon

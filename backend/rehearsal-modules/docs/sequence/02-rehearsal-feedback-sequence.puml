@@ -21,22 +21,25 @@ Decart WebRTC track이 MediaRecorder로 녹화 가능한지 최우선 검증이 
 시뮬레이션은 턴마다 1차 JSON 판정/피드백, 2차 SSE 상대 발화로 분리한다.
 end note
 
-== 1. 옷 목록과 Decart URI 준비 ==
+== 1. 옷 후보 조회와 Decart 연결 준비 ==
 
 web -> api: GET /api/v1/sessions/{sessionId}/outfits
-api -> sessionStore: finalContext 조회
-sessionStore --> api: situationType + context
-api -> staticConfig: 타입/context 기반 outfit enum 조회
-staticConfig --> api: outfitId/thumbnail/decartParams
-api --> web: outfit list\n첫 번째 옷 default
+api -> sessionStore: situationType + outfit_direction 조회
+sessionStore --> api: situationType + outfit_direction
+api -> staticConfig: situationType/outfitDirection 기준 outfit 필터링
+staticConfig --> api: 매칭되는 outfit 목록
+api --> web: outfit list(outfitId/label/thumbnailUrl/defaultOutfit)
 
-web -> api: POST /api/v1/sessions/{sessionId}/decart-uri\noutfitId=default
-api -> staticConfig: outfit decart parameter 조회
-staticConfig --> api: prompt/reference/style params
-api -> api: Decart URI 빌드
-api --> web: decartUri
+web -> api: POST /api/v1/sessions/{sessionId}/decart-token
+api -> api: 세션 상태 검증(TRANSFORMATION_READY)
+api --> web: clientToken\n(세션당 한 번 발급, outfit 변경마다 재발급하지 않음)
 
-web -> decart: WebRTC 직접 연결\ndecartUri
+web -> api: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId=default
+api -> staticConfig: outfit 스펙(prompt/referenceImageUrl/enhance) 조회
+staticConfig --> api: outfit spec
+api --> web: model/prompt/referenceImageUrl/enhance
+
+web -> decart: WebRTC 직접 연결\nclientToken + outfit spec
 decart --> web: default outfit video track
 web --> user: 첫 번째 옷을 입은 모습 표시
 web -> recorder: 녹화 시작\nDecart/camera/audio capture
@@ -49,10 +52,9 @@ loop 의상 확정 전
     gesture --> web: NEXT/PREV/CONFIRM
 
     alt NEXT/PREV
-        web -> api: POST /api/v1/sessions/{sessionId}/decart-uri\noutfitId
-        api -> api: 새 Decart URI 빌드
-        api --> web: decartUri
-        web -> decart: URI 또는 track 갱신
+        web -> api: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId
+        api --> web: outfit spec(순수 조회, 세션 상태 변경 없음)
+        web -> decart: outfit spec으로 track 갱신
         decart --> web: updated outfit track
         web --> user: 변경된 모습 표시
     else CONFIRM
@@ -82,18 +84,23 @@ loop currentTurn <= N
     web -> web: optional metrics 계산\nresponseDelay/speechRate/volume
 
     web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation\ntranscript + metrics
-    api -> sessionStore: 전체 context + 대화 history 조회
-    sessionStore --> api: stateless LLM input
-    api -> llm: 성공/실패 판정 + 피드백 JSON 요청
+    api -> sessionStore: evaluation attempt=PENDING 저장
+    api --> web: 202 Accepted (attemptNo + status=PENDING)
+    api -> llm: after-commit worker가 성공/실패 판정 + 피드백 JSON 요청
 
     alt AI 성공
         llm --> api: {success, feedback, retryReason}
         api -> sessionStore: turn evaluation 저장
-        api --> web: evaluation JSON
     else AI 실패
         llm --> api: error/timeout
         api -> sessionStore: 실패 evaluation 저장\nfallback=true
-        api --> web: {success:false, feedback:"다시 시도해보세요"}
+    end
+
+    loop evaluation 완료까지 polling
+        web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
+        api -> sessionStore: 저장된 evaluation 조회
+        sessionStore --> api: PENDING/COMPLETED/FAILED + 결과
+        api --> web: evaluation JSON
     end
 
     web --> user: 피드백 영역에 결과 표시
@@ -101,24 +108,28 @@ loop currentTurn <= N
     alt success=false
         web --> user: 같은 turn 재시도 안내
     else success=true
-        web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line/stream
-        api -> sessionStore: 전체 context + history 조회
-        sessionStore --> api: next line input
-        api -> llm: 다음 상대 발화 생성\nSSE token stream
+        web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+        api -> sessionStore: simulation turn=PENDING 저장
+        api --> web: 202 Accepted (status=PENDING)
+        api -> llm: after-commit worker가 다음 상대 발화 생성
 
-        alt AI streaming 성공
-            llm --> api: streamed tokens
-            api --> web: text/event-stream tokens
-            web --> user: 다음 발화 영역에 토큰 스트리밍 표시
-            api -> sessionStore: nextOpponentLine 저장\ncurrentTurn 증가
-        else AI streaming 실패
+        alt AI 성공
+            llm --> api: next opponent line
+            api -> sessionStore: nextOpponentLine 저장
+        else AI 실패
             llm --> api: error/timeout
             api -> staticConfig: 타입별 고정 발화 fallback 조회
             staticConfig --> api: fallbackOpponentLine
-            api --> web: fallback line event
-            web --> user: 고정 상대 발화 표시
-            api -> sessionStore: fallback line 저장\ncurrentTurn 증가
+            api -> sessionStore: fallback line 저장
         end
+
+        loop next line 완료까지 polling
+            web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+            api -> sessionStore: 저장된 next line 조회
+            sessionStore --> api: PENDING/COMPLETED/FAILED + 결과
+            api --> web: next line JSON
+        end
+        web --> user: 다음 상대 발화 표시
     end
 end
 

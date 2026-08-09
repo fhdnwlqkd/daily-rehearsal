@@ -1,0 +1,157 @@
+# Select an IntelliJ HTTP Client environment from http-client.private.env.json.
+# Use local-fake for deterministic assertions and manual-gemini for external AI quality checks.
+
+### 1-1. Selectable situation types
+# Expected data fields: situationType, label
+GET {{host}}/api/v1/situation-types
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("situation type list returns success", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(Array.isArray(response.body.data), "Expected a list");
+    client.assert(response.body.data.some(function (type) {
+      return type.situationType === "date";
+    }), "Expected date situation type");
+  });
+%}
+
+### 2. Create a session after the user confirms a situation type
+# Expected data fields: sessionId, situationType
+POST {{host}}/api/v1/sessions
+X-API-KEY: {{apiKey}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "situationType": "{{situationType}}"
+}
+
+> {%
+  client.test("session is created for selected situation type", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId, "Expected session id");
+    client.assert(response.body.data.situationType === "date", "Expected selected situation type");
+  });
+  client.global.set("sessionId", response.body.data.sessionId);
+%}
+
+### 3-1. Get briefing content for the selected situation type
+# Expected data fields: situationType, briefingTitle, exampleAnswer
+GET {{host}}/api/v1/situation-types/{{situationType}}/briefing
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("briefing content returns selected type", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.situationType === "date", "Expected date briefing");
+    client.assert(response.body.data.briefingTitle, "Expected briefing title");
+    client.assert(response.body.data.exampleAnswer, "Expected example answer");
+  });
+%}
+
+### 3-2. Submit an initial briefing transcript
+# The response is accepted immediately; extraction continues asynchronously.
+POST {{host}}/api/v1/sessions/{{sessionId}}/briefing
+X-API-KEY: {{apiKey}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "transcript": "{{briefingTranscript}}"
+}
+
+> {%
+  client.test("briefing submission starts asynchronous extraction", function () {
+    client.assert(response.status === 202, "Expected 202 Accepted");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert(response.body.data.status === "EXTRACTING", "Expected extracting context status");
+  });
+%}
+
+### 3-3. Poll initial context until a follow-up is required
+# Run this request again after a short moment if the worker has not completed yet.
+GET {{host}}/api/v1/sessions/{{sessionId}}/context
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("initial extraction returns current context status", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert([
+      "EXTRACTING",
+      "FOLLOW_UP_REQUIRED",
+      "COMPLETED",
+      "FAILED"
+    ].includes(response.body.data.status), "Expected a known context status");
+
+    if (response.body.data.status === "FOLLOW_UP_REQUIRED") {
+      client.assert(Array.isArray(response.body.data.missingSlotKeys), "Expected missing slot keys");
+      client.assert(Array.isArray(response.body.data.followUpQuestions), "Expected follow-up questions");
+    }
+
+    if (response.body.data.context) {
+      client.assert(response.body.data.context.situation_type === "date", "Expected date context");
+    }
+  });
+%}
+
+### 3-4. Submit a follow-up transcript for the missing desired_persona slot
+# Run this after the context status becomes FOLLOW_UP_REQUIRED.
+POST {{host}}/api/v1/sessions/{{sessionId}}/follow-up
+X-API-KEY: {{apiKey}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "transcript": "{{followUpTranscript}}"
+}
+
+> {%
+  client.test("follow-up submission starts context merge", function () {
+    client.assert(response.status === 202, "Expected 202 Accepted");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert(response.body.data.status === "MERGING", "Expected merging context status");
+  });
+%}
+
+### 3-5. Poll merged context until it is complete
+# Run this request again after a short moment if the worker has not completed yet.
+GET {{host}}/api/v1/sessions/{{sessionId}}/context
+X-API-KEY: {{apiKey}}
+Accept: application/json
+
+> {%
+  client.test("follow-up merge returns current context status", function () {
+    client.assert(response.status === 200, "Expected 200 OK");
+    client.assert(response.body.success === true, "Expected success envelope");
+    client.assert(response.body.data.sessionId === client.global.get("sessionId"), "Expected current session");
+    client.assert([
+      "MERGING",
+      "FOLLOW_UP_REQUIRED",
+      "COMPLETED",
+      "FAILED"
+    ].includes(response.body.data.status), "Expected a known context status");
+
+    if (response.body.data.context) {
+      client.assert(response.body.data.context.situation_type === "date", "Expected date context");
+    }
+
+    if (response.body.data.status === "COMPLETED") {
+      client.assert(response.body.data.context, "Expected completed context");
+      client.assert(
+        !response.body.data.missingSlotKeys || response.body.data.missingSlotKeys.length === 0,
+        "Expected no missing required slots"
+      );
+    }
+  });
+%}

@@ -16,3 +16,13 @@ spring:
       enabled: true
   flyway:
     enabled: false
+
+rehearsal:
+  security:
+    api-key:
+      enabled: false
+  ai:
+    defaults:
+      provider: fake
+  video-storage:
+    local-root: ${java.io.tmpdir}/rehearsal-test-videos

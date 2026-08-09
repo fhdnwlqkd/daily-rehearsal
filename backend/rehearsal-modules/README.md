@@ -18,7 +18,7 @@ rehearsal-modules
 - **역할**: 핵심 비즈니스 로직, 도메인 모델(Entity/VO), 비즈니스 규칙, 공통 예외 정의
 - **패키지 예시**:
     - `com.rehearsal.domain.core`: 공통 예외, 에러 코드
-    - `com.rehearsal.domain.slot`: slot 도메인 모델, repository port, usecase interface
+    - `com.rehearsal.domain.slot`: 상황 및 slot 관련 Enum 스키마 정의 (정적 설정)
 - **포트(Interface)**:
     - `rehearsal-api`가 호출할 **UseCase** 인터페이스
     - `datasource`가 구현할 **Port**(Repository 인터페이스, 외부 API 인터페이스 등)
@@ -27,9 +27,9 @@ rehearsal-modules
 ### 2. `datasource` (Infrastructure & Adapters)
 `domain`에서 정의한 인터페이스를 실제로 구현하는 인프라스트럭처 영역입니다.
 - **역할**: 
-    - **Persistence**: JPA Repository 구현, Redis 데이터 저장 및 조회
+    - **Persistence**: JPA Repository와 MySQL 데이터 저장 및 조회
     - **External API**: `WebClient` 기반 외부 서비스(STT, 날씨, LLM, VTON 등) 호출 클라이언트 구현
-    - **Infrastructure Adapter**: DB/Redis 관련 adapter 구현
+    - **Infrastructure Adapter**: DB 관련 adapter 구현
 - **패키지 예시**:
     - `com.rehearsal.datasource.dbintegrated`: JPA 기반 DB adapter
 - **의존성**: `:domain`
@@ -46,7 +46,7 @@ rehearsal-modules
 
 ## 로컬 인프라 실행
 
-로컬 개발 환경은 Docker Compose로 MySQL과 Redis를 실행합니다.
+로컬 개발 환경은 Docker Compose로 MySQL을 실행합니다.
 
 ```bash
 cd docker
@@ -58,7 +58,6 @@ docker compose up -d
 | 서비스 | 이미지 | 포트 | 용도 |
 | --- | --- | --- | --- |
 | MySQL | `mysql:8.0` | `3306` | 로컬 RDB (rehearsal), Flyway migration 대상 |
-| Redis | `redis:7.0-alpine` | `6379` | 세션 상태, 작업 ID, polling 상태 저장 |
 
 MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이터는 `docker/mysql_data`에 저장되며 git에는 포함하지 않습니다.
 
@@ -69,7 +68,7 @@ MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이
 | 파일 | 용도 |
 | --- | --- |
 | `application.yml` | 공통 설정, 서버 포트, 기본 active profile |
-| `application-local.yml` | 로컬 MySQL/Redis/Flyway 설정 |
+| `application-local.yml` | 로컬 MySQL/Flyway 설정 |
 | `application-test.yml` | 테스트용 H2 설정 |
 
 기본 active profile은 `local`입니다.
@@ -78,20 +77,23 @@ MySQL 초기화 스크립트는 `docker/init.sql`에 있습니다. 로컬 데이
 
 AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의 `rehearsal.ai` 아래에서 관리합니다.
 
-목표 플로우의 AI provider는 Gemini 하나로 고정합니다. OpenAI/Gemini 혼용이나 task별 provider routing은 두지 않습니다.
+AI provider는 Gemini 하나로 고정합니다. OpenAI/Gemini 혼용이나 task별 provider routing은 두지 않습니다. `rehearsal.ai.defaults.provider`의 기본값은 `gemini`이며, `OPENAI_API_KEY` 같은 다른 provider의 설정은 필요하지 않습니다.
 
 현재 실제 코드에 연결된 AI 작업은 `slot-extraction`입니다. 목표 플로우에서는 같은 Gemini provider로 다음 AI 작업을 처리합니다.
 
 - `context-normalize`: 사용자 transcript를 slot 값으로 정규화
 - `simulation-evaluation`: 현재 turn 성공/실패와 피드백 JSON 생성
-- `simulation-next-line`: 다음 상대 발화 생성, SSE 스트리밍 대상
+- `simulation-next-line`: 다음 상대 발화 생성, 폴링(polling) 조회 대상
 - `ticket-generation`: 최종 티켓 문구 생성
 
-문서 기준 provider는 다음 하나입니다.
+`rehearsal.ai.defaults.provider`가 가질 수 있는 값은 다음 둘뿐입니다.
 
 | provider | 용도 | API key |
 | --- | --- | --- |
-| `gemini` | 모든 AI 작업 | `GEMINI_API_KEY` |
+| `gemini` | 실제 AI 작업 (기본값) | `GEMINI_API_KEY` |
+| `fake` | 외부 호출 없이 deterministic 값을 반환, `test` profile 기본값 | 불필요 |
+
+`gemini` provider를 선택한 상태에서 `GEMINI_API_KEY`가 비어 있으면 애플리케이션 기동이 실패합니다. `NONE`/unconfigured 같은 placeholder provider는 두지 않습니다.
 
 설정 예시는 다음과 같습니다.
 
@@ -99,13 +101,15 @@ AI 외부 연동 설정은 `rehearsal-api/src/main/resources/application.yml`의
 rehearsal:
   ai:
     defaults:
-      provider: gemini
+      provider: ${REHEARSAL_AI_DEFAULT_PROVIDER:gemini}
     gemini:
       api-key: ${GEMINI_API_KEY:}
-      model: ${GEMINI_MODEL:gemini-2.5-flash-lite}
+      model: ${GEMINI_MODEL:gemini-3.1-flash-lite}
       temperature: ${GEMINI_TEMPERATURE:0.0}
       thinking-budget: ${GEMINI_THINKING_BUDGET:0}
 ```
+
+`test` profile(`application-test.yml`)은 `rehearsal.ai.defaults.provider: fake`를 고정값으로 설정해 API key 없이 테스트가 동작합니다.
 
 로컬 실행 예시는 다음과 같습니다.
 
@@ -189,5 +193,16 @@ V1__create_context_slot_tables.sql
 ```bash
 ./gradlew spotlessApply
 ```
+
+## REST Docs on Windows Unicode User Paths
+
+AsciidoctorJ can fail when the Gradle cache path contains non-ASCII characters. On Windows, run document generation with an ASCII Gradle user home:
+
+```powershell
+$env:GRADLE_USER_HOME = "C:\Users\Public\.daily-rehearsal-gradle"
+.\gradlew.bat :rehearsal-api:asciidoctor --console=plain
+```
+
+The generated HTML is written to `rehearsal-api/build/docs/asciidoc/index.html`.
 
 `spotlessApply`는 모든 Java 코드에 Google Java Format을 적용하고, 사용하지 않는 import와 줄 끝 공백을 정리합니다.

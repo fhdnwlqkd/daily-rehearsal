@@ -1,0 +1,48 @@
+spring:
+  datasource:
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:rehearsal}?serverTimezone=UTC&characterEncoding=UTF-8
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  jpa:
+    database-platform: org.hibernate.dialect.MySQLDialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    url: jdbc:mysql://${DB_HOST:mysql}:${DB_PORT:3306}/${DB_NAME:rehearsal}?serverTimezone=UTC&characterEncoding=UTF-8
+    user: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+      port: ${REDIS_PORT:6379}
+
+rehearsal:
+  video-storage:
+    provider: s3
+    public-base-url: ${VIDEO_STORAGE_PUBLIC_BASE_URL}
+    s3:
+      bucket: ${VIDEO_STORAGE_BUCKET}
+      region: ${AWS_REGION}
+  decart:
+    outfits:
+      suit:
+        label: "네이비 정장"
+        reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/suit.png"
+        thumbnail-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/suit.png"
+        prompt: "네이비 컬러의 정장 재킷, 구조적인 어깨라인, 격식 있는 슬림핏"
+        situation-types: []
+        outfit-direction: ""
+        default-outfit: true
+        enhance: false
+      gray_shirt:
+        label: "그레이 셔츠"
+        reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/gray_shirt.png"
+        thumbnail-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/gray_shirt.png"
+        prompt: "그레이 컬러의 캐주얼 셔츠, 단정하면서 편안한 핏"
+        situation-types: []
+        outfit-direction: ""
+        default-outfit: false
+        enhance: false
