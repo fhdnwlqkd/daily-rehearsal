@@ -45,6 +45,7 @@ function createFakeApi() {
           turnNo,
           attemptNo: evaluationSubmits.length,
           status: "PENDING" as const,
+          turnCompleted: false,
         });
       },
       getEvaluation: (turnNo: number) => {
@@ -107,6 +108,7 @@ function evaluationOf(
     sessionId: "s",
     attemptNo: 1,
     status: "COMPLETED",
+    turnCompleted: extra.success ?? false,
     ...extra,
   };
 }
@@ -216,12 +218,46 @@ describe("SimulationFlowController", () => {
       evaluation: { success: false, feedback: "조금 더 길게", fallback: false },
     });
 
-    // 재시도 무제한 — 같은 턴으로 다시 제출된다
+    // 첫 실패 뒤 한 번은 같은 턴으로 다시 제출된다
     queueEvaluation(
       evaluationOf({ turnNo: 1, attemptNo: 2, success: true, feedback: "" }),
     );
     controller.submitAnswer("다시 답변");
     expect(evaluationSubmits.map((s) => s.turnNo)).toEqual([1, 1]);
+  });
+
+  it("두 번째 판정 실패: 실패 피드백을 유지하면서 다음 턴으로 넘어간다", async () => {
+    const {
+      controller,
+      latest,
+      queueEvaluation,
+      queueNextLine,
+      nextLineRequests,
+    } = setup();
+    controller.begin();
+    await flush();
+
+    queueEvaluation(
+      evaluationOf({
+        turnNo: 1,
+        attemptNo: 2,
+        success: false,
+        feedback: "다음 단계로 넘어갈게요",
+        turnCompleted: true,
+      }),
+    );
+    queueNextLine(nextLineOf({ turnNo: 2, opponentLine: "다음 질문" }));
+
+    controller.submitAnswer("두 번째 답변");
+    await flush();
+    expect(nextLineRequests).toEqual([2]);
+
+    await flush();
+    expect(latest()).toMatchObject({
+      status: "ANSWERING",
+      currentTurn: 2,
+      opponentLine: "다음 질문",
+    });
   });
 
   it("판정 워커 장애(FAILED): flow 실패가 아니라 고정 피드백의 실패 판정으로 흡수한다", async () => {

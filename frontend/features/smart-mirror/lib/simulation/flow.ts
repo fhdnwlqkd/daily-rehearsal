@@ -52,9 +52,9 @@ type RetryStep =
  * 불변 스냅샷으로 통지한다. 훅은 얇은 바인딩만 한다).
  *
  * 상태 전이는 SimulationFlowStatus 타입 주석 참고. 핵심 규칙:
- * - 턴은 스테이지 내부 상태다: 판정 실패는 같은 턴의 ANSWERING으로 돌아가고
- *   (재시도 무제한 — 2026-08-08 기획 확정), 성공만 턴을 전진시킨다.
- * - 종료 판정은 프론트 책임: currentTurn == maxTurn에서 성공하면 next-line을
+ * - 턴은 스테이지 내부 상태다: 첫 실패는 같은 턴을 한 번 재시도하고,
+ *   두 번째 실패나 AI fallback은 실패 결과를 유지한 채 다음 턴으로 전진한다.
+ * - 종료 판정은 프론트 책임: currentTurn == maxTurn에서 턴이 완료되면 next-line을
  *   요청하지 않고 COMPLETED로 끝낸다 (초과 요청은 서버가 409로 거부).
  * - 판정 워커 장애(status=FAILED)는 flow 실패가 아니라 "실패 판정 + 고정
  *   피드백"으로 흡수한다 — 전시 안 멈춤. 서버는 FAILED attempt 뒤 재제출을
@@ -181,6 +181,7 @@ export class SimulationFlowController {
             success: false,
             feedback: EVALUATION_FALLBACK_FEEDBACK,
             fallback: true,
+            turnCompleted: false,
           });
           return;
         }
@@ -188,13 +189,15 @@ export class SimulationFlowController {
           success: response.success ?? false,
           feedback: response.feedback ?? "",
           fallback: response.fallback ?? false,
+          // 백엔드 선배포 전에도 기존 성공 응답은 막히지 않도록 호환한다.
+          turnCompleted: response.turnCompleted ?? response.success ?? false,
         });
       },
     );
   }
 
   private handleEvaluationOutcome(feedback: SimulationFeedback): void {
-    if (!feedback.success) {
+    if (!feedback.turnCompleted) {
       // 같은 턴 재시도 — 상대 발화는 그대로 두고 피드백만 얹는다.
       this.update({ status: "ANSWERING", evaluation: feedback });
       return;
