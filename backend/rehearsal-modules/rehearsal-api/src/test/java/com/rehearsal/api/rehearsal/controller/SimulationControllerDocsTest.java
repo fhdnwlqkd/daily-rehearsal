@@ -22,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
+import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.api.support.RestDocsEnumValues;
 import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
@@ -34,6 +35,7 @@ import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
+import com.rehearsal.domain.session.model.ClientSession;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.restdocs.AutoConfigureRestDocs;
@@ -59,6 +61,7 @@ class SimulationControllerDocsTest {
   @MockitoBean private GetTurnEvaluationUseCase getTurnEvaluationUseCase;
   @MockitoBean private SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase;
   @MockitoBean private GetNextOpponentLineUseCase getNextOpponentLineUseCase;
+  @MockitoBean private SessionReader sessionReader;
 
   @Test
   void startSimulation() throws Exception {
@@ -103,6 +106,7 @@ class SimulationControllerDocsTest {
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.status").value("PENDING"))
         .andExpect(jsonPath("$.data.attemptNo").value(1))
+        .andExpect(jsonPath("$.data.turnCompleted").value(false))
         .andDo(
             document(
                 "simulation-submit-evaluation",
@@ -120,7 +124,9 @@ class SimulationControllerDocsTest {
                     fieldWithPath("data.status")
                         .description(
                             "Evaluation status. Values: "
-                                + RestDocsEnumValues.names(EvaluationStatus.class)))));
+                                + RestDocsEnumValues.names(EvaluationStatus.class)),
+                    fieldWithPath("data.turnCompleted")
+                        .description("Always false while the evaluation is pending"))));
   }
 
   @Test
@@ -128,6 +134,9 @@ class SimulationControllerDocsTest {
     SimulationTurnAttempt completed = SimulationTurnAttempt.pending(1L, 1, "Nice to meet you too.");
     completed.complete(new TurnEvaluationResult(true, "Clear and natural response.", false));
     given(getTurnEvaluationUseCase.get(SESSION_ID, 1)).willReturn(completed);
+    ClientSession session = org.mockito.Mockito.mock(ClientSession.class);
+    given(session.getCurrentTurn()).willReturn(2);
+    given(sessionReader.get(SESSION_ID)).willReturn(session);
 
     mockMvc
         .perform(
@@ -137,6 +146,7 @@ class SimulationControllerDocsTest {
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.status").value("COMPLETED"))
         .andExpect(jsonPath("$.data.success").value(true))
+        .andExpect(jsonPath("$.data.turnCompleted").value(true))
         .andExpect(jsonPath("$.data.feedback").isNotEmpty())
         .andDo(
             document(
@@ -160,6 +170,9 @@ class SimulationControllerDocsTest {
                     fieldWithPath("data.feedback").description("Evaluation feedback"),
                     fieldWithPath("data.fallback")
                         .description("Whether fallback feedback was used"),
+                    fieldWithPath("data.turnCompleted")
+                        .description(
+                            "Whether this turn is complete and the client should proceed, independent of success"),
                     fieldWithPath("data.failureReason")
                         .type(JsonFieldType.STRING)
                         .optional()

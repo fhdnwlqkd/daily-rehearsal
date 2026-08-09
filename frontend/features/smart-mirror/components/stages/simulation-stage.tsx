@@ -260,19 +260,25 @@ function FeedbackPanel({ evaluation }: { evaluation: SimulationFeedback }) {
     >
       <GlassPanel
         className={`max-w-3xl px-8 py-5 ${
-          evaluation.success ? "border-white/45" : "border-white/15"
+          evaluation.success || evaluation.turnCompleted
+            ? "border-white/45"
+            : "border-white/15"
         }`}
       >
         <div className="flex flex-col items-center gap-2 text-center">
           <span className="text-xs font-light tracking-[0.3em] text-white/55">
-            {evaluation.success ? "GOOD" : "TRY AGAIN"}
+            {evaluation.success
+              ? "GOOD"
+              : evaluation.turnCompleted
+                ? "NEXT TURN"
+                : "TRY AGAIN"}
           </span>
           {evaluation.feedback && (
             <p className="text-xl font-extralight tracking-wide text-white/90">
               {evaluation.feedback}
             </p>
           )}
-          {!evaluation.success && (
+          {!evaluation.turnCompleted && (
             <p className="text-sm font-light text-white/60">
               같은 질문에 다시 답해 볼까요 — 준비되면 이야기해 주세요
             </p>

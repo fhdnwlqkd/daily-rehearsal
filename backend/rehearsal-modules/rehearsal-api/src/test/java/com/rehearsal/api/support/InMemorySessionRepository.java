@@ -42,6 +42,11 @@ public class InMemorySessionRepository implements SessionRepository {
   }
 
   @Override
+  public Optional<ClientSession> findSessionForUpdate(String sessionId) {
+    return findSession(sessionId);
+  }
+
+  @Override
   public SessionContext saveContext(String sessionId, SessionContext context) {
     contexts.put(sessionId, context);
     return context;

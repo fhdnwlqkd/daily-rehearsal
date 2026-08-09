@@ -18,7 +18,8 @@ operation::simulation-start[snippets='http-request,request-headers,path-paramete
 
 `POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
 
-`202 Accepted` 응답은 `PENDING` 상태의 평가 시도를 저장했음을 뜻합니다. 완료 결과는 평가 조회 API를 polling하여 확인합니다.
+`202 Accepted` 응답은 `PENDING` 상태의 평가 시도를 저장했음을 뜻합니다.
+이 시점의 `turnCompleted`는 항상 `false`이며, 완료 결과는 평가 조회 API를 polling하여 확인합니다.
 
 operation::simulation-submit-evaluation[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
@@ -28,6 +29,8 @@ operation::simulation-submit-evaluation[snippets='http-request,request-headers,p
 `GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
 
 이 API는 RDB에 저장된 최신 평가 시도만 읽으며 AI를 다시 호출하지 않습니다.
+`success`는 답변의 판정 결과이고, `turnCompleted`는 클라이언트가 다음 turn으로 진행해야 하는지를 나타냅니다.
+첫 번째 실패에서는 `turnCompleted=false`이고, 성공·두 번째 실패·AI fallback에서는 `turnCompleted=true`입니다.
 
 operation::simulation-poll-evaluation[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 

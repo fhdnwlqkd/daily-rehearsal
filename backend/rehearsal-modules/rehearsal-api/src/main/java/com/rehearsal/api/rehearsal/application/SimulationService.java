@@ -18,6 +18,7 @@ import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,8 +42,13 @@ public class SimulationService
   @Override
   @Transactional
   public SimulationStart startSimulation(String sessionId) {
-    ClientSession session = sessionReader.get(sessionId);
+    ClientSession session = sessionReader.getForUpdate(sessionId);
     RehearsalConfigDefinition config = config(session);
+
+    if (session.getStatus() == SessionStatus.REHEARSAL_PLAYING) {
+      SimulationTurn firstTurn = requiredTurn(sessionId, 1);
+      return new SimulationStart(sessionId, 1, session.getMaxTurn(), firstTurn.getOpponentLine());
+    }
 
     session.startSimulation(config.maxTurn());
     sessionRepository.saveSession(session);
@@ -66,7 +72,9 @@ public class SimulationService
 
     SimulationTurnAttempt latest =
         sessionRepository.findLatestAttempt(sessionId, turnNo).orElse(null);
-    if (latest != null && latest.getEvaluationStatus() != EvaluationStatus.FAILED) {
+    if (latest != null
+        && (latest.getEvaluationStatus() == EvaluationStatus.PENDING
+            || Boolean.TRUE.equals(latest.getSuccess()))) {
       return latest;
     }
 
