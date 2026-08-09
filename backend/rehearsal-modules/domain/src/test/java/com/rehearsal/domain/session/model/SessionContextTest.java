@@ -13,7 +13,7 @@ class SessionContextTest {
     SessionContext context =
         SessionContext.from(
             SituationType.DATE,
-            Map.of("situation_type", "business_meeting", "desired_persona", "warm_natural"));
+            Map.of("situation_type", "interview", "desired_persona", "warm_natural"));
 
     assertThat(context.values()).doesNotContainKey("situation_type");
     assertThat(context.valuesWithSituationType())

@@ -18,12 +18,13 @@ class TicketCopyRegistryTest {
   }
 
   @Test
-  void findsTicketCopyForBusinessMeeting() {
-    TicketCopyDefinition definition =
-        TicketCopyRegistry.findByType(SituationType.BUSINESS_MEETING).orElseThrow();
+  void findsTicketCopyForEverySupportedType() {
+    for (SituationType situationType : SituationType.values()) {
+      TicketCopyDefinition definition = TicketCopyRegistry.findByType(situationType).orElseThrow();
 
-    assertThat(definition.situationType()).isEqualTo(SituationType.BUSINESS_MEETING);
-    assertThat(definition.fallbackTitle()).isNotBlank();
-    assertThat(definition.fallbackMessage()).isNotBlank();
+      assertThat(definition.situationType()).isEqualTo(situationType);
+      assertThat(definition.fallbackTitle()).isNotBlank();
+      assertThat(definition.fallbackMessage()).isNotBlank();
+    }
   }
 }

@@ -19,8 +19,8 @@ class GeminiOpponentLineGeneratorClientTest {
         new GeminiOpponentLineGeneratorClient(generateContentClient);
     OpponentLineCommand command =
         new OpponentLineCommand(
-            SituationType.BUSINESS_MEETING,
-            Map.of("situation_type", "business_meeting"),
+            SituationType.INTERVIEW,
+            Map.of("situation_type", "interview"),
             "test-outfit-id",
             List.of(),
             2);
@@ -29,7 +29,7 @@ class GeminiOpponentLineGeneratorClientTest {
 
     assertThat(generateContentClient.model)
         .isEqualTo(GeminiOpponentLineGeneratorClient.DEFAULT_MODEL);
-    assertThat(generateContentClient.userMessage).contains("BUSINESS_MEETING");
+    assertThat(generateContentClient.userMessage).contains("INTERVIEW");
     assertThat(generateContentClient.config.responseMimeType()).isEmpty();
     assertThat(generateContentClient.config.responseJsonSchema()).isEmpty();
     assertThat(opponentLine).isEqualTo("오늘 발표는 잘 준비되셨나요?");
