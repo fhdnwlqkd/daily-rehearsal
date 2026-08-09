@@ -14,6 +14,8 @@ import type {
   SubmitEvaluationResponse,
   SubmitTranscriptResponse,
   TurnEvaluationResponse,
+  TicketJobResponse,
+  VideoUploadResponse,
 } from "./types";
 
 /**
@@ -155,4 +157,35 @@ export function getNextLine(sessionId: string, turnNo: number) {
   return apiFetch<NextLineResponse>(
     `/api/v1/sessions/${sessionId}/simulation/turns/${turnNo}/next-line`,
   );
+}
+
+export function uploadSessionVideo(
+  sessionId: string,
+  recording: Blob,
+  mimeType: string,
+) {
+  const formData = new FormData();
+  formData.append("file", recording, `rehearsal.${extensionFor(mimeType)}`);
+  return apiFetch<VideoUploadResponse>(`/api/v1/sessions/${sessionId}/video`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+export function getSessionVideo(sessionId: string) {
+  return apiFetch<VideoUploadResponse>(`/api/v1/sessions/${sessionId}/video`);
+}
+
+export function submitTicketGeneration(sessionId: string) {
+  return apiFetch<TicketJobResponse>(`/api/v1/sessions/${sessionId}/ticket`, {
+    method: "POST",
+  });
+}
+
+export function getTicketGeneration(sessionId: string) {
+  return apiFetch<TicketJobResponse>(`/api/v1/sessions/${sessionId}/ticket`);
+}
+
+function extensionFor(mimeType: string) {
+  return mimeType.includes("mp4") ? "mp4" : "webm";
 }

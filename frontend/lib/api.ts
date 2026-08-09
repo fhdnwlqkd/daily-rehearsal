@@ -54,7 +54,7 @@ export async function apiFetch<T>(
 ): Promise<T> {
   // HeadersInit은 배열·Headers 객체일 수도 있어서 spread 대신 Headers로 병합한다.
   const headers = new Headers(options.headers);
-  if (!headers.has("Content-Type")) {
+  if (!headers.has("Content-Type") && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
   if (!headers.has("Accept")) {

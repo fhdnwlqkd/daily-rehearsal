@@ -17,6 +17,11 @@ import type { DecartConnectionStatus } from "../types";
  */
 export type SessionRecorderStatus = "IDLE" | "RECORDING" | "STOPPED";
 
+export interface SessionRecording {
+  blob: Blob;
+  mimeType: string;
+}
+
 interface UseSessionRecorderArgs {
   /** 옷 입히기~시뮬레이션 구간만 true. false로 내려가면 녹화를 끝낸다. */
   enabled: boolean;
@@ -32,6 +37,7 @@ interface UseSessionRecorderArgs {
 
 interface UseSessionRecorderResult {
   status: SessionRecorderStatus;
+  recording: SessionRecording | null;
 }
 
 /**
@@ -62,6 +68,7 @@ export function useSessionRecorder({
   syncDelayMs,
 }: UseSessionRecorderArgs): UseSessionRecorderResult {
   const [status, setStatus] = useState<SessionRecorderStatus>("IDLE");
+  const [recording, setRecording] = useState<SessionRecording | null>(null);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -166,6 +173,9 @@ export function useSessionRecorder({
       recorder.onstop = () => {
         // 업로드 미연결(#94 잔여) — 결과는 크기만 확인하고 폐기한다.
         const blob = new Blob(chunksRef.current, { type: mimeType });
+        if (blob.size > 0) {
+          setRecording({ blob, mimeType });
+        }
         console.info(
           `세션 녹화 종료 — ${(blob.size / 1024 / 1024).toFixed(2)}MB (${mimeType}) · 업로드 미연결로 폐기`,
         );
@@ -209,5 +219,5 @@ export function useSessionRecorder({
   // 언마운트(세션 층 리마운트 포함) 안전망.
   useEffect(() => () => stopRecording(), [stopRecording]);
 
-  return { status };
+  return { status, recording };
 }
