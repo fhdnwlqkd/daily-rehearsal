@@ -111,9 +111,9 @@ public class SimulationService
       return existing;
     }
 
+    TurnGenerationMode generationMode = generationMode(sessionId, turnNo);
     SimulationTurn pending =
-        sessionRepository.saveTurn(
-            SimulationTurn.pending(sessionId, turnNo, TurnGenerationMode.NORMAL));
+        sessionRepository.saveTurn(SimulationTurn.pending(sessionId, turnNo, generationMode));
     eventPublisher.publishEvent(new OpponentLineRequested(sessionId, turnNo));
     return pending;
   }
@@ -141,6 +141,17 @@ public class SimulationService
     if (turnNo > session.getMaxTurn()) {
       throw new BusinessException(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
     }
+  }
+
+  private TurnGenerationMode generationMode(String sessionId, int turnNo) {
+    if (turnNo <= 1) {
+      return TurnGenerationMode.STATIC;
+    }
+    return sessionRepository
+        .findLatestAttempt(sessionId, turnNo - 1)
+        .filter(attempt -> attempt.getOutcome() == TurnEvaluationOutcome.FORCED_ADVANCE)
+        .map(attempt -> TurnGenerationMode.RECOVERY)
+        .orElse(TurnGenerationMode.NORMAL);
   }
 
   private RehearsalConfigDefinition config(ClientSession session) {

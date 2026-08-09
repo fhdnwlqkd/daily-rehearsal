@@ -10,6 +10,7 @@ import com.rehearsal.domain.rehearsal.model.TurnEvaluationCommand;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationRawResult;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
+import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -77,7 +78,13 @@ public class TurnEvaluationWorker {
             session.getSelectedOutfitId(),
             simulationContextReader.history(session.getSessionId(), event.turnNo()),
             event.turnNo(),
+            turn.getPlan().sceneCue(),
             turn.getPlan().opponentLine(),
+            turn.getPlan().actionPrompt(),
+            turn.getPlan().acceptedIntentHint(),
+            RehearsalConfigRegistry.findByType(session.getSituationType())
+                .orElseThrow()
+                .feedbackFocus(),
             attempt.getUserTranscript(),
             event.metrics());
     try {

@@ -12,7 +12,7 @@ public class SimulationTurn {
   private final Long id;
   private final String sessionId;
   private final int turnNo;
-  private final TurnGenerationMode generationMode;
+  private TurnGenerationMode generationMode;
   private OpponentLineStatus opponentLineStatus;
   private SimulationTurnPlan plan;
   private String failureReason;
@@ -60,6 +60,14 @@ public class SimulationTurn {
 
   public void complete(SimulationTurnPlan plan) {
     validatePending();
+    this.opponentLineStatus = OpponentLineStatus.COMPLETED;
+    this.plan = plan;
+    this.failureReason = null;
+  }
+
+  public void completeWithTechnicalFallback(SimulationTurnPlan plan) {
+    validatePending();
+    this.generationMode = TurnGenerationMode.TECHNICAL_FALLBACK;
     this.opponentLineStatus = OpponentLineStatus.COMPLETED;
     this.plan = plan;
     this.failureReason = null;

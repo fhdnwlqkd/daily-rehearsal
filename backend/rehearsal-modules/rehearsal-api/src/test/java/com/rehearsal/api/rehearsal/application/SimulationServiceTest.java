@@ -15,6 +15,7 @@ import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
@@ -116,7 +117,26 @@ class SimulationServiceTest {
     SimulationTurn turn = service(repository, events).submitNextLine(session.getSessionId(), 2);
 
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.PENDING);
+    assertThat(turn.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
     assertThat(events).containsExactly(new OpponentLineRequested(session.getSessionId(), 2));
+  }
+
+  @Test
+  void forcedAdvanceGeneratesNextTurnInRecoveryMode() {
+    ClientSession session = playingSession(2);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    SimulationTurn previous =
+        repository.saveTurn(completedTurn(session.getSessionId(), 1, "first line"));
+    SimulationTurnAttempt attempt =
+        repository.saveAttempt(SimulationTurnAttempt.pending(previous.getId(), 2, "off topic"));
+    attempt.complete(
+        new TurnEvaluationResult(TurnEvaluationOutcome.FORCED_ADVANCE, "move on", false));
+    repository.saveAttempt(attempt);
+
+    SimulationTurn turn =
+        service(repository, new ArrayList<>()).submitNextLine(session.getSessionId(), 2);
+
+    assertThat(turn.getGenerationMode()).isEqualTo(TurnGenerationMode.RECOVERY);
   }
 
   @Test
