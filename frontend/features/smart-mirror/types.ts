@@ -310,6 +310,44 @@ export interface SimulationFlowSnapshot {
   failReason: SimulationFlowFailReason | null;
 }
 
+// --- Video upload and ticket (#92) ---
+
+export type VideoUploadStatus = "NONE" | "PENDING" | "COMPLETED" | "FAILED";
+
+export interface VideoUploadResponse {
+  sessionId: string;
+  videoUrl: string | null;
+  status: VideoUploadStatus;
+}
+
+export type TicketJobStatus = "PENDING" | "COMPLETED" | "FAILED";
+
+export interface TicketSnapshot {
+  situationLabel: string;
+  criticalMoment: string;
+  desiredPersonaLabel: string;
+  selectedOutfitLabel: string;
+}
+
+export interface ChangeCard {
+  todayAction: string;
+  tomorrowAttitude: string;
+  ifThenPlan: string;
+}
+
+export interface TicketJobResponse {
+  sessionId: string;
+  status: TicketJobStatus;
+  snapshot?: TicketSnapshot;
+  changeCard?: ChangeCard;
+  fallback?: boolean;
+  videoUrl?: string;
+  videoAvailable?: boolean;
+  downloadUrl?: string;
+  qrPayload?: string;
+  failureMessage?: string;
+}
+
 /**
  * 스테이지(=전시 화면이 전환되는 단위) 식별자. 정의·용어는 frontend/CLAUDE.md의
  * "스테이지 용어 사전"이 기준이다. 라운드·턴 같은 반복은 스테이지 내부 상태로
