@@ -105,6 +105,8 @@ function MockQr() { ... }   // export 안 함 = 이 파일 전용
   `.env.local`(gitignore됨)로만 관리한다. 변수 이름은 `.env.example` 참고:
   - `API_BASE_URL` — 실서버 주소. 미설정 시 `http://localhost:8080`
   - `API_KEY` — 인증 키. 프록시가 `x-api-key` 헤더로 첨부
+  - `DECART_ENABLED` — `false`면 프론트 프록시가 Decart 토큰 요청을 차단한다.
+    테스트 중 과금을 막을 때 사용하며, 미설정 또는 `true`면 활성화된다.
 - **브라우저는 백엔드를 직접 호출하지 않는다.** 같은 출처의 프록시
   (`app/api/backend/[...path]/route.ts`)를 거치고, 시크릿은 프록시(서버)에서만
   붙는다. 그래서 위 변수들에 **`NEXT_PUBLIC_` 접두사를 붙이면 안 된다** —

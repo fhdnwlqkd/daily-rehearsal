@@ -1,0 +1,29 @@
+[[Decart-API]]
+== 3. Decart API
+
+[[Decart-Token-Issue]]
+=== 3.1. Decart client token 발급
+
+`POST /api/v1/sessions/{sessionId}/decart-token`
+
+Decart WebRTC 연결에 사용할 단기 client token을 발급합니다.
+
+operation::decart-token-issue[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Outfits-List]]
+=== 3.2. 옷 후보 목록 조회
+
+`GET /api/v1/sessions/{sessionId}/outfits`
+
+세션의 상황 타입에 맞는 옷 후보 목록을 조회합니다.
+
+operation::outfits-list[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
+
+[[Outfit-Spec-Get]]
+=== 3.3. 옷 스펙 조회
+
+`GET /api/v1/sessions/{sessionId}/outfit-spec`
+
+선택한 옷 후보의 Decart VTON 스펙(모델, 프롬프트, 참조 이미지)을 조회합니다.
+
+operation::outfit-spec-get[snippets='http-request,request-headers,path-parameters,query-parameters,http-response,response-fields']

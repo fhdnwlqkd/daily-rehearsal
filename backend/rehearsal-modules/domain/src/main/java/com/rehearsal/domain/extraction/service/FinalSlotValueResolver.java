@@ -6,10 +6,10 @@ import com.rehearsal.domain.extraction.model.ContextSlotValueSource;
 import com.rehearsal.domain.extraction.model.ContextSlotValueStatus;
 import com.rehearsal.domain.extraction.service.utils.SlotSchemaItems;
 import com.rehearsal.domain.extraction.service.utils.SlotValues;
-import com.rehearsal.domain.slot.model.ContextSlot;
-import com.rehearsal.domain.slot.model.ContextSlotOption;
-import com.rehearsal.domain.slot.model.ContextSlotSchema;
-import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
+import com.rehearsal.domain.slot.registry.ContextSlotOptionType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType.SchemaItemDef;
+import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -17,20 +17,20 @@ import java.util.Map;
 public class FinalSlotValueResolver {
 
   public Map<String, ContextSlotValue> resolve(
-      ContextSlotSchema schema, Map<String, ContextSlotValue> slots) {
+      ContextSlotSchemaType schema, Map<String, ContextSlotValue> slots) {
     Map<String, ContextSlotValue> safeSlots = slots == null ? Map.of() : slots;
     Map<String, ContextSlotValue> resolved = new LinkedHashMap<>();
 
-    for (ContextSlotSchemaItem item : SlotSchemaItems.activeItemsByPriority(schema)) {
-      ContextSlot slot = item.slot();
-      ContextSlotValue current = safeSlots.get(slot.slotKey());
+    for (SchemaItemDef item : SlotSchemaItems.activeItemsByPriority(schema)) {
+      ContextSlotType slot = item.slotType();
+      ContextSlotValue current = safeSlots.get(slot.getKey());
       ContextSlotValue value = current == null ? missingValue(item) : current;
 
       if (shouldApplyDefault(value)) {
         value = applyDefault(item, value);
       }
 
-      resolved.put(slot.slotKey(), value);
+      resolved.put(slot.getKey(), value);
     }
 
     return resolved;
@@ -41,16 +41,17 @@ public class FinalSlotValueResolver {
         || value.status() == ContextSlotValueStatus.INVALID;
   }
 
-  private ContextSlotValue applyDefault(ContextSlotSchemaItem item, ContextSlotValue value) {
-    ContextSlot slot = item.slot();
-    ContextSlotOption defaultOption = slot.defaultOption();
+  private ContextSlotValue applyDefault(SchemaItemDef item, ContextSlotValue value) {
+    ContextSlotType slot = item.slotType();
+    ContextSlotOptionType defaultOption = slot.getDefaultOption();
 
     if (defaultOption != null) {
-      return withValue(value, defaultOption.optionKey(), ContextSlotValueSource.DEFAULT_OPTION);
+      return withValue(value, defaultOption.getKey(), ContextSlotValueSource.DEFAULT_OPTION);
     }
 
-    if (!SlotValues.isEmpty(slot.defaultLiteralValue())) {
-      return withValue(value, slot.defaultLiteralValue(), ContextSlotValueSource.DEFAULT_LITERAL);
+    if (!SlotValues.isEmpty(slot.getDefaultLiteralValue())) {
+      return withValue(
+          value, slot.getDefaultLiteralValue(), ContextSlotValueSource.DEFAULT_LITERAL);
     }
 
     return new ContextSlotValue(
@@ -77,12 +78,12 @@ public class FinalSlotValueResolver {
         source);
   }
 
-  private ContextSlotValue missingValue(ContextSlotSchemaItem item) {
-    ContextSlot slot = item.slot();
+  private ContextSlotValue missingValue(SchemaItemDef item) {
+    ContextSlotType slot = item.slotType();
     return new ContextSlotValue(
-        slot.slotKey(),
-        slot.label(),
-        slot.slotType(),
+        slot.getKey(),
+        slot.getLabel(),
+        slot.getSlotType(),
         item.requiredLevel(),
         item.priority(),
         null,

@@ -1,164 +1,177 @@
 package com.rehearsal.domain.session.model;
 
 import com.rehearsal.domain.core.annotation.Description;
-import java.util.List;
-import java.util.Map;
+import com.rehearsal.domain.core.exception.BusinessException;
+import com.rehearsal.domain.core.exception.ErrorCode;
+import com.rehearsal.domain.situation.model.SituationType;
 import java.util.UUID;
+import lombok.Builder;
 import lombok.Getter;
 
 @Getter
-@Description("P1 client rehearsal session state stored in Redis")
+@Description("RDB-backed P1 rehearsal session aggregate root")
 public class ClientSession {
 
-  public static final String DEFAULT_CHANNEL = "P1_OFFLINE";
-
   private String sessionId;
-  private String channel;
+  private SituationType situationType;
   private SessionStatus status;
   private ContextStatus contextStatus;
   private int followUpAttempt;
-  private String briefingTranscript;
-  private Map<String, Object> partialContext;
-  private Map<String, Object> finalUserContext;
-  private List<String> missingRequiredSlotKeys;
-  private String followUpQuestion;
   private String selectedOutfitId;
-  private Map<String, Object> simulationDraft;
-  private Map<String, Object> feedbackResult;
-  private Map<String, Object> finalResult;
+  private int currentTurn;
+  private int maxTurn;
+  private String videoUrl;
+  private VideoUploadStatus videoUploadStatus;
+  private String videoUploadFailureReason;
 
+  @Builder
   private ClientSession(
       String sessionId,
-      String channel,
+      SituationType situationType,
       SessionStatus status,
       ContextStatus contextStatus,
       int followUpAttempt,
-      String briefingTranscript,
-      Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
       String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
+      int currentTurn,
+      int maxTurn,
+      String videoUrl,
+      VideoUploadStatus videoUploadStatus,
+      String videoUploadFailureReason) {
     this.sessionId = sessionId;
-    this.channel = normalizeChannel(channel);
+    this.situationType = situationType;
     this.status = status;
     this.contextStatus = contextStatus;
     this.followUpAttempt = followUpAttempt;
-    this.briefingTranscript = briefingTranscript;
-    this.partialContext = partialContext;
-    this.finalUserContext = finalUserContext;
-    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
-    this.followUpQuestion = followUpQuestion;
     this.selectedOutfitId = selectedOutfitId;
-    this.simulationDraft = simulationDraft;
-    this.feedbackResult = feedbackResult;
-    this.finalResult = finalResult;
+    this.currentTurn = currentTurn;
+    this.maxTurn = maxTurn;
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = videoUploadStatus == null ? VideoUploadStatus.NONE : videoUploadStatus;
+    this.videoUploadFailureReason = videoUploadFailureReason;
   }
 
-  public static ClientSession create(String channel) {
-    return new ClientSession(
-        UUID.randomUUID().toString(),
-        channel,
-        SessionStatus.BRIEFING,
-        ContextStatus.NOT_STARTED,
-        0,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+  public static ClientSession create(SituationType situationType) {
+    return ClientSession.builder()
+        .sessionId(UUID.randomUUID().toString())
+        .situationType(situationType)
+        .status(SessionStatus.BRIEFING)
+        .contextStatus(ContextStatus.NOT_STARTED)
+        .build();
   }
 
-  public static ClientSession restore(
-      String sessionId,
-      String channel,
-      SessionStatus status,
-      ContextStatus contextStatus,
-      int followUpAttempt,
-      String briefingTranscript,
-      Map<String, Object> partialContext,
-      Map<String, Object> finalUserContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion,
-      String selectedOutfitId,
-      Map<String, Object> simulationDraft,
-      Map<String, Object> feedbackResult,
-      Map<String, Object> finalResult) {
-    return new ClientSession(
-        sessionId,
-        channel,
-        status,
-        contextStatus,
-        followUpAttempt,
-        briefingTranscript,
-        partialContext,
-        finalUserContext,
-        missingRequiredSlotKeys,
-        followUpQuestion,
-        selectedOutfitId,
-        simulationDraft,
-        feedbackResult,
-        finalResult);
+  public void startContextExtraction() {
+    validateStatus(SessionStatus.BRIEFING);
+    validateContextStatus(ContextStatus.NOT_STARTED);
+    this.status = SessionStatus.CONTEXT_EXTRACTING;
+    this.contextStatus = ContextStatus.EXTRACTING;
   }
 
-  public void updateStatus(SessionStatus status) {
-    this.status = status;
+  public void requireFollowUp() {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
+    this.status = SessionStatus.FOLLOW_UP_REQUIRED;
+    this.contextStatus = ContextStatus.FOLLOW_UP_REQUIRED;
   }
 
-  public void updateContextStatus(ContextStatus contextStatus) {
-    this.contextStatus = contextStatus;
+  public void completeContext() {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
+    this.status = SessionStatus.TRANSFORMATION_READY;
+    this.contextStatus = ContextStatus.COMPLETED;
   }
 
-  public void updateBriefingTranscript(String briefingTranscript) {
-    this.briefingTranscript = briefingTranscript;
-  }
-
-  public void updateContext(
-      Map<String, Object> partialContext,
-      List<String> missingRequiredSlotKeys,
-      String followUpQuestion) {
-    this.partialContext = partialContext;
-    this.missingRequiredSlotKeys = missingRequiredSlotKeys;
-    this.followUpQuestion = followUpQuestion;
-  }
-
-  public void updateFinalUserContext(Map<String, Object> finalUserContext) {
-    this.finalUserContext = finalUserContext;
-    this.missingRequiredSlotKeys = List.of();
-    this.followUpQuestion = null;
-  }
-
-  public void updateSelectedOutfitId(String selectedOutfitId) {
-    this.selectedOutfitId = selectedOutfitId;
-  }
-
-  public void updateSimulationDraft(Map<String, Object> simulationDraft) {
-    this.simulationDraft = simulationDraft;
-  }
-
-  public void updateFeedbackResult(Map<String, Object> feedbackResult) {
-    this.feedbackResult = feedbackResult;
-  }
-
-  public void updateFinalResult(Map<String, Object> finalResult) {
-    this.finalResult = finalResult;
-  }
-
-  public void increaseFollowUpAttempt() {
+  public void startFollowUpMerge() {
+    validateStatus(SessionStatus.FOLLOW_UP_REQUIRED);
+    validateContextStatus(ContextStatus.FOLLOW_UP_REQUIRED);
+    this.status = SessionStatus.CONTEXT_EXTRACTING;
+    this.contextStatus = ContextStatus.MERGING;
     this.followUpAttempt++;
   }
 
-  private static String normalizeChannel(String channel) {
-    if (channel == null || channel.isBlank()) {
-      return DEFAULT_CHANNEL;
+  public void failContext() {
+    validateStatus(SessionStatus.CONTEXT_EXTRACTING);
+    validateContextStatusAny(ContextStatus.EXTRACTING, ContextStatus.MERGING);
+    this.status = SessionStatus.FAILED;
+    this.contextStatus = ContextStatus.FAILED;
+  }
+
+  public void confirmOutfit(String selectedOutfitId) {
+    validateStatus(SessionStatus.TRANSFORMATION_READY);
+    validateContextCompleted();
+    this.selectedOutfitId = selectedOutfitId;
+    this.status = SessionStatus.REHEARSAL_READY;
+  }
+
+  public void startSimulation(int maxTurn) {
+    validateStatus(SessionStatus.REHEARSAL_READY);
+    this.status = SessionStatus.REHEARSAL_PLAYING;
+    this.currentTurn = 1;
+    this.maxTurn = maxTurn;
+  }
+
+  public void advanceTurn() {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    validateTurnLimit();
+    this.currentTurn++;
+  }
+
+  public void completeSimulation() {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    validateSimulationCompleted();
+    this.status = SessionStatus.COMPLETED;
+  }
+
+  public void assignVideoUrl(String videoUrl) {
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = VideoUploadStatus.PENDING;
+    this.videoUploadFailureReason = null;
+  }
+
+  public void completeVideoUpload() {
+    this.videoUploadStatus = VideoUploadStatus.COMPLETED;
+  }
+
+  public void failVideoUpload(String reason) {
+    this.videoUploadStatus = VideoUploadStatus.FAILED;
+    this.videoUploadFailureReason = reason;
+  }
+
+  private void validateStatus(SessionStatus expected) {
+    if (status != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
     }
-    return channel;
+  }
+
+  private void validateContextStatus(ContextStatus expected) {
+    if (contextStatus != expected) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateContextStatusAny(ContextStatus... expectedStatuses) {
+    for (ContextStatus expected : expectedStatuses) {
+      if (contextStatus == expected) {
+        return;
+      }
+    }
+    throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+  }
+
+  private void validateTurnLimit() {
+    if (currentTurn > maxTurn) {
+      throw new BusinessException(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
+    }
+  }
+
+  private void validateContextCompleted() {
+    if (contextStatus != ContextStatus.COMPLETED) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
+  }
+
+  private void validateSimulationCompleted() {
+    if (currentTurn <= maxTurn) {
+      throw new BusinessException(ErrorCode.SIMULATION_NOT_COMPLETED);
+    }
   }
 }

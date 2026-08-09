@@ -14,7 +14,17 @@ public enum ErrorCode {
   UNAUTHORIZED("A001", "Authentication is required.", HttpStatus.UNAUTHORIZED),
   FORBIDDEN("A002", "Access is denied.", HttpStatus.FORBIDDEN),
   SESSION_NOT_FOUND("S001", "Session not found.", HttpStatus.NOT_FOUND),
-  INVALID_SESSION_STATE("S002", "Invalid session state.", HttpStatus.CONFLICT);
+  INVALID_SESSION_STATE("S002", "Invalid session state.", HttpStatus.CONFLICT),
+  SIMULATION_TURN_LIMIT_EXCEEDED("S003", "Simulation turn limit exceeded.", HttpStatus.CONFLICT),
+  SIMULATION_TURN_MISMATCH(
+      "S004", "Requested turn does not match the current turn.", HttpStatus.CONFLICT),
+  TURN_EVALUATION_JOB_NOT_FOUND("S005", "Turn evaluation job not found.", HttpStatus.NOT_FOUND),
+  NEXT_LINE_JOB_NOT_FOUND("S006", "Next opponent line job not found.", HttpStatus.NOT_FOUND),
+  CONTEXT_EXTRACTION_JOB_NOT_FOUND(
+      "S007", "Context extraction job not found.", HttpStatus.NOT_FOUND),
+  VIDEO_FILE_EMPTY("S008", "Uploaded video file is empty.", HttpStatus.BAD_REQUEST),
+  SIMULATION_NOT_COMPLETED("S009", "Simulation is not completed yet.", HttpStatus.CONFLICT),
+  TICKET_JOB_NOT_FOUND("S010", "Ticket generation job not found.", HttpStatus.NOT_FOUND);
 
   private final String code;
   private final String message;

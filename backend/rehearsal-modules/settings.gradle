@@ -1,7 +1,10 @@
 rootProject.name = 'rehearsal-modules'
 
 include 'rehearsal-api'
-include 'datasource'
-include 'datasource:client-openai'
+include 'datasource:db-integrated'
+include 'datasource:cache-session'
 include 'datasource:client-gemini'
+include 'datasource:client-decart'
+include 'datasource:storage-local'
+include 'datasource:storage-s3'
 include 'domain'

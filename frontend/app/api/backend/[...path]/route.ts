@@ -3,6 +3,21 @@ import type { NextRequest } from "next/server";
 // 서버 전용 시크릿 — NEXT_PUBLIC_ 접두사를 붙이면 브라우저 번들에 노출되므로 금지.
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:8080";
 const API_KEY = process.env.API_KEY;
+// 운영 기본값은 활성화다. 테스트 배포에서 false로 설정하면 Decart 토큰 요청을
+// 프론트 서버에서 차단하므로 백엔드와 Decart API까지 요청이 도달하지 않는다.
+const DECART_ENABLED =
+  process.env.DECART_ENABLED?.trim().toLowerCase() !== "false";
+
+function isDecartTokenRequest(method: string, path: string[]): boolean {
+  return (
+    method === "POST" &&
+    path.length === 5 &&
+    path[0] === "api" &&
+    path[1] === "v1" &&
+    path[2] === "sessions" &&
+    path[4] === "decart-token"
+  );
+}
 
 /**
  * 백엔드 프록시. 브라우저는 같은 출처의 /api/backend/* 만 호출하고,
@@ -14,6 +29,21 @@ async function proxy(
   { params }: { params: Promise<{ path: string[] }> },
 ) {
   const { path } = await params;
+
+  if (!DECART_ENABLED && isDecartTokenRequest(request.method, path)) {
+    return Response.json(
+      {
+        success: false,
+        error: {
+          code: "DECART_DISABLED",
+          name: "DecartDisabled",
+          message: "Decart is disabled for this deployment",
+        },
+      },
+      { status: 503 },
+    );
+  }
+
   const url = `${API_BASE_URL}/${path.join("/")}${request.nextUrl.search}`;
 
   const headers = new Headers();

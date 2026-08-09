@@ -57,7 +57,7 @@ AI 호출 실패 시 해당 slot은 default로 처리하고 다음 화면으로 
 
 ### 4. 옷 입히기
 
-백엔드는 선택된 타입과 context를 바탕으로 Decart URI와 옷 후보를 만듭니다. 프론트는 WebRTC로 Decart에 직접 연결합니다.
+백엔드는 선택된 타입과 `outfit_direction` context 값을 바탕으로 옷 후보 목록(`GET /outfits`)을 제공합니다. 프론트는 클라이언트 토큰(`POST /decart-token`)을 받아 WebRTC로 Decart에 직접 연결합니다.
 
 첫 번째 옷은 자동으로 적용합니다. 사용자는 타입 선택과 같은 제스처 컴포넌트로 옷을 교체하고 선택합니다.
 
@@ -117,7 +117,7 @@ SSE의 목적은 속도 향상이 아니라 토큰 스트리밍 연출과 체감
 - AI는 답변 해석, 정규화, 시뮬레이션 판정, 다음 발화 생성, 티켓 문구 생성을 담당합니다.
 - 하나의 세션에 context, 의상, 대화 로그, 영상, 티켓 정보를 누적합니다.
 - AI 실패 시 default 또는 고정 문구로 처리해 시연이 멈추지 않게 합니다.
-- Decart URI는 백엔드가 만들고, 프론트는 WebRTC에 직접 연결합니다.
+- 백엔드는 클라이언트 토큰과 옷 스펙(prompt/referenceImageUrl)만 제공하고, 프론트가 WebRTC로 Decart에 직접 연결합니다.
 - 녹화는 프론트 MediaRecorder에서 처리하고, 백엔드는 외부 접근 가능한 영상 URL을 확보합니다.
 - 티켓 QR은 다운로드 페이지 URL을 담습니다.
 

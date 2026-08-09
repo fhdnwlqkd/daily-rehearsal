@@ -1,0 +1,162 @@
+@startuml
+autoNumber
+title Daily Rehearsal - Overall Sequence (with API endpoints)
+
+skinparam responseMessageBelowArrow true
+skinparam sequence {
+    ArrowColor #2B2B2B
+    LifeLineBorderColor #777777
+    LifeLineBackgroundColor #F7F7F7
+    ParticipantBorderColor #555555
+    ParticipantBackgroundColor #FAFAFA
+    ActorBorderColor #555555
+    ActorBackgroundColor #FAFAFA
+}
+
+actor "사용자" as user
+participant "프론트엔드\n(Smart Mirror Web)" as front
+participant "백엔드\n(Rehearsal API)" as back
+participant "외부 API\n(LLM / Decart / Storage)" as external
+
+note over front, back
+Overall sequence에 구체적인 API 엔드포인트를 매핑했습니다.
+- 비동기 작업(AI)은 POST로 RDB 상태를 만든 뒤 GET으로 해당 row를 폴링합니다.
+- 미구현된 티켓 발급 API는 (예상) 경로로 표기했습니다.
+end note
+
+== 1. 체험 진입 ==
+
+user -> front: 스마트 거울 앞에 섬
+front -> front: 카메라/마이크 권한 확인\n제스처 컨트롤러 준비
+front -> back: GET /api/v1/situation-types
+back --> front: situation type 목록 반환
+
+== 2. 상황 선택 및 세션 시작 ==
+
+user -> front: 제스처로 situation type 선택
+front -> back: POST /api/v1/sessions\n{"situationType": "..."}
+back -> back: 세션 생성\n선택 타입을 session에 저장
+back --> front: sessionId 반환
+
+== 3. 브리핑 및 재질문 ==
+
+front -> back: GET /api/v1/situation-types/{situationType}/briefing
+back --> front: briefingTitle + exampleAnswers
+front --> user: 타입별 고정 브리핑 표시\n사용자 발화 유도
+user -> front: 내일 상황 브리핑 발화
+front -> front: STT로 transcript 확정
+front -> back: POST /api/v1/sessions/{sessionId}/briefing\n{"transcript": "..."}
+back --> front: 202 Accepted (status=EXTRACTING)
+back -> external: slot 답변 정규화 요청
+external --> back: 정규화 JSON
+back -> back: context 누적\n빈 slot 판단\nAI 실패 시 default fallback
+
+loop 처리 완료까지 Polling
+    front -> back: GET /api/v1/sessions/{sessionId}/context
+    back --> front: contextStatus 및 현재 context
+end
+
+loop 빈 slot 존재 + max_attempt 미만
+    front --> user: 빈 slot 재질문 표시
+    user -> front: 추가 답변 발화
+    front -> front: STT로 follow-up transcript 확정
+    front -> back: POST /api/v1/sessions/{sessionId}/follow-up\n{"transcript": "..."}
+    back --> front: 202 Accepted (status=MERGING)
+    back -> external: target slot 정규화 요청
+    external --> back: 정규화 JSON 또는 실패
+    back -> back: context 병합\n빈 slot 재판단\n실패 slot default 처리
+    
+    loop 처리 완료까지 Polling
+        front -> back: GET /api/v1/sessions/{sessionId}/context
+        back --> front: contextStatus 및 현재 context
+    end
+end
+
+back --> front: 최종 context 확정\n남은 slot default 적용
+
+== 4. 내일 입어볼 모습 선택 ==
+
+front -> back: GET /api/v1/sessions/{sessionId}/outfits
+back --> front: 옷 후보 목록(outfitId/label/thumbnailUrl/defaultOutfit)\n첫 번째 옷 default
+
+front -> back: POST /api/v1/sessions/{sessionId}/decart-token
+back --> front: clientToken 반환\n(세션당 한 번만 발급, outfit 변경마다 재발급하지 않음)
+
+front -> back: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId={id}
+back --> front: 옷 스펙(model/prompt/referenceImageUrl/enhance)
+
+front -> external: Decart WebRTC 직접 연결\nclientToken + 옷 스펙으로 preview
+external --> front: default preview
+front --> user: 1번 의상을 입은 모습 표시
+front -> front: MediaRecorder 녹화 시작\n4~5번 연속 녹화
+
+loop 의상 확정 전
+    user -> front: 제스처로 의상 변경/확정
+    alt 의상 변경
+        front -> back: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId={id}
+        back --> front: 옷 스펙(순수 조회, 세션 상태 변경 없음)
+        front -> external: 스펙으로 preview 갱신
+        external --> front: updated preview
+        front --> user: 변경된 모습 표시
+    else 의상 확정
+        front -> back: PATCH /api/v1/sessions/{sessionId}/outfit\n{"selectedOutfitId": "..."}
+        back --> front: 200 OK (simulation ready)
+    end
+end
+
+== 5. AI 시뮬레이션 ==
+
+front -> back: POST /api/v1/sessions/{sessionId}/simulation/start
+back --> front: 200 OK (현재 turn + 첫 상대 발화\nfallback 가능)
+front -> front: TTS 또는 화면으로 상대 발화 표시
+
+loop N턴 완료 전
+    user -> front: 응답 발화
+    front -> front: STT + 간단 지표 계산
+    front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
+    back -> back: attempt=PENDING 저장 후 after-commit worker dispatch
+    back --> front: 202 Accepted (attemptNo + status=PENDING)
+    back -> external: 비동기 판정+피드백 JSON 생성
+    external --> back: success/fail + feedback 또는 실패
+    back -> back: attempt 상태와 결과 저장
+    
+    loop 평가 완료까지 Polling
+        front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
+        back --> front: 저장된 판정+피드백 JSON\n실패 시 fallback feedback
+    end
+    
+    alt 성공
+        front -> back: POST /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+        back -> back: turn=PENDING 저장 후 after-commit worker dispatch
+        back --> front: 202 Accepted (status=PENDING)
+        back -> external: 비동기 다음 상대 발화 생성
+        external --> back: text 또는 실패
+        back -> back: turn 상태와 발화 저장
+        
+        loop 다음 발화 생성 완료까지 Polling
+            front -> back: GET /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
+            back --> front: 저장된 다음 발화 결과\n실패 시 고정 발화
+        end
+        front -> front: 다음 발화 표시
+    else 실패
+        front --> user: 같은 turn 재시도 안내
+    end
+end
+
+front -> front: 녹화 종료
+front -> back: POST /api/v1/sessions/{sessionId}/video/presigned-url (미구현/예상)
+back -> external: 외부 접근 가능한 위치에 저장
+external --> back: public video URL
+
+== 6. 티켓 발급 ==
+
+front -> back: POST /api/v1/sessions/{sessionId}/ticket (미구현/예상)
+back -> back: 누적 context + 옷 + 대화 로그 + 영상 URL로 티켓 생성
+back -> external: 다운로드 페이지 저장
+external --> back: downloadUrl
+back -> back: 세션 완료 처리
+back --> front: 200 OK (티켓 + QR payload)
+front --> user: 티켓과 QR 표시
+user -> front: QR 스캔
+front --> user: GET /api/v1/tickets/{ticketId} (미구현/예상)을 통해 다운로드 페이지 표시
+@enduml

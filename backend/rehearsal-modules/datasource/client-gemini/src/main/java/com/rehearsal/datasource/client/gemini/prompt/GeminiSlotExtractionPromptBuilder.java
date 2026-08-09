@@ -3,9 +3,9 @@ package com.rehearsal.datasource.client.gemini.prompt;
 import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.extraction.model.SlotExtractionCommand;
 import com.rehearsal.domain.extraction.service.utils.SlotSchemaItems;
-import com.rehearsal.domain.slot.model.ContextSlot;
-import com.rehearsal.domain.slot.model.ContextSlotOption;
-import com.rehearsal.domain.slot.model.ContextSlotSchemaItem;
+import com.rehearsal.domain.slot.registry.ContextSlotOptionType;
+import com.rehearsal.domain.slot.registry.ContextSlotSchemaType.SchemaItemDef;
+import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.stream.Collectors;
 
 @Description("provider-neutral slot 추출 command를 Gemini system/user message로 변환하는 서비스")
@@ -61,7 +61,7 @@ public class GeminiSlotExtractionPromptBuilder {
         .formatted(
             command.transcript(),
             command.followUpAttempt(),
-            command.schema().maxFollowUpAttempt(),
+            command.schema().getMaxFollowUpAttempt(),
             command.mode(),
             command.currentSlots(),
             command.targetSlotKeys(),
@@ -75,8 +75,8 @@ public class GeminiSlotExtractionPromptBuilder {
         .collect(Collectors.joining("\n"));
   }
 
-  private String slotDefinition(ContextSlotSchemaItem item) {
-    ContextSlot slot = item.slot();
+  private String slotDefinition(SchemaItemDef item) {
+    ContextSlotType slot = item.slotType();
     return """
         - slotKey: %s
           label: %s
@@ -86,22 +86,22 @@ public class GeminiSlotExtractionPromptBuilder {
           options: %s
         """
         .formatted(
-            slot.slotKey(),
-            slot.label(),
-            slot.slotType(),
+            slot.getKey(),
+            slot.getLabel(),
+            slot.getSlotType(),
             item.requiredLevel(),
-            nullToEmpty(slot.extractionHint()),
+            nullToEmpty(slot.getExtractionHint()),
             optionKeys(slot))
         .strip();
   }
 
-  private String optionKeys(ContextSlot slot) {
-    if (slot.options() == null || slot.options().isEmpty()) {
+  private String optionKeys(ContextSlotType slot) {
+    if (slot.getOptions() == null || slot.getOptions().isEmpty()) {
       return "[]";
     }
 
-    return slot.options().stream()
-        .map(ContextSlotOption::optionKey)
+    return slot.getOptions().stream()
+        .map(ContextSlotOptionType::getKey)
         .collect(Collectors.joining(", ", "[", "]"));
   }
 

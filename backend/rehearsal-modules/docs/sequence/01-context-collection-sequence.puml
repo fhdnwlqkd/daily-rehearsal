@@ -125,6 +125,10 @@ end
 == 5. 옷 입히기 진입 ==
 
 web -> api: GET /api/v1/sessions/{sessionId}/outfits
-api --> web: outfit selection data
+api -> sessionStore: situationType + outfit_direction 조회
+sessionStore --> api: situationType + outfit_direction
+api -> staticConfig: situationType/outfitDirection 기준 outfit 필터링
+staticConfig --> api: 매칭되는 outfit 목록
+api --> web: outfit list(outfitId/label/thumbnailUrl/defaultOutfit)
 
 @enduml
