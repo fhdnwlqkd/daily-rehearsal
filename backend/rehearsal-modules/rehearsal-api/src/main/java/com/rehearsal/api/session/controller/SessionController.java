@@ -15,6 +15,7 @@ import com.rehearsal.domain.extraction.usecase.SubmitContextExtractionUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextCollectionState;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
+import com.rehearsal.domain.session.usecase.GetSessionVideoUploadUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
@@ -48,6 +49,7 @@ public class SessionController {
   private final SubmitContextExtractionUseCase submitContextExtractionUseCase;
   private final GetContextExtractionUseCase getContextExtractionUseCase;
   private final UploadSessionVideoUseCase uploadSessionVideoUseCase;
+  private final GetSessionVideoUploadUseCase getSessionVideoUploadUseCase;
 
   @PostMapping
   public CreateSessionResponse create(@Valid @RequestBody CreateSessionRequest request) {
@@ -105,5 +107,10 @@ public class SessionController {
       throw new UncheckedIOException(exception);
     }
     return VideoUploadResponse.from(session);
+  }
+
+  @GetMapping("/{sessionId}/video")
+  public VideoUploadResponse getVideoUpload(@PathVariable @NotBlank String sessionId) {
+    return VideoUploadResponse.from(getSessionVideoUploadUseCase.getVideoUpload(sessionId));
   }
 }

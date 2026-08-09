@@ -29,6 +29,7 @@ import com.rehearsal.domain.session.model.ContextCollectionState;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
 import com.rehearsal.domain.session.usecase.CreateSessionUseCase;
+import com.rehearsal.domain.session.usecase.GetSessionVideoUploadUseCase;
 import com.rehearsal.domain.session.usecase.UpdateClientSessionUseCase;
 import com.rehearsal.domain.session.usecase.UploadSessionVideoUseCase;
 import com.rehearsal.domain.situation.model.SituationType;
@@ -58,6 +59,7 @@ class SessionControllerDocsTest {
   @MockitoBean private SubmitContextExtractionUseCase submitContextExtractionUseCase;
   @MockitoBean private GetContextExtractionUseCase getContextExtractionUseCase;
   @MockitoBean private UploadSessionVideoUseCase uploadSessionVideoUseCase;
+  @MockitoBean private GetSessionVideoUploadUseCase getSessionVideoUploadUseCase;
 
   @Test
   void createSession() throws Exception {
