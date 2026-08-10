@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { FilesetResolver, GestureRecognizer } from "@mediapipe/tasks-vision";
+import {
+  HAND_MIN_DETECTION_CONFIDENCE,
+  HAND_MIN_PRESENCE_CONFIDENCE,
+  HAND_MIN_TRACKING_CONFIDENCE,
+} from "../lib/gesture/constants";
 import type { GestureEngineHandle, GestureEngineStatus } from "../types";
 
 const WASM_PATH = "/mediapipe/wasm";
@@ -86,7 +91,13 @@ type VisionFileset = Awaited<ReturnType<typeof FilesetResolver.forVisionTasks>>;
 async function createRecognizer(
   fileset: VisionFileset,
 ): Promise<GestureRecognizer> {
-  const options = { runningMode: "VIDEO" as const, numHands: 1 };
+  const options = {
+    runningMode: "VIDEO" as const,
+    numHands: 1,
+    minHandDetectionConfidence: HAND_MIN_DETECTION_CONFIDENCE,
+    minHandPresenceConfidence: HAND_MIN_PRESENCE_CONFIDENCE,
+    minTrackingConfidence: HAND_MIN_TRACKING_CONFIDENCE,
+  };
   try {
     return await GestureRecognizer.createFromOptions(fileset, {
       ...options,
