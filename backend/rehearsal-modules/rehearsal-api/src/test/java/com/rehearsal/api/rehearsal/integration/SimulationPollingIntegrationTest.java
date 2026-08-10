@@ -7,6 +7,8 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -49,6 +51,8 @@ class SimulationPollingIntegrationTest {
 
     SimulationStart started = startSimulationUseCase.startSimulation(session.getSessionId());
     assertThat(started.currentTurn()).isEqualTo(1);
+    assertThat(started.generationMode()).isEqualTo(TurnGenerationMode.STATIC);
+    assertThat(started.plan().actionPrompt()).isNotBlank();
 
     SimulationTurnAttempt submitted =
         submitTurnEvaluationUseCase.submit(
@@ -57,7 +61,7 @@ class SimulationPollingIntegrationTest {
 
     SimulationTurnAttempt completedEvaluation =
         awaitEvaluationStatus(session.getSessionId(), 1, EvaluationStatus.COMPLETED);
-    assertThat(completedEvaluation.getSuccess()).isTrue();
+    assertThat(completedEvaluation.getOutcome()).isEqualTo(TurnEvaluationOutcome.ACCEPTED);
     assertThat(completedEvaluation.getFeedback()).isNotBlank();
     assertThat(sessionRepository.findSession(session.getSessionId()).orElseThrow().getCurrentTurn())
         .isEqualTo(2);
@@ -68,7 +72,10 @@ class SimulationPollingIntegrationTest {
 
     SimulationTurn completedNextLine =
         awaitOpponentLineStatus(session.getSessionId(), 2, OpponentLineStatus.COMPLETED);
-    assertThat(completedNextLine.getOpponentLine()).isNotBlank();
+    assertThat(completedNextLine.getPlan().opponentLine()).isNotBlank();
+    assertThat(completedNextLine.getPlan().sceneCue()).isNotBlank();
+    assertThat(completedNextLine.getPlan().actionPrompt()).isNotBlank();
+    assertThat(completedNextLine.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
   }
 
   @Test

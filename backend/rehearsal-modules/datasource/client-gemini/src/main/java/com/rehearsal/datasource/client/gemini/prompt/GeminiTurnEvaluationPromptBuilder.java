@@ -19,11 +19,12 @@ public class GeminiTurnEvaluationPromptBuilder {
         Follow the response JSON schema exactly.
 
         Rules:
-        - Judge only the current OPPONENT_LINE and USER_TRANSCRIPT, using CONVERSATION_HISTORY
-          and FINAL_CONTEXT as background.
-        - success=true only if the user's response is a natural, on-topic reply for the situation.
+        - Judge USER_TRANSCRIPT against ACTION_PROMPT and ACCEPTED_INTENT_HINT.
+        - Use SCENE_CUE, OPPONENT_LINE, CONVERSATION_HISTORY and FINAL_CONTEXT as background.
+        - accepted=true when the user performs the requested action with an on-topic response.
+        - Do not reject an on-topic response only because its wording or delivery could improve.
         - Always fill feedback with a short Korean coaching comment.
-        - When success=false, feedback must explain why the response did not fit and how to
+        - When accepted=false, feedback must explain why the response did not fit and how to
           improve it on retry.
         - Treat METRICS as supporting signal only; never let them override transcript content.
         - Do not generate the next opponent line.
@@ -52,6 +53,18 @@ public class GeminiTurnEvaluationPromptBuilder {
         OPPONENT_LINE:
         %s
 
+        SCENE_CUE:
+        %s
+
+        ACTION_PROMPT:
+        %s
+
+        ACCEPTED_INTENT_HINT:
+        %s
+
+        FEEDBACK_FOCUS:
+        %s
+
         USER_TRANSCRIPT:
         %s
 
@@ -65,6 +78,10 @@ public class GeminiTurnEvaluationPromptBuilder {
             conversationHistory(command),
             command.currentTurn(),
             command.opponentLine(),
+            command.sceneCue(),
+            command.actionPrompt(),
+            command.acceptedIntentHint(),
+            command.feedbackFocus(),
             command.userTranscript(),
             metrics(command.metrics()))
         .strip();

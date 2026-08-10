@@ -7,6 +7,7 @@ import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationCommand;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationRawResult;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.port.TurnEvaluationClient;
@@ -51,19 +52,15 @@ public class TurnEvaluationWorker {
       SimulationTurn turn = requiredTurn(event.sessionId(), event.turnNo());
       SimulationTurnAttempt attempt = requiredAttempt(turn.getId(), event.attemptNo());
       TurnEvaluationResult result = evaluate(session, turn, attempt, event);
-      RehearsalConfigDefinition config = requiredConfig(session);
-      boolean turnCompleted =
-          result.success()
-              || result.fallback()
-              || attempt.getAttemptNo() >= config.maxAttemptsPerTurn();
-
-      if (!result.success() && !result.fallback() && turnCompleted) {
-        result = new TurnEvaluationResult(false, ATTEMPTS_EXHAUSTED_FEEDBACK, false);
+      if (result.outcome() == TurnEvaluationOutcome.FORCED_ADVANCE && !result.fallback()) {
+        result =
+            new TurnEvaluationResult(
+                TurnEvaluationOutcome.FORCED_ADVANCE, ATTEMPTS_EXHAUSTED_FEEDBACK, false);
       }
 
       attempt.complete(result);
       sessionRepository.saveAttempt(attempt);
-      if (turnCompleted) {
+      if (result.outcome().advancesTurn()) {
         session.advanceTurn();
         sessionRepository.saveSession(session);
       }
@@ -89,19 +86,27 @@ public class TurnEvaluationWorker {
             session.getSelectedOutfitId(),
             simulationContextReader.history(session.getSessionId(), event.turnNo()),
             event.turnNo(),
-            turn.getOpponentLine(),
+            turn.getPlan().sceneCue(),
+            turn.getPlan().opponentLine(),
+            turn.getPlan().actionPrompt(),
+            turn.getPlan().acceptedIntentHint(),
+            RehearsalConfigRegistry.findByType(session.getSituationType())
+                .orElseThrow()
+                .feedbackFocus(),
             attempt.getUserTranscript(),
             event.metrics());
     try {
       TurnEvaluationRawResult raw = turnEvaluationClient.evaluate(command);
-      return new TurnEvaluationResult(raw.success(), raw.feedback(), false);
+      return TurnEvaluationResult.classify(
+          raw.accepted(),
+          attempt.getAttemptNo(),
+          requiredConfig(session).maxAttemptsPerTurn(),
+          raw.feedback(),
+          false);
     } catch (RuntimeException exception) {
-      log.warn(
-          "Turn evaluation AI call failed for session {}: {}",
-          session.getSessionId(),
-          exception.getMessage(),
-          exception);
-      return new TurnEvaluationResult(false, AI_FAILURE_FEEDBACK, true);
+      log.warn("Turn evaluation AI call failed for session {}", session.getSessionId(), exception);
+      return new TurnEvaluationResult(
+          TurnEvaluationOutcome.FORCED_ADVANCE, AI_FAILURE_FEEDBACK, true);
     }
   }
 

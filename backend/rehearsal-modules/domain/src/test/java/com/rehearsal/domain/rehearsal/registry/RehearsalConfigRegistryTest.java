@@ -15,19 +15,24 @@ class RehearsalConfigRegistryTest {
     assertThat(definition.situationType()).isEqualTo(SituationType.DATE);
     assertThat(definition.maxTurn()).isEqualTo(3);
     assertThat(definition.maxAttemptsPerTurn()).isEqualTo(2);
-    assertThat(definition.firstOpponentLine()).isNotBlank();
-    assertThat(definition.nextLineFallback()).isNotBlank();
+    assertThat(definition.firstTurn().opponentLine()).isNotBlank();
+    assertThat(definition.technicalFallback().opponentLine()).isNotBlank();
   }
 
   @Test
-  void findsRehearsalConfigForBusinessMeeting() {
-    RehearsalConfigDefinition definition =
-        RehearsalConfigRegistry.findByType(SituationType.BUSINESS_MEETING).orElseThrow();
+  void findsRehearsalConfigForEverySupportedType() {
+    for (SituationType situationType : SituationType.values()) {
+      RehearsalConfigDefinition definition =
+          RehearsalConfigRegistry.findByType(situationType).orElseThrow();
 
-    assertThat(definition.situationType()).isEqualTo(SituationType.BUSINESS_MEETING);
-    assertThat(definition.maxTurn()).isEqualTo(3);
-    assertThat(definition.maxAttemptsPerTurn()).isEqualTo(2);
-    assertThat(definition.firstOpponentLine()).isNotBlank();
-    assertThat(definition.nextLineFallback()).isNotBlank();
+      assertThat(definition.situationType()).isEqualTo(situationType);
+      assertThat(definition.maxTurn()).isEqualTo(3);
+      assertThat(definition.maxAttemptsPerTurn()).isEqualTo(2);
+      assertThat(definition.firstTurn().sceneCue()).isNotBlank();
+      assertThat(definition.firstTurn().actionPrompt()).isNotBlank();
+      assertThat(definition.firstTurn().acceptedIntentHint()).isNotBlank();
+      assertThat(definition.turnObjectives()).hasSize(3);
+      assertThat(definition.technicalFallback().opponentLine()).isNotBlank();
+    }
   }
 }

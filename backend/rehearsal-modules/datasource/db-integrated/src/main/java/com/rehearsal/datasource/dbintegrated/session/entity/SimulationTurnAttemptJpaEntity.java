@@ -1,6 +1,7 @@
 package com.rehearsal.datasource.dbintegrated.session.entity;
 
 import com.rehearsal.domain.rehearsal.model.EvaluationStatus;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -46,8 +47,9 @@ public class SimulationTurnAttemptJpaEntity extends BaseJpaEntity {
   @Column(name = "evaluation_status", nullable = false, length = 30)
   private EvaluationStatus evaluationStatus;
 
-  @Column(name = "success")
-  private Boolean success;
+  @Enumerated(EnumType.STRING)
+  @Column(name = "evaluation_outcome", length = 30)
+  private TurnEvaluationOutcome evaluationOutcome;
 
   @Column(name = "feedback", columnDefinition = "TEXT")
   private String feedback;
@@ -73,12 +75,12 @@ public class SimulationTurnAttemptJpaEntity extends BaseJpaEntity {
 
   public void updateEvaluation(
       EvaluationStatus evaluationStatus,
-      Boolean success,
+      TurnEvaluationOutcome evaluationOutcome,
       String feedback,
       Boolean fallback,
       String failureReason) {
     this.evaluationStatus = evaluationStatus;
-    this.success = success;
+    this.evaluationOutcome = evaluationOutcome;
     this.feedback = feedback;
     this.fallback = fallback;
     this.evaluationFailureReason = failureReason;

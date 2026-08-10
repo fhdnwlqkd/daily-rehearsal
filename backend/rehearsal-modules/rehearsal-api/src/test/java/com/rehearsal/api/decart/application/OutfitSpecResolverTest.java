@@ -49,11 +49,11 @@ class OutfitSpecResolverTest {
         .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
     properties
         .getOutfits()
-        .put("business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", true));
+        .put("business_formal", outfit("정장", SituationType.INTERVIEW, "formal_clean", true));
     OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
 
     List<OutfitCandidate> candidates =
-        resolver.resolveCandidates(SituationType.BUSINESS_MEETING, "formal_clean");
+        resolver.resolveCandidates(SituationType.INTERVIEW, "formal_clean");
 
     assertThat(candidates).extracting(OutfitCandidate::outfitId).containsExactly("business_formal");
     assertThat(candidates.get(0).defaultOutfit()).isTrue();
@@ -64,12 +64,11 @@ class OutfitSpecResolverTest {
     DecartProperties properties = new DecartProperties();
     properties
         .getOutfits()
-        .put(
-            "business_formal", outfit("정장", SituationType.BUSINESS_MEETING, "formal_clean", false));
+        .put("business_formal", outfit("정장", SituationType.INTERVIEW, "formal_clean", false));
     OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
 
     List<OutfitCandidate> candidates =
-        resolver.resolveCandidates(SituationType.BUSINESS_MEETING, "soft_friendly");
+        resolver.resolveCandidates(SituationType.INTERVIEW, "soft_friendly");
 
     assertThat(candidates).extracting(OutfitCandidate::outfitId).containsExactly("business_formal");
   }
@@ -100,7 +99,7 @@ class OutfitSpecResolverTest {
         .put("date_neat", outfit("데이트룩", SituationType.DATE, "neat_casual", false));
     OutfitSpecResolver resolver = new OutfitSpecResolver(properties);
 
-    assertThatThrownBy(() -> resolver.resolveCandidates(SituationType.BUSINESS_MEETING, null))
+    assertThatThrownBy(() -> resolver.resolveCandidates(SituationType.INTERVIEW, null))
         .isInstanceOf(BusinessException.class)
         .extracting(e -> ((BusinessException) e).getErrorCode())
         .isEqualTo(ErrorCode.NOT_FOUND);
