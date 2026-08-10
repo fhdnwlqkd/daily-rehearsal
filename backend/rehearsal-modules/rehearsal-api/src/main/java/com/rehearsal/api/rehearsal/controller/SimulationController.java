@@ -4,6 +4,7 @@ import com.rehearsal.api.rehearsal.controller.dto.EvaluationRequest;
 import com.rehearsal.api.rehearsal.controller.dto.OpponentLineResponse;
 import com.rehearsal.api.rehearsal.controller.dto.SimulationStartResponse;
 import com.rehearsal.api.rehearsal.controller.dto.TurnEvaluationResponse;
+import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
@@ -37,6 +38,7 @@ public class SimulationController {
   private final GetTurnEvaluationUseCase getTurnEvaluationUseCase;
   private final SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase;
   private final GetNextOpponentLineUseCase getNextOpponentLineUseCase;
+  private final SessionReader sessionReader;
 
   @PostMapping("/{sessionId}/simulation/start")
   public SimulationStartResponse start(@PathVariable @NotBlank String sessionId) {
@@ -53,14 +55,15 @@ public class SimulationController {
     TurnMetrics metrics = request.metrics() == null ? null : request.metrics().toDomain();
     SimulationTurnAttempt attempt =
         submitTurnEvaluationUseCase.submit(sessionId, turnNo, request.transcript(), metrics);
-    return TurnEvaluationResponse.from(sessionId, turnNo, attempt);
+    return TurnEvaluationResponse.from(sessionId, turnNo, attempt, false);
   }
 
   @GetMapping("/{sessionId}/simulation/turns/{turnNo}/evaluation")
   public TurnEvaluationResponse getEvaluation(
       @PathVariable @NotBlank String sessionId, @PathVariable int turnNo) {
     SimulationTurnAttempt attempt = getTurnEvaluationUseCase.get(sessionId, turnNo);
-    return TurnEvaluationResponse.from(sessionId, turnNo, attempt);
+    boolean turnCompleted = sessionReader.get(sessionId).getCurrentTurn() > turnNo;
+    return TurnEvaluationResponse.from(sessionId, turnNo, attempt, turnCompleted);
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)

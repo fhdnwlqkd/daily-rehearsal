@@ -19,9 +19,17 @@ public enum ContextSlotSchemaType {
           new SchemaItemDef(ContextSlotType.DESIRED_PERSONA, RequiredLevel.REQUIRED, 10),
           new SchemaItemDef(ContextSlotType.CRITICAL_MOMENT, RequiredLevel.REQUIRED, 20),
           new SchemaItemDef(ContextSlotType.OUTFIT_DIRECTION, RequiredLevel.OPTIONAL, 30))),
-  BUSINESS_MEETING(
-      SituationType.BUSINESS_MEETING,
-      "비즈니스 미팅 컨텍스트 스키마",
+  INTERVIEW(
+      SituationType.INTERVIEW,
+      "면접 컨텍스트 스키마",
+      1,
+      List.of(
+          new SchemaItemDef(ContextSlotType.DESIRED_PERSONA, RequiredLevel.REQUIRED, 10),
+          new SchemaItemDef(ContextSlotType.CRITICAL_MOMENT, RequiredLevel.REQUIRED, 20),
+          new SchemaItemDef(ContextSlotType.OUTFIT_DIRECTION, RequiredLevel.OPTIONAL, 30))),
+  FIRST_DAY(
+      SituationType.FIRST_DAY,
+      "첫 출근 컨텍스트 스키마",
       1,
       List.of(
           new SchemaItemDef(ContextSlotType.DESIRED_PERSONA, RequiredLevel.REQUIRED, 10),

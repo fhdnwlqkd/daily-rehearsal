@@ -1,69 +1,69 @@
 package com.rehearsal.datasource.client.gemini.prompt;
 
-import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.rehearsal.model.ConversationHistory;
 import com.rehearsal.domain.rehearsal.model.OpponentLineCommand;
 import java.util.stream.Collectors;
 
-@Description("provider-neutral opponent line command를 Gemini system/user message로 변환하는 서비스")
 public class GeminiOpponentLinePromptBuilder {
 
   public GeminiPromptMessages build(OpponentLineCommand command) {
-    return new GeminiPromptMessages(buildSystemInstruction(), buildUserMessage(command));
+    return new GeminiPromptMessages(systemInstruction(), userMessage(command));
   }
 
-  private String buildSystemInstruction() {
+  private String systemInstruction() {
     return """
-        You play the counterpart in a rehearsal roleplay and speak the next line in Korean.
-        Respond with plain text only.
+        You design the next turn of a Korean rehearsal roleplay.
+        Follow the response JSON schema exactly.
 
         Rules:
-        - Output only the opponent's next spoken line. No JSON, no labels, no quotation marks.
-        - Do not include feedback, coaching comments, or judgments about the user.
-        - Stay consistent with SITUATION_TYPE, FINAL_CONTEXT, and CONVERSATION_HISTORY so far.
-        - Keep the line short and natural, as if spoken aloud in a single turn.
-        - Do not decide whether the simulation itself should end.
+        - sceneCue briefly explains the situation immediately before the counterpart speaks.
+        - opponentLine is only the counterpart's natural spoken line.
+        - actionPrompt tells the user what kind of action to perform without giving a script.
+        - acceptedIntentHint describes the minimum intent that counts as on-topic.
+        - Keep every field concise and suitable for a voice-based exhibition.
+        - Use FINAL_CONTEXT and accepted CONVERSATION_HISTORY as factual background.
+        - For RECOVERY mode, continue naturally without assuming the failed user response happened.
+        - Never include coaching feedback or evaluate the user.
         """
         .strip();
   }
 
-  private String buildUserMessage(OpponentLineCommand command) {
+  private String userMessage(OpponentLineCommand command) {
     return """
-        SITUATION_TYPE:
+        SITUATION_TYPE: %s
+        GENERATION_MODE: %s
+        CURRENT_TURN: %d
+        TURN_OBJECTIVE: %s
+        FEEDBACK_FOCUS: %s
+        RECOVERY_DIRECTION: %s
+        FINAL_CONTEXT: %s
+        SELECTED_OUTFIT: %s
+        ACCEPTED_CONVERSATION_HISTORY:
         %s
-
-        FINAL_CONTEXT:
-        %s
-
-        SELECTED_OUTFIT:
-        %s
-
-        CONVERSATION_HISTORY:
-        %s
-
-        CURRENT_TURN:
-        %d
+        PREVIOUS_TURN_PLAN: %s
         """
         .formatted(
             command.situationType(),
+            command.generationMode(),
+            command.currentTurn(),
+            command.turnObjective(),
+            command.feedbackFocus(),
+            command.recoveryDirection(),
             command.finalContext(),
             command.selectedOutfitId(),
-            conversationHistory(command),
-            command.currentTurn())
+            history(command),
+            command.previousTurnPlan() == null ? "(none)" : command.previousTurnPlan())
         .strip();
   }
 
-  private String conversationHistory(OpponentLineCommand command) {
+  private String history(OpponentLineCommand command) {
     if (command.conversationHistory().isEmpty()) {
       return "(none)";
     }
-
-    return command.conversationHistory().stream()
-        .map(this::conversationLine)
-        .collect(Collectors.joining("\n"));
+    return command.conversationHistory().stream().map(this::line).collect(Collectors.joining("\n"));
   }
 
-  private String conversationLine(ConversationHistory history) {
+  private String line(ConversationHistory history) {
     return "- turn %d: opponent=\"%s\" user=\"%s\""
         .formatted(history.turnNo(), history.opponentLine(), history.userTranscript());
   }

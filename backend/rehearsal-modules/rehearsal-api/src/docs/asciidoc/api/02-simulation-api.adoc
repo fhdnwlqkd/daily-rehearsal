@@ -1,50 +1,68 @@
 [[Simulation-API]]
 == 4. 시뮬레이션 API
 
-시뮬레이션은 context 수집과 의상 확정이 완료된 세션에서만 시작할 수 있습니다.
-모든 요청에는 인증 항목에서 설명한 `X-API-KEY` 헤더가 필요합니다.
+시뮬레이션은 context 수집과 의상 확정이 완료된 세션에서 시작합니다.
+소개팅, 면접, 첫 출근 모두 최대 3턴이며 각 턴은 최대 두 번 평가할 수 있습니다.
+모든 요청에는 `X-API-KEY` 헤더가 필요합니다.
+
+턴 화면은 다음 세 값을 함께 사용합니다.
+
+* `sceneCue`: 상대 발화 직전의 상황 안내
+* `opponentLine`: 상대방이 실제로 말한 문장
+* `actionPrompt`: 사용자가 수행할 행동 안내
 
 [[Simulation-Start]]
 === 4.1. 시뮬레이션 시작
 
 `POST /api/v1/sessions/{sessionId}/simulation/start`
 
-첫 번째 turn을 동기적으로 시작하고 첫 상대 발화를 반환합니다.
+타입별 정적 설정에 저장된 첫 번째 턴을 반환합니다. 첫 턴의 `generationMode`는 `STATIC`입니다.
 
 operation::simulation-start[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 
 [[Simulation-Submit-Evaluation]]
-=== 4.2. Turn 평가 제출
+=== 4.2. 턴 답변 평가 제출
 
 `POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
 
-`202 Accepted` 응답은 `PENDING` 상태의 평가 시도를 저장했음을 뜻합니다. 완료 결과는 평가 조회 API를 polling하여 확인합니다.
+사용자의 STT transcript를 저장하고 `202 Accepted`와 `PENDING` 상태를 반환합니다.
+AI 평가는 transaction commit 이후 한 번 실행되며 결과는 RDB에 저장됩니다.
+이 시점의 `turnCompleted`는 항상 `false`이며, 완료 결과는 평가 조회 API를 polling하여 확인합니다.
 
 operation::simulation-submit-evaluation[snippets='http-request,request-headers,path-parameters,request-fields,http-response,response-fields']
 
 [[Simulation-Poll-Evaluation]]
-=== 4.3. Turn 평가 상태 조회
+=== 4.3. 턴 평가 polling
 
 `GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation`
 
-이 API는 RDB에 저장된 최신 평가 시도만 읽으며 AI를 다시 호출하지 않습니다.
+이 API는 저장된 최신 평가 시도만 조회하며 Gemini를 다시 호출하지 않습니다.
+
+* `ACCEPTED`: 현재 답변을 인정하고 다음 턴으로 이동
+* `RETRY_REQUIRED`: 첫 번째 부적합 답변으로, 같은 턴에서 한 번 재시도
+* `FORCED_ADVANCE`: 두 번째 답변도 부적합하여 feedback을 남기고 다음 턴으로 이동
+
+`turnCompleted`는 클라이언트가 다음 턴으로 진행해야 하는지를 나타냅니다.
+`RETRY_REQUIRED`에서는 `false`, `ACCEPTED`·`FORCED_ADVANCE`·AI fallback에서는 `true`입니다.
 
 operation::simulation-poll-evaluation[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 
 [[Simulation-Submit-Next-Line]]
-=== 4.4. 다음 상대 발화 요청
+=== 4.4. 다음 턴 생성 요청
 
 `POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
 
-`202 Accepted` 응답은 `PENDING` 상태의 turn을 저장했음을 뜻합니다. 완료 결과는 다음 상대 발화 조회 API를 polling하여 확인합니다.
+직전 결과가 `ACCEPTED`이면 `NORMAL`, `FORCED_ADVANCE`이면 `RECOVERY` 모드로 생성합니다.
+`202 Accepted` 응답 이후 polling API로 완료된 턴 계획을 조회합니다.
 
 operation::simulation-submit-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']
 
 [[Simulation-Poll-Next-Line]]
-=== 4.5. 다음 상대 발화 상태 조회
+=== 4.5. 다음 턴 polling
 
 `GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/next-line`
 
-이 API는 RDB에 저장된 turn만 읽으며 AI를 다시 호출하지 않습니다.
+이 API는 RDB의 `simulation_turn` row만 조회합니다.
+Gemini 장애 시 타입별 기술 fallback 계획을 저장하고 `TECHNICAL_FALLBACK` 모드로 반환합니다.
 
 operation::simulation-poll-next-line[snippets='http-request,request-headers,path-parameters,http-response,response-fields']

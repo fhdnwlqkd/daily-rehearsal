@@ -42,6 +42,11 @@ public class InMemorySessionRepository implements SessionRepository {
   }
 
   @Override
+  public Optional<ClientSession> findSessionForUpdate(String sessionId) {
+    return findSession(sessionId);
+  }
+
+  @Override
   public SessionContext saveContext(String sessionId, SessionContext context) {
     contexts.put(sessionId, context);
     return context;
@@ -60,8 +65,9 @@ public class InMemorySessionRepository implements SessionRepository {
                 turnSequence++,
                 turn.getSessionId(),
                 turn.getTurnNo(),
+                turn.getGenerationMode(),
                 turn.getOpponentLineStatus(),
-                turn.getOpponentLine(),
+                turn.getPlan(),
                 turn.getFailureReason())
             : turn;
     turns.put(turnKey(saved.getSessionId(), saved.getTurnNo()), saved);
@@ -91,7 +97,7 @@ public class InMemorySessionRepository implements SessionRepository {
                 attempt.getAttemptNo(),
                 attempt.getUserTranscript(),
                 attempt.getEvaluationStatus(),
-                attempt.getSuccess(),
+                attempt.getOutcome(),
                 attempt.getFeedback(),
                 attempt.getFallback(),
                 attempt.getFailureReason())

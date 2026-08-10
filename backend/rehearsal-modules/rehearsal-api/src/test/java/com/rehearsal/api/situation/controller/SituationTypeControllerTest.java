@@ -39,7 +39,8 @@ class SituationTypeControllerTest {
         .andExpect(jsonPath("$.data[0].gestureOrder").doesNotExist())
         .andExpect(jsonPath("$.data[0].briefingTitle").doesNotExist())
         .andExpect(jsonPath("$.data[0].exampleAnswer").doesNotExist())
-        .andExpect(jsonPath("$.data[1].situationType").value("business_meeting"));
+        .andExpect(jsonPath("$.data[1].situationType").value("interview"))
+        .andExpect(jsonPath("$.data[2].situationType").value("first_day"));
   }
 
   @Test
@@ -59,7 +60,7 @@ class SituationTypeControllerTest {
 
     @Bean
     GetSituationTypesUseCase getSituationTypesUseCase() {
-      return () -> List.of(SituationType.DATE, SituationType.BUSINESS_MEETING);
+      return () -> List.of(SituationType.DATE, SituationType.INTERVIEW, SituationType.FIRST_DAY);
     }
 
     @Bean
