@@ -5,8 +5,14 @@
 export const SWIPE_WINDOW_MS = 300;
 /** 윈도우 내 이 거리 이상 이동해야 스와이프 */
 export const SWIPE_MIN_DISTANCE = 0.2;
-/** 스와이프 발사 후 연타 방지 쿨다운 */
-export const SWIPE_COOLDOWN_MS = 500;
+/**
+ * 스와이프 발사 후 불응기. 이 동안은 판정만 쉬는 게 아니라 궤적 기록
+ * 자체를 버린다 — 기록을 유지하면 손이 제자리로 돌아오는 동작(return
+ * stroke)이 쌓였다가 만료 순간 반대 방향으로 발사된다 (2026-08-11
+ * 통합 테스트에서 "왼쪽 직후 오른쪽" 오발사 관측). 방향별 쿨다운
+ * 2종(같은 방향 500 / 반대 방향 800)을 이 값 하나로 통일했다.
+ */
+export const SWIPE_REFRACTORY_MS = 1000;
 
 /** Open_Palm 분류를 신뢰하는 최소 점수 */
 export const PALM_MIN_SCORE = 0.6;
@@ -37,10 +43,3 @@ export const RUNTIME_ERROR_LIMIT = 30;
  * 200~240ms 인식 공백 발생 (2026-07-05 데모 로그).
  */
 export const HAND_LOST_GRACE_MS = 250;
-
-/**
- * 스와이프 발사 후 "반대 방향" 스와이프를 무시하는 시간.
- * 스와이프한 손이 제자리로 돌아오는 동작(return stroke)이
- * 반대 방향 스와이프로 오인식되는 것을 막는다.
- */
-export const SWIPE_OPPOSITE_COOLDOWN_MS = 800;
