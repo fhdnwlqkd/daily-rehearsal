@@ -151,8 +151,14 @@ export function useGestureController({
         }
 
         const wristX = hand[0].x; // landmark 0 = 손목
+        // 스와이프는 손끝(landmark 12, 중지 끝)을 본다: 손목을 축으로
+        // "까닥"하는 자연 스와이프는 손목 이동량이 거의 0이라 손목
+        // 기준으론 신호가 안 생긴다. 평행이동 스와이프에선 손끝도
+        // 손목만큼 움직이므로 기존 동작은 그대로다. 팜홀드의 정지
+        // 판정은 회전에 흔들리지 않는 손목을 유지한다.
+        const fingertipX = hand[12]?.x ?? wristX;
 
-        const swipeAction = swipe.update(wristX, now);
+        const swipeAction = swipe.update(fingertipX, now);
         if (swipeAction) {
           onActionRef.current({ action: swipeAction, source: "hand" });
         }
