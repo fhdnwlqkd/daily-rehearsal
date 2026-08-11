@@ -62,7 +62,7 @@ describe("SwipeDetector", () => {
     const detector = new SwipeDetector();
     const result = sweep(detector, {
       fromX: 0.5,
-      toX: 0.65,
+      toX: 0.58,
       fromMs: 0,
       toMs: 250,
     });
@@ -142,12 +142,12 @@ describe("SwipeDetector", () => {
 
   it("reset()은 궤적을 끊는다 — 이전 이동과 이어붙지 않는다", () => {
     const detector = new SwipeDetector();
-    sweep(detector, { fromX: 0.8, toX: 0.65, fromMs: 0, toMs: 100 });
+    sweep(detector, { fromX: 0.8, toX: 0.72, fromMs: 0, toMs: 100 });
     detector.reset();
-    // reset 없이 이어졌다면 총 0.8→0.5로 임계를 넘었을 이동
+    // reset 없이 이어졌다면 총 0.8→0.62로 임계를 넘었을 이동
     const result = sweep(detector, {
-      fromX: 0.65,
-      toX: 0.5,
+      fromX: 0.72,
+      toX: 0.62,
       fromMs: 133,
       toMs: 233,
     });
