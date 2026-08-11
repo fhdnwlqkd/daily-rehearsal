@@ -1,5 +1,7 @@
 package com.rehearsal.api.rehearsal.application;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -11,7 +13,9 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
@@ -38,6 +42,23 @@ class SimulationServiceTest {
   }
 
   @Test
+  void everySupportedTypeStartsWithItsConfiguredThreeTurnPlan() {
+    for (SituationType situationType : SituationType.values()) {
+      ClientSession session = readySession(situationType);
+      InMemorySessionRepository repository = new InMemorySessionRepository(session);
+
+      SimulationStart result =
+          service(repository, new ArrayList<>()).startSimulation(session.getSessionId());
+
+      assertThat(result.maxTurn()).isEqualTo(3);
+      assertThat(result.generationMode()).isEqualTo(TurnGenerationMode.STATIC);
+      assertThat(result.plan().sceneCue()).isNotBlank();
+      assertThat(result.plan().opponentLine()).isNotBlank();
+      assertThat(result.plan().actionPrompt()).isNotBlank();
+    }
+  }
+
+  @Test
   void duplicateSimulationStartReusesFirstTurn() {
     ClientSession session = readySession();
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
@@ -57,8 +78,7 @@ class SimulationServiceTest {
   void submitEvaluationPersistsAttemptAndPublishesAfterCommitRequest() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
     List<Object> events = new ArrayList<>();
 
     SimulationTurnAttempt attempt =
@@ -74,8 +94,7 @@ class SimulationServiceTest {
   void duplicateEvaluationSubmissionReusesPendingAttempt() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
     SimulationTurnAttempt pending =
         repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "answer"));
     List<Object> events = new ArrayList<>();
@@ -91,8 +110,7 @@ class SimulationServiceTest {
   void failedEvaluationIsRetriedAsNextAttempt() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
     SimulationTurnAttempt failed =
         repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "first"));
     failed.fail("failed");
@@ -106,15 +124,15 @@ class SimulationServiceTest {
   }
 
   @Test
-  void unsuccessfulEvaluationIsRetriedAsNextConsumedAttempt() {
+  void retryRequiredEvaluationCreatesSecondAttempt() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn turn =
-        repository.saveTurn(SimulationTurn.completed(session.getSessionId(), 1, "hello"));
-    SimulationTurnAttempt unsuccessful =
-        repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "first"));
-    unsuccessful.complete(new TurnEvaluationResult(false, "try again", false));
-    repository.saveAttempt(unsuccessful);
+    SimulationTurn turn = repository.saveTurn(completedTurn(session.getSessionId(), 1, "hello"));
+    SimulationTurnAttempt first =
+        repository.saveAttempt(SimulationTurnAttempt.pending(turn.getId(), 1, "off topic"));
+    first.complete(
+        new TurnEvaluationResult(TurnEvaluationOutcome.RETRY_REQUIRED, "질문에 맞게 다시 답해보세요.", false));
+    repository.saveAttempt(first);
     List<Object> events = new ArrayList<>();
 
     SimulationTurnAttempt retried =
@@ -136,14 +154,33 @@ class SimulationServiceTest {
     SimulationTurn turn = service(repository, events).submitNextLine(session.getSessionId(), 2);
 
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.PENDING);
+    assertThat(turn.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
     assertThat(events).containsExactly(new OpponentLineRequested(session.getSessionId(), 2));
+  }
+
+  @Test
+  void forcedAdvanceGeneratesNextTurnInRecoveryMode() {
+    ClientSession session = playingSession(2);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+    SimulationTurn previous =
+        repository.saveTurn(completedTurn(session.getSessionId(), 1, "first line"));
+    SimulationTurnAttempt attempt =
+        repository.saveAttempt(SimulationTurnAttempt.pending(previous.getId(), 2, "off topic"));
+    attempt.complete(
+        new TurnEvaluationResult(TurnEvaluationOutcome.FORCED_ADVANCE, "move on", false));
+    repository.saveAttempt(attempt);
+
+    SimulationTurn turn =
+        service(repository, new ArrayList<>()).submitNextLine(session.getSessionId(), 2);
+
+    assertThat(turn.getGenerationMode()).isEqualTo(TurnGenerationMode.RECOVERY);
   }
 
   @Test
   void duplicateNextLineSubmissionReusesPendingTurn() {
     ClientSession session = playingSession(2);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
-    SimulationTurn pending = repository.saveTurn(SimulationTurn.pending(session.getSessionId(), 2));
+    SimulationTurn pending = repository.saveTurn(pendingTurn(session.getSessionId(), 2));
     List<Object> events = new ArrayList<>();
 
     SimulationTurn duplicated =
@@ -170,9 +207,13 @@ class SimulationServiceTest {
   }
 
   private ClientSession readySession() {
+    return readySession(SituationType.DATE);
+  }
+
+  private ClientSession readySession(SituationType situationType) {
     return ClientSession.builder()
         .sessionId("session-id")
-        .situationType(SituationType.DATE)
+        .situationType(situationType)
         .status(SessionStatus.REHEARSAL_READY)
         .contextStatus(ContextStatus.COMPLETED)
         .selectedOutfitId("outfit-1")

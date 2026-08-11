@@ -1,6 +1,8 @@
 package com.rehearsal.datasource.dbintegrated.session.entity;
 
 import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnPlan;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -40,11 +42,24 @@ public class SimulationTurnJpaEntity extends BaseJpaEntity {
   private int turnNo;
 
   @Enumerated(EnumType.STRING)
+  @Column(name = "generation_mode", nullable = false, length = 30)
+  private TurnGenerationMode generationMode;
+
+  @Enumerated(EnumType.STRING)
   @Column(name = "opponent_line_status", nullable = false, length = 30)
   private OpponentLineStatus opponentLineStatus;
 
+  @Column(name = "scene_cue", columnDefinition = "TEXT")
+  private String sceneCue;
+
   @Column(name = "opponent_line", columnDefinition = "TEXT")
   private String opponentLine;
+
+  @Column(name = "action_prompt", columnDefinition = "TEXT")
+  private String actionPrompt;
+
+  @Column(name = "accepted_intent_hint", columnDefinition = "TEXT")
+  private String acceptedIntentHint;
 
   @Column(name = "opponent_line_failure_reason", columnDefinition = "TEXT")
   private String opponentLineFailureReason;
@@ -52,20 +67,33 @@ public class SimulationTurnJpaEntity extends BaseJpaEntity {
   public static SimulationTurnJpaEntity create(
       RehearsalSessionJpaEntity session,
       int turnNo,
+      TurnGenerationMode generationMode,
       OpponentLineStatus opponentLineStatus,
-      String opponentLine) {
+      SimulationTurnPlan plan) {
     SimulationTurnJpaEntity entity = new SimulationTurnJpaEntity();
     entity.session = session;
     entity.turnNo = turnNo;
+    entity.generationMode = generationMode;
     entity.opponentLineStatus = opponentLineStatus;
-    entity.opponentLine = opponentLine;
+    entity.updatePlan(plan);
     return entity;
   }
 
-  public void updateOpponentLine(
-      OpponentLineStatus opponentLineStatus, String opponentLine, String failureReason) {
+  public void updateTurn(
+      TurnGenerationMode generationMode,
+      OpponentLineStatus opponentLineStatus,
+      SimulationTurnPlan plan,
+      String failureReason) {
+    this.generationMode = generationMode;
     this.opponentLineStatus = opponentLineStatus;
-    this.opponentLine = opponentLine;
+    updatePlan(plan);
     this.opponentLineFailureReason = failureReason;
+  }
+
+  private void updatePlan(SimulationTurnPlan plan) {
+    this.sceneCue = plan == null ? null : plan.sceneCue();
+    this.opponentLine = plan == null ? null : plan.opponentLine();
+    this.actionPrompt = plan == null ? null : plan.actionPrompt();
+    this.acceptedIntentHint = plan == null ? null : plan.acceptedIntentHint();
   }
 }

@@ -10,9 +10,21 @@ import lombok.RequiredArgsConstructor;
 @Getter
 @RequiredArgsConstructor
 public enum SituationType {
-  DATE("date", "소개팅", "내일의 소개팅을 짧게 말해주세요", "내일 소개팅이 있는데 첫 인사가 어색할까 봐 걱정돼요."),
-  BUSINESS_MEETING(
-      "business_meeting", "비즈니스 미팅", "내일의 비즈니스 미팅을 짧게 말해주세요", "내일 고객 미팅에서 핵심 내용을 차분하게 전달하고 싶어요.");
+  DATE(
+      "date",
+      "소개팅",
+      "내일의 소개팅에서 어떤 인상을 남기고 싶은지 말해주세요.",
+      "처음 만났을 때 어색하지 않게 인사하고 따뜻하고 자연스러운 인상을 주고 싶어요."),
+  INTERVIEW(
+      "interview",
+      "면접",
+      "내일의 면접과 가장 걱정되는 질문을 말해주세요.",
+      "백엔드 개발자 면접에서 프로젝트 기여도를 구체적으로 설명하는 것이 걱정돼요."),
+  FIRST_DAY(
+      "first_day",
+      "첫 출근",
+      "첫 출근에서 어떤 모습으로 기억되고 싶은지 말해주세요.",
+      "새 팀원들에게 먼저 인사하고 모르는 것은 편하게 질문하는 사람으로 보이고 싶어요.");
 
   private final String key;
   private final String displayName;

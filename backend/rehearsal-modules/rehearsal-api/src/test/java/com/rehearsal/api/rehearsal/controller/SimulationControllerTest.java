@@ -1,5 +1,7 @@
 package com.rehearsal.api.rehearsal.controller;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
+import static com.rehearsal.api.support.SimulationTestFixtures.plan;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -15,6 +17,7 @@ import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -45,12 +48,14 @@ class SimulationControllerTest {
   @Test
   void startSimulation() throws Exception {
     given(startSimulationUseCase.startSimulation("session-id"))
-        .willReturn(new SimulationStart("session-id", 1, 3, "first line"));
+        .willReturn(
+            new SimulationStart("session-id", 1, 3, TurnGenerationMode.STATIC, plan("first line")));
 
     mockMvc
         .perform(post("/api/v1/sessions/session-id/simulation/start"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.data.currentTurn").value(1))
+        .andExpect(jsonPath("$.data.generationMode").value("STATIC"))
         .andExpect(jsonPath("$.data.opponentLine").value("first line"));
   }
 
@@ -83,7 +88,7 @@ class SimulationControllerTest {
 
   @Test
   void submitAndPollOpponentLine() throws Exception {
-    SimulationTurn turn = SimulationTurn.pending("session-id", 2);
+    SimulationTurn turn = pendingTurn("session-id", 2);
     given(submitNextOpponentLineUseCase.submitNextLine("session-id", 2)).willReturn(turn);
     given(getNextOpponentLineUseCase.getNextLine("session-id", 2)).willReturn(turn);
 

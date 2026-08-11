@@ -52,8 +52,8 @@ public class GeminiTurnEvaluatorClient implements TurnEvaluationClient {
         throw new IllegalStateException(
             "Gemini turn evaluation response does not contain feedback");
       }
-      boolean success = Boolean.TRUE.equals(response.get("success"));
-      return new TurnEvaluationRawResult(success, feedbackText);
+      boolean accepted = Boolean.TRUE.equals(response.get("accepted"));
+      return new TurnEvaluationRawResult(accepted, feedbackText);
     } catch (IOException e) {
       throw new IllegalStateException("Failed to parse Gemini turn evaluation response", e);
     }
