@@ -9,12 +9,14 @@ import lombok.Getter;
 @Description("User answer attempt and asynchronous evaluation state")
 public class SimulationTurnAttempt {
 
+  public static final int MAX_ATTEMPT = 2;
+
   private final Long id;
   private final Long simulationTurnId;
   private final int attemptNo;
   private final String userTranscript;
   private EvaluationStatus evaluationStatus;
-  private Boolean success;
+  private TurnEvaluationOutcome outcome;
   private String feedback;
   private Boolean fallback;
   private String failureReason;
@@ -25,7 +27,7 @@ public class SimulationTurnAttempt {
       int attemptNo,
       String userTranscript,
       EvaluationStatus evaluationStatus,
-      Boolean success,
+      TurnEvaluationOutcome outcome,
       String feedback,
       Boolean fallback,
       String failureReason) {
@@ -34,7 +36,7 @@ public class SimulationTurnAttempt {
     this.attemptNo = attemptNo;
     this.userTranscript = userTranscript;
     this.evaluationStatus = evaluationStatus;
-    this.success = success;
+    this.outcome = outcome;
     this.feedback = feedback;
     this.fallback = fallback;
     this.failureReason = failureReason;
@@ -42,6 +44,9 @@ public class SimulationTurnAttempt {
 
   public static SimulationTurnAttempt pending(
       Long simulationTurnId, int attemptNo, String userTranscript) {
+    if (attemptNo < 1 || attemptNo > MAX_ATTEMPT) {
+      throw new BusinessException(ErrorCode.INVALID_SESSION_STATE);
+    }
     return new SimulationTurnAttempt(
         null,
         simulationTurnId,
@@ -60,7 +65,7 @@ public class SimulationTurnAttempt {
       int attemptNo,
       String userTranscript,
       EvaluationStatus evaluationStatus,
-      Boolean success,
+      TurnEvaluationOutcome outcome,
       String feedback,
       Boolean fallback,
       String failureReason) {
@@ -70,7 +75,7 @@ public class SimulationTurnAttempt {
         attemptNo,
         userTranscript,
         evaluationStatus,
-        success,
+        outcome,
         feedback,
         fallback,
         failureReason);
@@ -79,7 +84,7 @@ public class SimulationTurnAttempt {
   public void complete(TurnEvaluationResult result) {
     validatePending();
     this.evaluationStatus = EvaluationStatus.COMPLETED;
-    this.success = result.success();
+    this.outcome = result.outcome();
     this.feedback = result.feedback();
     this.fallback = result.fallback();
     this.failureReason = null;
@@ -88,10 +93,14 @@ public class SimulationTurnAttempt {
   public void fail(String failureReason) {
     validatePending();
     this.evaluationStatus = EvaluationStatus.FAILED;
-    this.success = null;
+    this.outcome = null;
     this.feedback = null;
     this.fallback = null;
     this.failureReason = failureReason;
+  }
+
+  public boolean canRetry() {
+    return attemptNo < MAX_ATTEMPT;
   }
 
   private void validatePending() {

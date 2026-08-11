@@ -1,161 +1,65 @@
 @startuml
-title Daily Rehearsal - 옷 입히기/시뮬레이션/티켓 발급 시퀀스
+title Daily Rehearsal - 시뮬레이션 및 평가 시퀀스
 
-skinparam responseMessageBelowArrow true
+actor user
+participant front
+participant api
+database mysql
+participant worker
+participant gemini
+participant staticConfig
 
-actor "사용자" as user
-participant "스마트 거울 웹\n(Next/React)" as web
-participant "공통 제스처 컴포넌트\n(MediaPipe)" as gesture
-participant "프론트 STT/TTS" as speech
-participant "MediaRecorder" as recorder
-participant "리허설 API\n(Spring Boot)" as api
-database "세션/컨텍스트 저장소" as sessionStore
-participant "정적 설정\n(Enum/Mapping)" as staticConfig
-participant "Decart WebRTC" as decart
-participant "LLM API" as llm
-database "영상/티켓 저장소" as storage
+== 시뮬레이션 시작 ==
 
-note over web, api
-옷 입히기부터 시뮬레이션 종료까지 프론트에서 한 번에 녹화한다.
-Decart WebRTC track이 MediaRecorder로 녹화 가능한지 최우선 검증이 필요하다.
-시뮬레이션은 턴마다 1차 JSON 판정/피드백, 2차 SSE 상대 발화로 분리한다.
+front -> api: POST /api/v1/sessions/{sessionId}/simulation/start
+api -> mysql: 세션 및 확정 context 조회
+api -> staticConfig: 타입별 첫 턴 조회
+staticConfig --> api: STATIC SimulationTurnPlan
+api -> mysql: 첫 턴 COMPLETED 저장
+api --> front: sceneCue + opponentLine + actionPrompt
+
+== 턴 평가 ==
+
+loop 최대 3턴
+  user -> front: 답변 발화
+  front -> api: POST .../turns/{turnNo}/evaluation\ntranscript + metrics
+  api -> mysql: attempt=PENDING 저장
+  api --> front: 202 Accepted
+  api -> worker: AFTER_COMMIT 평가 이벤트
+  worker -> gemini: actionPrompt + acceptedIntentHint + transcript
+  gemini --> worker: accepted + feedback
+  worker -> mysql: outcome + feedback 저장
+
+  loop 평가 완료까지 polling
+    front -> api: GET .../turns/{turnNo}/evaluation
+    api -> mysql: 최신 attempt 조회
+    mysql --> api: PENDING/COMPLETED/FAILED
+    api --> front: status + outcome + feedback
+  end
+
+  alt RETRY_REQUIRED
+    front --> user: 같은 턴 한 번 재시도
+  else ACCEPTED 또는 FORCED_ADVANCE
+    front -> api: POST .../turns/{nextTurnNo}/next-line
+    api -> mysql: NORMAL 또는 RECOVERY turn=PENDING 저장
+    api --> front: 202 Accepted
+    api -> worker: AFTER_COMMIT 턴 생성 이벤트
+    worker -> gemini: context + 인정된 대화 history + 생성 모드
+    gemini --> worker: SimulationTurnPlan JSON
+    worker -> mysql: 턴 계획 COMPLETED 저장
+
+    loop 다음 턴 완료까지 polling
+      front -> api: GET .../turns/{nextTurnNo}/next-line
+      api -> mysql: simulation_turn 조회
+      mysql --> api: 상태 + 턴 계획
+      api --> front: generationMode + sceneCue + opponentLine + actionPrompt
+    end
+  end
+end
+
+note over worker,staticConfig
+Gemini 호출 실패 시 타입별 기술 fallback 계획을 저장하고
+generationMode=TECHNICAL_FALLBACK으로 완료한다.
 end note
-
-== 1. 옷 후보 조회와 Decart 연결 준비 ==
-
-web -> api: GET /api/v1/sessions/{sessionId}/outfits
-api -> sessionStore: situationType + outfit_direction 조회
-sessionStore --> api: situationType + outfit_direction
-api -> staticConfig: situationType/outfitDirection 기준 outfit 필터링
-staticConfig --> api: 매칭되는 outfit 목록
-api --> web: outfit list(outfitId/label/thumbnailUrl/defaultOutfit)
-
-web -> api: POST /api/v1/sessions/{sessionId}/decart-token
-api -> api: 세션 상태 검증(TRANSFORMATION_READY)
-api --> web: clientToken\n(세션당 한 번 발급, outfit 변경마다 재발급하지 않음)
-
-web -> api: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId=default
-api -> staticConfig: outfit 스펙(prompt/referenceImageUrl/enhance) 조회
-staticConfig --> api: outfit spec
-api --> web: model/prompt/referenceImageUrl/enhance
-
-web -> decart: WebRTC 직접 연결\nclientToken + outfit spec
-decart --> web: default outfit video track
-web --> user: 첫 번째 옷을 입은 모습 표시
-web -> recorder: 녹화 시작\nDecart/camera/audio capture
-
-== 2. 제스처로 옷 교체/확정 ==
-
-loop 의상 확정 전
-    user -> web: 손 좌/우 또는 확정 제스처
-    web -> gesture: gesture frame 처리
-    gesture --> web: NEXT/PREV/CONFIRM
-
-    alt NEXT/PREV
-        web -> api: GET /api/v1/sessions/{sessionId}/outfit-spec?outfitId
-        api --> web: outfit spec(순수 조회, 세션 상태 변경 없음)
-        web -> decart: outfit spec으로 track 갱신
-        decart --> web: updated outfit track
-        web --> user: 변경된 모습 표시
-    else CONFIRM
-        web -> api: PATCH /api/v1/sessions/{sessionId}/outfit\nselectedOutfitId
-        api -> sessionStore: selectedOutfitId 저장
-        api --> web: outfit confirmed
-    end
-end
-
-== 3. 시뮬레이션 시작 ==
-
-web -> api: POST /api/v1/sessions/{sessionId}/simulation/start
-api -> sessionStore: context + selectedOutfitId 조회
-sessionStore --> api: simulation state
-api -> staticConfig: 타입별 N턴/첫 상대 발화 fallback 조회
-staticConfig --> api: turn config
-api --> web: currentTurn=1 + firstOpponentLine
-web -> speech: TTS 또는 화면 출력
-speech --> user: AI 상대 첫 발화
-
-== 4. 턴 진행 - 1차 판정/피드백 ==
-
-loop currentTurn <= N
-    user -> web: 응답 발화
-    web -> speech: STT 처리
-    speech --> web: userTranscript
-    web -> web: optional metrics 계산\nresponseDelay/speechRate/volume
-
-    web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation\ntranscript + metrics
-    api -> sessionStore: evaluation attempt=PENDING 저장
-    api --> web: 202 Accepted (attemptNo + status=PENDING)
-    api -> llm: after-commit worker가 성공/실패 판정 + 피드백 JSON 요청
-
-    alt AI 성공
-        llm --> api: {success, feedback, retryReason}
-        api -> sessionStore: turn evaluation 저장
-    else AI 실패
-        llm --> api: error/timeout
-        api -> sessionStore: 실패 evaluation 저장\nfallback=true
-    end
-
-    loop evaluation 완료까지 polling
-        web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{turnNo}/evaluation
-        api -> sessionStore: 저장된 evaluation 조회
-        sessionStore --> api: PENDING/COMPLETED/FAILED + 결과
-        api --> web: evaluation JSON
-    end
-
-    web --> user: 피드백 영역에 결과 표시
-
-    alt success=false
-        web --> user: 같은 turn 재시도 안내
-    else success=true
-        web -> api: POST /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
-        api -> sessionStore: simulation turn=PENDING 저장
-        api --> web: 202 Accepted (status=PENDING)
-        api -> llm: after-commit worker가 다음 상대 발화 생성
-
-        alt AI 성공
-            llm --> api: next opponent line
-            api -> sessionStore: nextOpponentLine 저장
-        else AI 실패
-            llm --> api: error/timeout
-            api -> staticConfig: 타입별 고정 발화 fallback 조회
-            staticConfig --> api: fallbackOpponentLine
-            api -> sessionStore: fallback line 저장
-        end
-
-        loop next line 완료까지 polling
-            web -> api: GET /api/v1/sessions/{sessionId}/simulation/turns/{nextTurnNo}/next-line
-            api -> sessionStore: 저장된 next line 조회
-            sessionStore --> api: PENDING/COMPLETED/FAILED + 결과
-            api --> web: next line JSON
-        end
-        web --> user: 다음 상대 발화 표시
-    end
-end
-
-== 5. 영상 업로드 ==
-
-web -> recorder: 녹화 종료
-recorder --> web: recorded video blob
-web -> api: POST /api/v1/sessions/{sessionId}/video\nmultipart video
-api -> storage: 외부 접근 가능한 위치에 저장
-storage --> api: publicVideoUrl
-api -> sessionStore: videoUrl 저장
-api --> web: video upload completed
-
-== 6. 티켓 발급 ==
-
-web -> api: POST /api/v1/sessions/{sessionId}/ticket
-api -> sessionStore: context + selectedOutfit + history + feedback + videoUrl 조회
-sessionStore --> api: ticket input
-api -> api: ticket payload 생성
-api -> storage: 다운로드 페이지 저장\nvideo + ticket
-storage --> api: downloadUrl
-api -> sessionStore: ticket + downloadUrl 저장\nstatus=COMPLETED
-api --> web: ticket + qrPayload(downloadUrl)
-
-web --> user: 티켓과 QR 표시
-user -> web: QR 스캔
-web --> user: 다운로드 페이지\n영상 + 티켓 다운로드
 
 @enduml

@@ -1,14 +1,17 @@
 package com.rehearsal.api.config.ai;
 
-import com.rehearsal.domain.core.annotation.Description;
 import com.rehearsal.domain.rehearsal.model.OpponentLineCommand;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnPlan;
 import com.rehearsal.domain.rehearsal.port.OpponentLineGeneratorClient;
 
-@Description("외부 AI 호출 없이 local/test 환경에서 deterministic 다음 상대 발화를 만드는 fake generator")
 public class FakeOpponentLineGeneratorClient implements OpponentLineGeneratorClient {
 
   @Override
-  public String generate(OpponentLineCommand command) {
-    return "그렇군요, turn " + command.currentTurn() + "에서는 어떻게 하실 건가요?";
+  public SimulationTurnPlan generate(OpponentLineCommand command) {
+    return new SimulationTurnPlan(
+        "상대방이 대화를 이어가려고 합니다.",
+        "그렇군요. 조금 더 자세히 말씀해 주시겠어요?",
+        command.turnObjective(),
+        command.turnObjective());
   }
 }

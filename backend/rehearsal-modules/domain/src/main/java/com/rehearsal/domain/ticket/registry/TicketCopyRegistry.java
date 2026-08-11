@@ -8,7 +8,10 @@ import java.util.Optional;
 public final class TicketCopyRegistry {
 
   private static final Map<SituationType, TicketCopyDefinition> DEFINITIONS =
-      Map.of(SituationType.DATE, date(), SituationType.BUSINESS_MEETING, businessMeeting());
+      Map.of(
+          SituationType.DATE, date(),
+          SituationType.INTERVIEW, interview(),
+          SituationType.FIRST_DAY, firstDay());
 
   static {
     for (SituationType situationType : SituationType.values()) {
@@ -34,12 +37,21 @@ public final class TicketCopyRegistry {
             "어색함이 느껴지면 가벼운 질문으로 대화를 다시 시작하기"));
   }
 
-  private static TicketCopyDefinition businessMeeting() {
+  private static TicketCopyDefinition interview() {
     return new TicketCopyDefinition(
-        SituationType.BUSINESS_MEETING,
+        SituationType.INTERVIEW,
         new ChangeCard(
-            "핵심 제안을 먼저 말하고 근거를 덧붙이기",
-            "상대의 질문을 끝까지 듣고 차분하게 답하기",
-            "질문이 바로 떠오르지 않으면 잠시 정리한 뒤 핵심부터 답하기"));
+            "답변의 핵심을 먼저 말하고 구체적인 경험으로 뒷받침하기",
+            "질문의 의도를 끝까지 듣고 침착하게 답하기",
+            "답변이 바로 떠오르지 않으면 잠시 정리한 뒤 핵심 경험부터 말하기"));
+  }
+
+  private static TicketCopyDefinition firstDay() {
+    return new TicketCopyDefinition(
+        SituationType.FIRST_DAY,
+        new ChangeCard(
+            "먼저 밝게 인사하고 맡은 역할이나 기대를 짧게 소개하기",
+            "모르는 것은 솔직하게 질문하고 협업적인 태도 유지하기",
+            "예상하지 못한 질문을 받으면 미소로 여유를 만든 뒤 정중하게 답하기"));
   }
 }
