@@ -9,12 +9,10 @@ import com.rehearsal.api.config.exception.GlobalExceptionHandler;
 import com.rehearsal.api.config.response.ApiResponseBodyAdvice;
 import com.rehearsal.domain.core.exception.BusinessException;
 import com.rehearsal.domain.core.exception.ErrorCode;
-import com.rehearsal.domain.situation.model.SituationType;
 import com.rehearsal.domain.ticket.model.TicketJob;
 import com.rehearsal.domain.ticket.model.TicketPayload;
 import com.rehearsal.domain.ticket.usecase.GetTicketGenerationUseCase;
 import com.rehearsal.domain.ticket.usecase.SubmitTicketGenerationUseCase;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -62,7 +60,8 @@ class TicketControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-        .andExpect(jsonPath("$.data.title").isString())
+        .andExpect(jsonPath("$.data.snapshot.situationLabel").isString())
+        .andExpect(jsonPath("$.data.changeCard.todayAction").isString())
         .andExpect(jsonPath("$.data.downloadUrl").isString())
         .andExpect(jsonPath("$.data.qrPayload").isString());
   }
@@ -111,13 +110,11 @@ class TicketControllerTest {
       return TicketJob.pending(sessionId)
           .complete(
               new TicketPayload(
-                  "리허설 완료!",
-                  "잘 하셨어요.",
+                  new com.rehearsal.domain.ticket.model.TicketSnapshot(
+                      "소개팅", "첫 인사", "따뜻하고 자연스럽게", "네이비 정장"),
+                  new com.rehearsal.domain.ticket.model.ChangeCard(
+                      "첫 문장을 천천히 시작하기", "여유 있게 듣기", "긴장되면 숨을 고르고 말하기"),
                   false,
-                  SituationType.DATE,
-                  "test-outfit-id",
-                  List.of(),
-                  List.of(),
                   "http://localhost/mock-videos/test-session-id.webm",
                   true,
                   "http://localhost/mock-videos/test-session-id.webm",

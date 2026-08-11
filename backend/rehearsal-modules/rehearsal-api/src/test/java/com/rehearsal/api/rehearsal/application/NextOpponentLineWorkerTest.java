@@ -1,11 +1,14 @@
 package com.rehearsal.api.rehearsal.application;
 
+import static com.rehearsal.api.support.SimulationTestFixtures.pendingTurn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.api.support.InMemorySessionRepository;
 import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
+import com.rehearsal.domain.rehearsal.model.SimulationTurnPlan;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.session.model.ClientSession;
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionContext;
@@ -19,13 +22,14 @@ class NextOpponentLineWorkerTest {
   @Test
   void completesPendingTurnWithGeneratedLine() {
     InMemorySessionRepository repository = repositoryWithPendingTurn();
-    NextOpponentLineWorker worker = worker(repository, command -> "next line");
+    NextOpponentLineWorker worker = worker(repository, command -> plan("next line"));
 
     worker.generate(new OpponentLineRequested("session-id", 2));
 
     SimulationTurn turn = repository.findTurn("session-id", 2).orElseThrow();
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.COMPLETED);
-    assertThat(turn.getOpponentLine()).isEqualTo("next line");
+    assertThat(turn.getPlan().opponentLine()).isEqualTo("next line");
+    assertThat(turn.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
   }
 
   @Test
@@ -42,7 +46,8 @@ class NextOpponentLineWorkerTest {
 
     SimulationTurn turn = repository.findTurn("session-id", 2).orElseThrow();
     assertThat(turn.getOpponentLineStatus()).isEqualTo(OpponentLineStatus.COMPLETED);
-    assertThat(turn.getOpponentLine()).isNotBlank();
+    assertThat(turn.getPlan().opponentLine()).isNotBlank();
+    assertThat(turn.getGenerationMode()).isEqualTo(TurnGenerationMode.TECHNICAL_FALLBACK);
   }
 
   private NextOpponentLineWorker worker(
@@ -66,7 +71,11 @@ class NextOpponentLineWorkerTest {
     InMemorySessionRepository repository = new InMemorySessionRepository(session);
     repository.saveContext(
         "session-id", SessionContext.from(SituationType.DATE, Map.of("desired_persona", "warm")));
-    repository.saveTurn(SimulationTurn.pending("session-id", 2));
+    repository.saveTurn(pendingTurn("session-id", 2));
     return repository;
+  }
+
+  private SimulationTurnPlan plan(String opponentLine) {
+    return new SimulationTurnPlan("scene", opponentLine, "action", "intent");
   }
 }

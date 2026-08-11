@@ -2,33 +2,27 @@ package com.rehearsal.api.ticket.controller.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.rehearsal.domain.core.annotation.Description;
-import com.rehearsal.domain.rehearsal.model.ConversationHistory;
-import com.rehearsal.domain.rehearsal.model.TurnEvaluation;
-import com.rehearsal.domain.situation.model.SituationType;
+import com.rehearsal.domain.ticket.model.ChangeCard;
 import com.rehearsal.domain.ticket.model.TicketJob;
 import com.rehearsal.domain.ticket.model.TicketJobStatus;
 import com.rehearsal.domain.ticket.model.TicketPayload;
-import java.util.List;
+import com.rehearsal.domain.ticket.model.TicketSnapshot;
 
 @JsonInclude(JsonInclude.Include.NON_NULL)
-@Description("티켓 발급 job 상태 응답. status에 따라 담기는 필드가 다르다")
+@Description("Ticket generation job state and completed change-card result")
 public record TicketJobResponse(
     String sessionId,
     TicketJobStatus status,
-    String title,
-    String message,
+    TicketSnapshot snapshot,
+    ChangeCard changeCard,
     Boolean fallback,
-    SituationType situationType,
-    String selectedOutfitId,
-    List<ConversationHistory> conversationHistory,
-    List<TurnEvaluation> turnEvaluations,
     String videoUrl,
     Boolean videoAvailable,
     String downloadUrl,
     String qrPayload,
     String failureMessage) {
 
-  private static final String FAILURE_MESSAGE = "다시 시도해보세요.";
+  private static final String FAILURE_MESSAGE = "티켓을 다시 발급해 주세요.";
 
   public static TicketJobResponse from(TicketJob job) {
     return switch (job.status()) {
@@ -40,20 +34,7 @@ public record TicketJobResponse(
 
   private static TicketJobResponse pending(TicketJob job) {
     return new TicketJobResponse(
-        job.sessionId(),
-        job.status(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null);
+        job.sessionId(), job.status(), null, null, null, null, null, null, null, null);
   }
 
   private static TicketJobResponse completed(TicketJob job) {
@@ -61,13 +42,9 @@ public record TicketJobResponse(
     return new TicketJobResponse(
         job.sessionId(),
         job.status(),
-        result.title(),
-        result.message(),
+        result.snapshot(),
+        result.changeCard(),
         result.fallback(),
-        result.situationType(),
-        result.selectedOutfitId(),
-        result.conversationHistory(),
-        result.turnEvaluations(),
         result.videoUrl(),
         result.videoAvailable(),
         result.downloadUrl(),
@@ -77,19 +54,6 @@ public record TicketJobResponse(
 
   private static TicketJobResponse failed(TicketJob job) {
     return new TicketJobResponse(
-        job.sessionId(),
-        job.status(),
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        FAILURE_MESSAGE);
+        job.sessionId(), job.status(), null, null, null, null, null, null, null, FAILURE_MESSAGE);
   }
 }

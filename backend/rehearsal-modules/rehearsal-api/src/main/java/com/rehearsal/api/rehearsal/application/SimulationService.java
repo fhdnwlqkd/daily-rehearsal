@@ -9,6 +9,8 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
@@ -18,6 +20,7 @@ import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.SubmitTurnEvaluationUseCase;
 import com.rehearsal.domain.session.model.ClientSession;
+import com.rehearsal.domain.session.model.SessionStatus;
 import com.rehearsal.domain.session.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,16 +44,27 @@ public class SimulationService
   @Override
   @Transactional
   public SimulationStart startSimulation(String sessionId) {
-    ClientSession session = sessionReader.get(sessionId);
+    ClientSession session = sessionReader.getForUpdate(sessionId);
     RehearsalConfigDefinition config = config(session);
+
+    if (session.getStatus() == SessionStatus.REHEARSAL_PLAYING) {
+      SimulationTurn firstTurn = requiredTurn(sessionId, 1);
+      return new SimulationStart(
+          sessionId, 1, session.getMaxTurn(), firstTurn.getGenerationMode(), firstTurn.getPlan());
+    }
 
     session.startSimulation(config.maxTurn());
     sessionRepository.saveSession(session);
     sessionRepository.saveTurn(
-        SimulationTurn.completed(sessionId, session.getCurrentTurn(), config.firstOpponentLine()));
+        SimulationTurn.completed(
+            sessionId, session.getCurrentTurn(), TurnGenerationMode.STATIC, config.firstTurn()));
 
     return new SimulationStart(
-        sessionId, session.getCurrentTurn(), config.maxTurn(), config.firstOpponentLine());
+        sessionId,
+        session.getCurrentTurn(),
+        config.maxTurn(),
+        TurnGenerationMode.STATIC,
+        config.firstTurn());
   }
 
   @Override
@@ -66,8 +80,17 @@ public class SimulationService
 
     SimulationTurnAttempt latest =
         sessionRepository.findLatestAttempt(sessionId, turnNo).orElse(null);
-    if (latest != null && latest.getEvaluationStatus() != EvaluationStatus.FAILED) {
-      return latest;
+    if (latest != null) {
+      if (latest.getEvaluationStatus() == EvaluationStatus.PENDING) {
+        return latest;
+      }
+      if (latest.getEvaluationStatus() == EvaluationStatus.COMPLETED
+          && latest.getOutcome() != TurnEvaluationOutcome.RETRY_REQUIRED) {
+        return latest;
+      }
+      if (!latest.canRetry()) {
+        return latest;
+      }
     }
 
     int attemptNo = latest == null ? 1 : latest.getAttemptNo() + 1;
@@ -99,7 +122,9 @@ public class SimulationService
       return existing;
     }
 
-    SimulationTurn pending = sessionRepository.saveTurn(SimulationTurn.pending(sessionId, turnNo));
+    TurnGenerationMode generationMode = generationMode(sessionId, turnNo);
+    SimulationTurn pending =
+        sessionRepository.saveTurn(SimulationTurn.pending(sessionId, turnNo, generationMode));
     eventPublisher.publishEvent(new OpponentLineRequested(sessionId, turnNo));
     return pending;
   }
@@ -127,6 +152,17 @@ public class SimulationService
     if (turnNo > session.getMaxTurn()) {
       throw new BusinessException(ErrorCode.SIMULATION_TURN_LIMIT_EXCEEDED);
     }
+  }
+
+  private TurnGenerationMode generationMode(String sessionId, int turnNo) {
+    if (turnNo <= 1) {
+      return TurnGenerationMode.STATIC;
+    }
+    return sessionRepository
+        .findLatestAttempt(sessionId, turnNo - 1)
+        .filter(attempt -> attempt.getOutcome() == TurnEvaluationOutcome.FORCED_ADVANCE)
+        .map(attempt -> TurnGenerationMode.RECOVERY)
+        .orElse(TurnGenerationMode.NORMAL);
   }
 
   private RehearsalConfigDefinition config(ClientSession session) {

@@ -10,14 +10,14 @@ public class GeminiTurnEvaluationStructuredOutputSchemaBuilder {
 
   public Map<String, Object> build() {
     Map<String, Object> properties = new LinkedHashMap<>();
-    properties.put("success", booleanSchema());
+    properties.put("accepted", booleanSchema());
     properties.put("feedback", stringSchema());
 
     Map<String, Object> root = new LinkedHashMap<>();
     root.put("type", "object");
     root.put("additionalProperties", false);
     root.put("properties", properties);
-    root.put("required", List.of("success", "feedback"));
+    root.put("required", List.of("accepted", "feedback"));
     return root;
   }
 

@@ -14,6 +14,8 @@ public interface SessionRepository {
 
   Optional<ClientSession> findSession(String sessionId);
 
+  Optional<ClientSession> findSessionForUpdate(String sessionId);
+
   SessionContext saveContext(String sessionId, SessionContext context);
 
   Optional<SessionContext> findContext(String sessionId);

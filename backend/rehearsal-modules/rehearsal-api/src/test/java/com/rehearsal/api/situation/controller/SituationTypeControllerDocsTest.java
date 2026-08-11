@@ -45,7 +45,7 @@ class SituationTypeControllerDocsTest {
   @Test
   void getSituationTypes() throws Exception {
     given(getSituationTypesUseCase.getSituationTypes())
-        .willReturn(List.of(SituationType.DATE, SituationType.BUSINESS_MEETING));
+        .willReturn(List.of(SituationType.DATE, SituationType.INTERVIEW, SituationType.FIRST_DAY));
 
     mockMvc
         .perform(get("/api/v1/situation-types").header("X-API-KEY", API_KEY))

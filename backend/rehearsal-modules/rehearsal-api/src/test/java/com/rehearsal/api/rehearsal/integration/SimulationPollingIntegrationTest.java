@@ -7,6 +7,8 @@ import com.rehearsal.domain.rehearsal.model.OpponentLineStatus;
 import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
+import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
+import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -19,6 +21,12 @@ import com.rehearsal.domain.situation.model.SituationType;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -43,6 +51,8 @@ class SimulationPollingIntegrationTest {
 
     SimulationStart started = startSimulationUseCase.startSimulation(session.getSessionId());
     assertThat(started.currentTurn()).isEqualTo(1);
+    assertThat(started.generationMode()).isEqualTo(TurnGenerationMode.STATIC);
+    assertThat(started.plan().actionPrompt()).isNotBlank();
 
     SimulationTurnAttempt submitted =
         submitTurnEvaluationUseCase.submit(
@@ -51,7 +61,7 @@ class SimulationPollingIntegrationTest {
 
     SimulationTurnAttempt completedEvaluation =
         awaitEvaluationStatus(session.getSessionId(), 1, EvaluationStatus.COMPLETED);
-    assertThat(completedEvaluation.getSuccess()).isTrue();
+    assertThat(completedEvaluation.getOutcome()).isEqualTo(TurnEvaluationOutcome.ACCEPTED);
     assertThat(completedEvaluation.getFeedback()).isNotBlank();
     assertThat(sessionRepository.findSession(session.getSessionId()).orElseThrow().getCurrentTurn())
         .isEqualTo(2);
@@ -62,7 +72,39 @@ class SimulationPollingIntegrationTest {
 
     SimulationTurn completedNextLine =
         awaitOpponentLineStatus(session.getSessionId(), 2, OpponentLineStatus.COMPLETED);
-    assertThat(completedNextLine.getOpponentLine()).isNotBlank();
+    assertThat(completedNextLine.getPlan().opponentLine()).isNotBlank();
+    assertThat(completedNextLine.getPlan().sceneCue()).isNotBlank();
+    assertThat(completedNextLine.getPlan().actionPrompt()).isNotBlank();
+    assertThat(completedNextLine.getGenerationMode()).isEqualTo(TurnGenerationMode.NORMAL);
+  }
+
+  @Test
+  void concurrentSimulationStartsReturnTheSameFirstTurn() throws Exception {
+    ClientSession session = rehearsalReadySession();
+    CountDownLatch ready = new CountDownLatch(2);
+    CountDownLatch start = new CountDownLatch(1);
+    ExecutorService executor = Executors.newFixedThreadPool(2);
+    Callable<SimulationStart> request =
+        () -> {
+          ready.countDown();
+          start.await();
+          return startSimulationUseCase.startSimulation(session.getSessionId());
+        };
+
+    try {
+      Future<SimulationStart> first = executor.submit(request);
+      Future<SimulationStart> second = executor.submit(request);
+      assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+      start.countDown();
+
+      SimulationStart firstResult = first.get(5, TimeUnit.SECONDS);
+      SimulationStart secondResult = second.get(5, TimeUnit.SECONDS);
+
+      assertThat(secondResult).isEqualTo(firstResult);
+      assertThat(sessionRepository.findTurns(session.getSessionId())).hasSize(1);
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   private ClientSession rehearsalReadySession() {
