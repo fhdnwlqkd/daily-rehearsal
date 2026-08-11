@@ -1,8 +1,7 @@
 import type { GestureAction } from "../../types";
 import {
-  SWIPE_COOLDOWN_MS,
   SWIPE_MIN_DISTANCE,
-  SWIPE_OPPOSITE_COOLDOWN_MS,
+  SWIPE_REFRACTORY_MS,
   SWIPE_WINDOW_MS,
 } from "./constants";
 
@@ -27,8 +26,6 @@ export interface SwipeDetectorOptions {
 export class SwipeDetector {
   private samples: Sample[] = [];
   private lastFiredAt = Number.NEGATIVE_INFINITY;
-  private lastFiredAction: Extract<GestureAction, "NEXT" | "PREV"> | null =
-    null;
   private readonly mirrored: boolean;
 
   constructor(options: SwipeDetectorOptions = {}) {
@@ -43,12 +40,19 @@ export class SwipeDetector {
     x: number,
     timestampMs: number,
   ): Extract<GestureAction, "NEXT" | "PREV"> | null {
+    // 불응기: 판정만 미루는 게 아니라 궤적 기록 자체를 버린다.
+    // 기록을 유지하면 복귀 동작(return stroke)이 윈도우에 쌓였다가
+    // 불응기 만료 순간 반대 방향으로 발사된다 — 불응기 이후에 새로
+    // 시작한 동작만 다음 스와이프가 될 수 있어야 한다.
+    if (timestampMs - this.lastFiredAt < SWIPE_REFRACTORY_MS) {
+      if (this.samples.length > 0) this.samples = [];
+      return null;
+    }
+
     this.samples.push({ x, t: timestampMs });
     this.samples = this.samples.filter(
       (sample) => timestampMs - sample.t <= SWIPE_WINDOW_MS,
     );
-
-    if (timestampMs - this.lastFiredAt < SWIPE_COOLDOWN_MS) return null;
 
     const oldest = this.samples[0];
     if (!oldest) return null;
@@ -59,19 +63,7 @@ export class SwipeDetector {
     const movedRightOnScreen = this.mirrored ? dx < 0 : dx > 0;
     const action = movedRightOnScreen ? "NEXT" : "PREV";
 
-    // return stroke 억제: 스와이프한 손이 제자리로 돌아오는 동작이
-    // 반대 방향 스와이프로 오인식되지 않게, 직전 발사의 반대 방향은
-    // 더 긴 불응기를 적용한다.
-    if (
-      this.lastFiredAction !== null &&
-      action !== this.lastFiredAction &&
-      timestampMs - this.lastFiredAt < SWIPE_OPPOSITE_COOLDOWN_MS
-    ) {
-      return null;
-    }
-
     this.lastFiredAt = timestampMs;
-    this.lastFiredAction = action;
     this.samples = [];
     return action;
   }

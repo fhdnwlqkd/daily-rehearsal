@@ -10,8 +10,11 @@ export const CONTEXT_POLL_TIMEOUT_MS = 60_000;
 /** 폴링 중 허용하는 연속 실패 횟수 (전시장 와이파이 블립 내성). 성공 시 리셋. */
 export const CONTEXT_POLL_MAX_CONSECUTIVE_ERRORS = 3;
 
-/** STT CANDIDATE 진입 후 자동 전송까지의 카운트다운 (CONFIRM은 즉시, PREV는 취소). */
-export const BRIEFING_AUTO_CONFIRM_MS = 2500;
+/**
+ * STT CANDIDATE 진입 후 자동 전송까지의 카운트다운 (CONFIRM은 즉시, PREV는 취소).
+ * 2500 → 4000: 확정 전 검토 시간이 부족해 상향 (2026-08-11 통합 테스트).
+ */
+export const BRIEFING_AUTO_CONFIRM_MS = 4000;
 
 /** COMPLETED 연출("상황 준비 완료")을 보여준 뒤 onComplete까지의 여운. */
 export const BRIEFING_COMPLETE_LINGER_MS = 1200;

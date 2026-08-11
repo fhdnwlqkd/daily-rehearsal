@@ -10,8 +10,11 @@ export const SIMULATION_POLL_TIMEOUT_MS = 60_000;
 /** 폴링 중 허용하는 연속 실패 횟수 (전시장 와이파이 블립 내성). 성공 시 리셋. */
 export const SIMULATION_POLL_MAX_CONSECUTIVE_ERRORS = 3;
 
-/** STT CANDIDATE 진입 후 자동 전송까지의 카운트다운 (브리핑과 같은 리듬). */
-export const SIMULATION_AUTO_CONFIRM_MS = 2500;
+/**
+ * STT CANDIDATE 진입 후 자동 전송까지의 카운트다운 (브리핑과 같은 리듬).
+ * 2500 → 4000: 확정 전 검토 시간이 부족해 상향 (2026-08-11 통합 테스트).
+ */
+export const SIMULATION_AUTO_CONFIRM_MS = 4000;
 
 /**
  * 판정 워커 장애(status=FAILED) 시 화면에 보여줄 고정 피드백.
