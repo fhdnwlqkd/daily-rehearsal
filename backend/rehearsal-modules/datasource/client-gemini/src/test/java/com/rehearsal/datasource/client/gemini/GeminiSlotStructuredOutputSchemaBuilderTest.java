@@ -22,7 +22,22 @@ class GeminiSlotStructuredOutputSchemaBuilderTest {
     Map<String, Object> slotProperties = (Map<String, Object>) slots.get("properties");
 
     assertThat(slotProperties.keySet())
-        .containsExactly("desired_persona", "critical_moment", "outfit_direction");
+        .containsExactly(
+            "situation_detail",
+            "desired_persona",
+            "desired_outcome",
+            "conversation_material",
+            "critical_moment",
+            "counterpart_context",
+            "response_style",
+            "familiarity_level",
+            "user_strength",
+            "prior_interaction_context",
+            "interaction_setting",
+            "supporting_example",
+            "anticipated_question",
+            "interaction_constraint",
+            "outfit_direction");
     assertThat(slots.get("required")).isEqualTo(List.copyOf(slotProperties.keySet()));
     assertThat(schema.get("required")).isEqualTo(List.of("slots"));
 
@@ -38,6 +53,11 @@ class GeminiSlotStructuredOutputSchemaBuilderTest {
             "professional_reliable",
             "collaborative_open",
             null);
+    assertThat(enumValues(slotProperties, "response_style"))
+        .contains("concise_direct", "structured_evidence", "question_and_expand", null);
+    assertThat(enumValues(slotProperties, "familiarity_level"))
+        .containsExactly(
+            "first_time", "limited_experience", "some_experience", "very_familiar", null);
     assertThat(enumValues(slotProperties, "outfit_direction"))
         .containsExactly("neat_casual", "formal_clean", "soft_friendly", null);
   }

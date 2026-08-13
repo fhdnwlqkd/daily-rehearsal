@@ -37,6 +37,8 @@ class GeminiSlotExtractionPromptBuilderTest {
         .contains("slotKey: desired_persona")
         .contains("calm_confident(차분하고 자신감 있게)")
         .contains("collaborative_open(협업적이고 열린 태도로)")
+        .contains("slotKey: response_style")
+        .contains("slotKey: familiarity_level")
         .doesNotContain("followUpHint");
   }
 

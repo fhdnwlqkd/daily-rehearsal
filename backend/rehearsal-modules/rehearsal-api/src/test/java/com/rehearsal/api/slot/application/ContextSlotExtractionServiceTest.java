@@ -21,7 +21,17 @@ class ContextSlotExtractionServiceTest {
     SlotExtractorClient client =
         command ->
             new SlotExtractionRawResult(
-                Map.of("desired_persona", "calm_confident", "critical_moment", "first greeting"));
+                Map.of(
+                    "situation_detail",
+                    "first date through a friend",
+                    "desired_persona",
+                    "calm_confident",
+                    "desired_outcome",
+                    "comfortable conversation",
+                    "conversation_material",
+                    "exhibitions and walks",
+                    "critical_moment",
+                    "first greeting"));
     ContextSlotExtractionService service = service(client);
 
     ExtractContextSlotsResult result =
@@ -34,7 +44,10 @@ class ContextSlotExtractionServiceTest {
     assertThat(result.followUpQuestion()).isNull();
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
     assertThat(result.context())
+        .containsEntry("situation_detail", "first date through a friend")
         .containsEntry("desired_persona", "calm_confident")
+        .containsEntry("desired_outcome", "comfortable conversation")
+        .containsEntry("conversation_material", "exhibitions and walks")
         .containsEntry("critical_moment", "first greeting")
         .containsEntry("outfit_direction", "neat_casual");
   }
@@ -54,14 +67,21 @@ class ContextSlotExtractionServiceTest {
     assertThat(result.readyForSimulation()).isTrue();
     assertThat(result.followUpQuestion()).isNull();
     assertThat(result.missingRequiredSlotKeys())
-        .containsExactly("desired_persona", "critical_moment");
+        .containsExactly(
+            "situation_detail", "desired_persona", "desired_outcome", "conversation_material");
+    assertThat(result.slots().get("situation_detail").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
     assertThat(result.slots().get("desired_persona").status())
         .isEqualTo(ContextSlotValueStatus.MISSING);
-    assertThat(result.slots().get("critical_moment").status())
+    assertThat(result.slots().get("desired_outcome").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
+    assertThat(result.slots().get("conversation_material").status())
         .isEqualTo(ContextSlotValueStatus.MISSING);
     assertThat(result.context())
+        .containsEntry("situation_detail", null)
         .containsEntry("desired_persona", null)
-        .containsEntry("critical_moment", null)
+        .containsEntry("desired_outcome", null)
+        .containsEntry("conversation_material", null)
         .containsEntry("outfit_direction", "neat_casual");
   }
 
