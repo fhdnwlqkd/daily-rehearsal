@@ -40,6 +40,7 @@ import org.springframework.stereotype.Component;
 public class TicketGenerationWorker {
 
   private static final Logger log = LoggerFactory.getLogger(TicketGenerationWorker.class);
+  private static final String UNSPECIFIED_SNAPSHOT_LABEL = "따로 정하지 않음";
 
   private final SessionReader sessionReader;
   private final SessionRepository sessionRepository;
@@ -137,10 +138,10 @@ public class TicketGenerationWorker {
 
   private String stringValue(Map<String, Object> values, ContextSlotType slotType) {
     Object value = values.get(slotType.getKey());
-    if (value instanceof String text && !text.isBlank()) {
+    if (value instanceof String text && !text.isBlank() && !isMissingPlaceholder(text)) {
       return text.strip();
     }
-    return slotType.getDefaultLiteralValue();
+    return UNSPECIFIED_SNAPSHOT_LABEL;
   }
 
   private String desiredPersonaLabel(Map<String, Object> values) {
@@ -148,9 +149,13 @@ public class TicketGenerationWorker {
     if (value instanceof String optionKey) {
       return ContextSlotOptionType.findByKey(optionKey)
           .map(ContextSlotOptionType::getLabel)
-          .orElse(ContextSlotType.DESIRED_PERSONA.getDefaultOption().getLabel());
+          .orElse(UNSPECIFIED_SNAPSHOT_LABEL);
     }
-    return ContextSlotType.DESIRED_PERSONA.getDefaultOption().getLabel();
+    return UNSPECIFIED_SNAPSHOT_LABEL;
+  }
+
+  private boolean isMissingPlaceholder(String value) {
+    return value.strip().endsWith("제공되지 않음");
   }
 
   private String selectedOutfitLabel(ClientSession session) {

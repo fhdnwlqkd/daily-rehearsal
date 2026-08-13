@@ -17,7 +17,9 @@ class FollowUpQuestionResolverTest {
 
     String question = resolver.resolve(schema, List.of("desired_persona", "critical_moment"), 0);
 
-    assertThat(question).isEqualTo("내일의 장면이 거의 완성됐어요. 마지막으로 내일 어떤 인상을 남기고 싶나요? 가장 걱정되는 순간은 언제인가요?");
+    assertThat(question)
+        .isEqualTo(
+            "내일의 장면이 거의 완성됐어요. 마지막으로 상대에게 어떤 인상을 남기고 싶나요? " + "가장 걱정되거나 집중해서 연습하고 싶은 순간은 언제인가요?");
   }
 
   @Test

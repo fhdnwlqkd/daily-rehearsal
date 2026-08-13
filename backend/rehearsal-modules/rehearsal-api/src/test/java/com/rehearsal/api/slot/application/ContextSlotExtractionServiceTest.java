@@ -4,11 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.rehearsal.api.slot.application.command.ExtractContextSlotsCommand;
 import com.rehearsal.api.slot.application.result.ExtractContextSlotsResult;
+import com.rehearsal.domain.extraction.model.ContextSlotValueStatus;
 import com.rehearsal.domain.extraction.model.SlotExtractionMode;
 import com.rehearsal.domain.extraction.model.SlotExtractionRawResult;
 import com.rehearsal.domain.extraction.port.SlotExtractorClient;
 import com.rehearsal.domain.extraction.service.SlotExtractionProcessor;
-import com.rehearsal.domain.slot.registry.ContextSlotType;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,7 +40,7 @@ class ContextSlotExtractionServiceTest {
   }
 
   @Test
-  void appliesStaticDefaultsWhenExtractorFails() {
+  void keepsMissingValuesNullAndAppliesOnlyOutfitDefaultWhenExtractorFails() {
     SlotExtractorClient client =
         command -> {
           throw new IllegalStateException("AI unavailable");
@@ -53,10 +53,15 @@ class ContextSlotExtractionServiceTest {
     assertThat(result.schemaKey()).isEqualTo("date");
     assertThat(result.readyForSimulation()).isTrue();
     assertThat(result.followUpQuestion()).isNull();
-    assertThat(result.missingRequiredSlotKeys()).isEmpty();
+    assertThat(result.missingRequiredSlotKeys())
+        .containsExactly("desired_persona", "critical_moment");
+    assertThat(result.slots().get("desired_persona").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
+    assertThat(result.slots().get("critical_moment").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
     assertThat(result.context())
-        .containsEntry("desired_persona", "calm_confident")
-        .containsEntry("critical_moment", ContextSlotType.CRITICAL_MOMENT.getDefaultLiteralValue())
+        .containsEntry("desired_persona", null)
+        .containsEntry("critical_moment", null)
         .containsEntry("outfit_direction", "neat_casual");
   }
 

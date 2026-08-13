@@ -46,15 +46,21 @@ class SlotExtractionProcessorTest {
   }
 
   @Test
-  void defaultsWhenRequiredSlotsAreMissingAndAttemptIsExhausted() {
+  void advancesWithMissingRequiredSlotsWhenAttemptIsExhausted() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     SlotExtractionProcessingResult result =
         processor.process(schema, new SlotExtractionRawResult(Map.of()), 1);
 
     assertThat(result.readyForSimulation()).isTrue();
-    assertThat(result.missingRequiredSlotKeys()).isEmpty();
-    assertThat(result.slots().get("desired_persona").value()).isEqualTo("calm_confident");
-    assertThat(result.slots().get("critical_moment").value()).isEqualTo("첫 인사와 가벼운 대화");
+    assertThat(result.followUpQuestion()).isNull();
+    assertThat(result.missingRequiredSlotKeys())
+        .containsExactly("desired_persona", "critical_moment");
+    assertThat(result.slots().get("desired_persona").value()).isNull();
+    assertThat(result.slots().get("desired_persona").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
+    assertThat(result.slots().get("critical_moment").value()).isNull();
+    assertThat(result.slots().get("critical_moment").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
   }
 }
