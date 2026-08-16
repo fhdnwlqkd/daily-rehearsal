@@ -19,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 public class GeminiTicketCopyGeneratorClient implements TicketCopyGeneratorClient {
 
   public static final String DEFAULT_MODEL = "gemini-2.5-flash-lite";
+  static final int TODAY_ACTION_MAX_LENGTH = 45;
+  static final int TOMORROW_ATTITUDE_MAX_LENGTH = 45;
+  static final int IF_THEN_PLAN_MAX_LENGTH = 60;
 
   private final GeminiGenerateContentClient generateContentClient;
   private final String model;
@@ -54,19 +57,28 @@ public class GeminiTicketCopyGeneratorClient implements TicketCopyGeneratorClien
       }
       return new TicketCopyRawResult(
           new ChangeCard(
-              requiredText(changeCard, "todayAction"),
-              requiredText(changeCard, "tomorrowAttitude"),
-              requiredText(changeCard, "ifThenPlan")));
+              requiredText(changeCard, "todayAction", TODAY_ACTION_MAX_LENGTH),
+              requiredText(changeCard, "tomorrowAttitude", TOMORROW_ATTITUDE_MAX_LENGTH),
+              requiredText(changeCard, "ifThenPlan", IF_THEN_PLAN_MAX_LENGTH)));
     } catch (IOException exception) {
       throw new IllegalStateException("Failed to parse Gemini ticket response", exception);
     }
   }
 
-  private String requiredText(Map<?, ?> source, String key) {
+  private String requiredText(Map<?, ?> source, String key, int maxLength) {
     Object value = source.get(key);
     if (!(value instanceof String text) || text.isBlank()) {
       throw new IllegalStateException("Gemini ticket response does not contain " + key);
     }
-    return text;
+    String normalized = text.strip();
+    int length = normalized.codePointCount(0, normalized.length());
+    if (length > maxLength) {
+      throw new IllegalStateException(
+          "Gemini ticket response exceeds " + key + " length limit: " + length);
+    }
+    if (normalized.contains("\n") || normalized.contains("\r")) {
+      throw new IllegalStateException("Gemini ticket response contains a line break in " + key);
+    }
+    return normalized;
   }
 }

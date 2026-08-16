@@ -75,6 +75,31 @@ class SimulationServiceTest {
   }
 
   @Test
+  void finishSimulationConsumesRemainingTurns() {
+    ClientSession session = playingSession(2);
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+
+    service(repository, new ArrayList<>()).finishSimulation(session.getSessionId());
+
+    ClientSession finished = repository.findSession(session.getSessionId()).orElseThrow();
+    assertThat(finished.getStatus()).isEqualTo(SessionStatus.REHEARSAL_PLAYING);
+    assertThat(finished.getCurrentTurn()).isEqualTo(4);
+  }
+
+  @Test
+  void finishSimulationCanCloseAStartRequestThatHasNotCompletedYet() {
+    ClientSession session = readySession();
+    InMemorySessionRepository repository = new InMemorySessionRepository(session);
+
+    service(repository, new ArrayList<>()).finishSimulation(session.getSessionId());
+
+    ClientSession finished = repository.findSession(session.getSessionId()).orElseThrow();
+    assertThat(finished.getCurrentTurn()).isEqualTo(4);
+    assertThat(finished.getMaxTurn()).isEqualTo(3);
+    assertThat(repository.findTurn(session.getSessionId(), 1)).isPresent();
+  }
+
+  @Test
   void submitEvaluationPersistsAttemptAndPublishesAfterCommitRequest() {
     ClientSession session = playingSession(1);
     InMemorySessionRepository repository = new InMemorySessionRepository(session);

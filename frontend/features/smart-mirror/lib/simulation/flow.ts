@@ -20,6 +20,7 @@ import {
 
 export interface SimulationFlowApi {
   start: () => Promise<SimulationStartResponse>;
+  finish: () => Promise<void>;
   submitEvaluation: (
     turnNo: number,
     transcript: string,
@@ -40,6 +41,7 @@ export interface SimulationFlowControllerOptions {
 
 type RetryStep =
   | { kind: "START" }
+  | { kind: "FINISH" }
   | { kind: "EVALUATION"; transcript: string }
   | { kind: "NEXT_LINE"; turnNo: number };
 
@@ -86,6 +88,7 @@ export class SimulationFlowController {
     TurnEvaluationResponse | NextLineResponse
   > | null = null;
   private feedbackLingerTimer: ReturnType<typeof setTimeout> | null = null;
+  private finishRequested = false;
   private disposed = false;
 
   constructor(options: SimulationFlowControllerOptions) {
@@ -117,6 +120,9 @@ export class SimulationFlowController {
       case "START":
         this.runStart();
         break;
+      case "FINISH":
+        this.finish();
+        break;
       case "EVALUATION":
         this.runEvaluation(this.lastStep.transcript);
         break;
@@ -124,6 +130,32 @@ export class SimulationFlowController {
         this.runNextLine(this.lastStep.turnNo);
         break;
     }
+  }
+
+  finish(): void {
+    if (
+      this.disposed ||
+      this.status === "FINISHING" ||
+      this.status === "COMPLETED"
+    )
+      return;
+    this.finishRequested = true;
+    this.polling?.cancel();
+    this.polling = null;
+    if (this.feedbackLingerTimer !== null) {
+      clearTimeout(this.feedbackLingerTimer);
+      this.feedbackLingerTimer = null;
+    }
+    this.lastStep = { kind: "FINISH" };
+    this.update({ status: "FINISHING", failReason: null });
+    this.api.finish().then(
+      () => {
+        if (!this.disposed) this.update({ status: "COMPLETED" });
+      },
+      () => {
+        if (!this.disposed) this.fail("NETWORK");
+      },
+    );
   }
 
   dispose(): void {
@@ -141,7 +173,7 @@ export class SimulationFlowController {
     this.update({ status: "STARTING", failReason: null });
     this.api.start().then(
       (response) => {
-        if (this.disposed) return;
+        if (this.disposed || this.finishRequested) return;
         this.maxTurn = response.maxTurn;
         this.enterTurn(
           response.currentTurn,
@@ -152,7 +184,7 @@ export class SimulationFlowController {
         );
       },
       () => {
-        if (!this.disposed) this.fail("NETWORK");
+        if (!this.disposed && !this.finishRequested) this.fail("NETWORK");
       },
     );
   }
@@ -168,10 +200,11 @@ export class SimulationFlowController {
     });
     this.api.submitEvaluation(turnNo, transcript).then(
       () => {
-        if (!this.disposed) this.pollEvaluation(turnNo);
+        if (!this.disposed && !this.finishRequested)
+          this.pollEvaluation(turnNo);
       },
       () => {
-        if (!this.disposed) this.fail("NETWORK");
+        if (!this.disposed && !this.finishRequested) this.fail("NETWORK");
       },
     );
   }
@@ -235,10 +268,10 @@ export class SimulationFlowController {
     this.update({ status: "NEXT_LINE", failReason: null });
     this.api.requestNextLine(turnNo).then(
       () => {
-        if (!this.disposed) this.pollNextLine(turnNo);
+        if (!this.disposed && !this.finishRequested) this.pollNextLine(turnNo);
       },
       () => {
-        if (!this.disposed) this.fail("NETWORK");
+        if (!this.disposed && !this.finishRequested) this.fail("NETWORK");
       },
     );
   }
@@ -275,7 +308,7 @@ export class SimulationFlowController {
     });
     this.polling = polling;
     void polling.promise.then((result) => {
-      if (this.disposed) return;
+      if (this.disposed || this.finishRequested) return;
       this.polling = null;
       switch (result.kind) {
         case "TERMINAL":

@@ -32,4 +32,4 @@ export const SIMULATION_COMPLETE_LINGER_MS = 3000;
  * 다음 발화 폴링이 빨리 끝나면(특히 fake/캐시 응답) 피드백이 뜨자마자 다음 질문으로
  * 덮여 사라져 버리는 문제 완화 (2026-08-16 관람 피드백).
  */
-export const SIMULATION_TURN_FEEDBACK_LINGER_MS = 2200;
+export const SIMULATION_TURN_FEEDBACK_LINGER_MS = 4000;

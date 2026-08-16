@@ -118,6 +118,16 @@ export function startSimulation(sessionId: string) {
   );
 }
 
+/** 전체 제한시간 만료 — 남은 턴을 소진 처리해 티켓 발급이 가능하게 만든다. */
+export function finishSimulation(sessionId: string) {
+  return apiFetch<undefined>(
+    `/api/v1/sessions/${sessionId}/simulation/finish`,
+    {
+      method: "POST",
+    },
+  );
+}
+
 /**
  * 턴 판정 제출 — 202 응답. 결과는 getTurnEvaluation 폴링으로 확인한다.
  * 진행 중(PENDING)이거나 이미 끝난 시도가 있으면 새로 만들지 않고 그걸 돌려준다.
