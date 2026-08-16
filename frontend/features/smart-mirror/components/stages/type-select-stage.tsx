@@ -94,7 +94,7 @@ export function TypeSelectStage({
   return (
     <div className="flex h-full flex-col items-center justify-center gap-12 px-8">
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+        <p className="mb-4 text-xs font-medium tracking-[0.34em] text-white/75">
           SELECT SITUATION
         </p>
         <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
@@ -178,7 +178,7 @@ function TypeCard({
         pulseColor="rgba(255, 255, 255, 0.35)"
       >
         <div className="flex w-56 flex-col items-center gap-3 text-center">
-          <span className="text-xs font-light tracking-[0.3em] text-white/50">
+          <span className="text-xs font-medium tracking-[0.3em] text-white/75">
             {String(order).padStart(2, "0")}
           </span>
           <span className="text-2xl font-extralight tracking-wide">
