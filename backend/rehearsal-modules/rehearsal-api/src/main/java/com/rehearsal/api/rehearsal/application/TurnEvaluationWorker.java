@@ -72,7 +72,7 @@ public class TurnEvaluationWorker {
           event.sessionId(),
           event.turnNo(),
           exception);
-      failAttempt(event, exception);
+      recoverAttempt(event, exception);
     }
   }
 
@@ -112,16 +112,42 @@ public class TurnEvaluationWorker {
     }
   }
 
-  private void failAttempt(TurnEvaluationRequested event, RuntimeException exception) {
-    sessionRepository
-        .findTurn(event.sessionId(), event.turnNo())
-        .flatMap(turn -> sessionRepository.findAttempt(turn.getId(), event.attemptNo()))
-        .filter(attempt -> attempt.getEvaluationStatus() == EvaluationStatus.PENDING)
-        .ifPresent(
-            attempt -> {
-              attempt.fail(exception.getMessage());
-              sessionRepository.saveAttempt(attempt);
-            });
+  private void recoverAttempt(TurnEvaluationRequested event, RuntimeException exception) {
+    try {
+      SimulationTurn turn = requiredTurn(event.sessionId(), event.turnNo());
+      SimulationTurnAttempt attempt = requiredAttempt(turn.getId(), event.attemptNo());
+      if (attempt.getEvaluationStatus() == EvaluationStatus.PENDING) {
+        if (attempt.canRetry()) {
+          attempt.fail(exception.getMessage());
+          sessionRepository.saveAttempt(attempt);
+          return;
+        }
+        attempt.complete(
+            new TurnEvaluationResult(
+                TurnEvaluationOutcome.FORCED_ADVANCE, ATTEMPTS_EXHAUSTED_FEEDBACK, true));
+        sessionRepository.saveAttempt(attempt);
+      }
+      if (attempt.getEvaluationStatus() == EvaluationStatus.COMPLETED
+          && attempt.getOutcome() != null
+          && attempt.getOutcome().advancesTurn()) {
+        advanceSessionIfStillOnTurn(event);
+      }
+    } catch (RuntimeException recoveryException) {
+      log.error(
+          "Turn evaluation failure recovery failed for session {} turn {}",
+          event.sessionId(),
+          event.turnNo(),
+          recoveryException);
+    }
+  }
+
+  private void advanceSessionIfStillOnTurn(TurnEvaluationRequested event) {
+    ClientSession session = sessionReader.get(event.sessionId());
+    if (session.getCurrentTurn() != event.turnNo()) {
+      return;
+    }
+    session.advanceTurn();
+    sessionRepository.saveSession(session);
   }
 
   private SimulationTurn requiredTurn(String sessionId, int turnNo) {
