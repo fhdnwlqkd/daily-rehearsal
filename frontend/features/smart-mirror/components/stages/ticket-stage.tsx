@@ -60,100 +60,122 @@ interface TicketCardProps {
 
 function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
   const density = getTicketDensity(snapshot, changeCard);
-  const accentColor = getSituationAccent(snapshot.situationLabel);
 
   return (
     <motion.section
-      className="absolute inset-0 overflow-hidden bg-[#252a2e] text-[#f0eadf]"
+      className="absolute inset-0 overflow-hidden bg-[#e9eef1] text-[#172027]"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <div className="h-full px-[clamp(40px,6vw,64px)] pt-[clamp(96px,9vh,124px)] pb-[clamp(88px,8vh,108px)]">
-        <div className="mx-auto flex h-full w-full max-w-3xl flex-col">
-          <header>
-            <p className="text-sm font-light" style={{ color: accentColor }}>
-              {snapshot.situationLabel} 리허설 결과
+      <div className="h-full px-[clamp(24px,4vw,48px)] pt-[clamp(18px,2.5vh,28px)] pb-[clamp(58px,6vh,72px)] [@media(max-height:800px)]:pt-3 [@media(max-height:800px)]:pb-14">
+        <div className="mx-auto flex h-full min-h-0 w-full max-w-[840px] flex-col [@media(max-height:800px)]:max-w-[1040px]">
+          <header className="flex shrink-0 items-center justify-between gap-6 pb-[clamp(12px,1.8vh,18px)] [@media(max-height:800px)]:pb-2">
+            <div>
+              <p className="flex items-center gap-2.5 text-base font-semibold tracking-[0.14em] text-[#52616b] uppercase">
+                <span className="h-2 w-2 rounded-full bg-[#00B0F0]" />
+                Rehearsal complete
+              </p>
+              <h2 className="mt-1.5 text-[clamp(38px,4.8vw,52px)] leading-[1.1] font-semibold tracking-[-0.025em] text-[#121a20] [@media(max-height:800px)]:mt-0.5 [@media(max-height:800px)]:text-[38px]">
+                내일을 위한 티켓
+              </h2>
+            </div>
+            <p className="text-right text-base leading-[1.45] text-[#66757f]">
+              오늘의 연습을
+              <br />한 장에 담았습니다
             </p>
-            <h2 className="mt-3 max-w-2xl text-4xl leading-[1.18] font-extralight tracking-wide md:text-5xl">
-              내일 기억할 세 가지
-            </h2>
           </header>
 
-          <dl className="mt-8 border-y border-[#f0eadf]/20">
-            <div className="py-4">
-              <TicketFact
-                label="중요한 순간"
-                value={snapshot.criticalMoment}
-                density={density}
-                inline
-              />
+          <article className="relative flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-[#dce3e7] bg-white shadow-[0_16px_44px_rgba(24,39,49,0.09)]">
+            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 px-[clamp(24px,4vw,38px)] py-[clamp(18px,2.5vh,28px)] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold tracking-[0.16em] text-[#73808a] uppercase">
+                  Daily Rehearsal · Result Ticket
+                </p>
+                <p className="mt-3 text-base font-semibold text-[#00B0F0] [@media(max-height:800px)]:mt-1.5">
+                  {snapshot.situationLabel}
+                </p>
+                <h3 className="mt-1 text-[clamp(34px,4.25vw,46px)] leading-[1.12] font-semibold tracking-[-0.025em] text-[#172027] [@media(max-height:800px)]:text-[34px]">
+                  내일 기억할 세 가지
+                </h3>
+                <p className="mt-2.5 max-w-lg text-[17px] leading-[1.5] text-[#6a7881] [@media(max-height:800px)]:mt-1">
+                  오늘의 리허설에서 찾은 행동을 내일의 장면에 가져가세요.
+                </p>
+              </div>
+
+              {qrPayload && (
+                <div className="shrink-0 border border-[#dce3e7] bg-white p-2.5">
+                  <QRCodeSVG
+                    value={qrPayload}
+                    size={96}
+                    marginSize={0}
+                    bgColor="#ffffff"
+                    fgColor="#172027"
+                    className="h-[clamp(78px,11vw,96px)] w-[clamp(78px,11vw,96px)]"
+                  />
+                </div>
+              )}
             </div>
-            <div className="grid grid-cols-2 border-t border-[#f0eadf]/15">
-              <div className="py-4 pr-6">
+
+            <TicketPerforation />
+
+            <div className="flex flex-col px-[clamp(24px,4vw,38px)] pt-[clamp(14px,2vh,20px)] pb-[clamp(14px,2vh,20px)] [@media(max-height:800px)]:grid [@media(max-height:800px)]:grid-cols-[0.85fr_1.5fr] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:pt-2 [@media(max-height:800px)]:pb-3">
+              <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3.5 border-b border-[#e5eaed] pb-[clamp(14px,1.8vh,18px)] [@media(max-height:800px)]:grid-cols-1 [@media(max-height:800px)]:gap-y-2.5 [@media(max-height:800px)]:border-r [@media(max-height:800px)]:border-b-0 [@media(max-height:800px)]:pr-7 [@media(max-height:800px)]:pb-0">
+                <div className="col-span-2 [@media(max-height:800px)]:col-span-1">
+                  <TicketFact
+                    label="중요한 순간"
+                    value={snapshot.criticalMoment}
+                    density={density}
+                  />
+                </div>
                 <TicketFact
                   label="목표 인상"
                   value={snapshot.desiredPersonaLabel}
                   density={density}
                 />
-              </div>
-              <div className="border-l border-[#f0eadf]/15 py-4 pl-6">
                 <TicketFact
                   label="선택한 스타일"
                   value={snapshot.selectedOutfitLabel}
                   density={density}
                 />
-              </div>
-            </div>
-          </dl>
+              </dl>
 
-          <ol className="mt-8 divide-y divide-[#f0eadf]/15 border-y border-[#f0eadf]/20">
-            <ChangePlan
-              number="01"
-              label="먼저 바꿀 행동"
-              value={changeCard.todayAction}
-              density={density}
-              accentColor={accentColor}
-            />
-            <ChangePlan
-              number="02"
-              label="유지할 태도"
-              value={changeCard.tomorrowAttitude}
-              density={density}
-              accentColor={accentColor}
-            />
-            <ChangePlan
-              number="03"
-              label="막히는 순간에는"
-              value={changeCard.ifThenPlan}
-              density={density}
-              accentColor={accentColor}
-            />
-          </ol>
+              <ol className="mt-1 flex flex-col divide-y divide-[#e7ecef] [@media(max-height:800px)]:mt-0 [@media(max-height:800px)]:pl-7">
+                <ChangePlan
+                  number="01"
+                  label="먼저 바꿀 행동"
+                  value={changeCard.todayAction}
+                  density={density}
+                />
+                <ChangePlan
+                  number="02"
+                  label="유지할 태도"
+                  value={changeCard.tomorrowAttitude}
+                  density={density}
+                />
+                <ChangePlan
+                  number="03"
+                  label="막히는 순간에는"
+                  value={changeCard.ifThenPlan}
+                  density={density}
+                />
+              </ol>
 
-          <footer className="mt-auto flex min-h-32 items-end justify-between gap-8 border-t border-[#f0eadf]/20 pt-5">
-            <div className="max-w-sm pb-1">
-              <p className="text-sm font-light text-[#f0eadf]/70">결과 저장</p>
-              <p className="mt-2 text-sm leading-relaxed font-light text-[#f0eadf]/45">
-                휴대폰으로 변화 카드와 리허설 영상을 가져갈 수 있습니다.
-              </p>
-            </div>
-
-            {qrPayload && (
-              <div className="shrink-0">
-                <div className="bg-[#f0eadf] p-2">
-                  <QRCodeSVG
-                    value={qrPayload}
-                    size={112}
-                    marginSize={0}
-                    bgColor="#f0eadf"
-                    fgColor="#252a2e"
-                    className="h-[clamp(104px,14vw,112px)] w-[clamp(104px,14vw,112px)]"
-                  />
+              <footer className="flex shrink-0 items-center justify-between gap-5 border-t border-[#e5eaed] pt-[clamp(12px,1.6vh,16px)] [@media(max-height:800px)]:col-span-2 [@media(max-height:800px)]:mt-2 [@media(max-height:800px)]:pt-2">
+                <div>
+                  <p className="text-base font-semibold text-[#26343d]">
+                    결과와 영상 가져가기
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[#75828b]">
+                    상단 QR을 휴대폰으로 스캔해주세요
+                  </p>
                 </div>
-              </div>
-            )}
-          </footer>
+                <span className="rounded-full border border-[#cfd9de] px-3.5 py-2 text-sm font-semibold tracking-[0.12em] text-[#53636d] uppercase">
+                  Valid today
+                </span>
+              </footer>
+            </div>
+          </article>
         </div>
       </div>
     </motion.section>
@@ -182,7 +204,7 @@ export function TicketPreview({
   if (!ticketPhase) return null;
 
   return (
-    <main className="relative h-dvh w-screen overflow-hidden bg-[#252a2e]">
+    <main className="relative h-dvh w-screen overflow-hidden bg-[#e9eef1]">
       <StageFrame
         phase={ticketPhase}
         phaseIndex={phaseIndex}
@@ -212,24 +234,22 @@ function browserDownloadUrl(
 function TicketFact({
   label,
   value,
-  inline = false,
   density,
 }: {
   label: string;
   value: string;
-  inline?: boolean;
   density: TicketDensity;
 }) {
   const valueSize =
-    density === "tight" || value.length > 44 ? "text-sm" : "text-base";
+    density === "tight" || value.length > 44 ? "text-lg" : "text-xl";
 
   return (
-    <div
-      className={`min-w-0 ${inline ? "grid grid-cols-[7rem_minmax(0,1fr)] items-baseline gap-4" : ""}`}
-    >
-      <dt className="text-sm font-light text-[#f0eadf]/55">{label}</dt>
+    <div className="min-w-0">
+      <dt className="text-base font-semibold tracking-[0.06em] text-[#6f7e88] uppercase">
+        {label}
+      </dt>
       <dd
-        className={`${inline ? "" : "mt-1.5"} leading-snug font-extralight break-keep text-[#f0eadf]/90 ${valueSize}`}
+        className={`mt-1.5 leading-[1.4] font-medium break-keep text-[#26343d] ${valueSize}`}
       >
         {value}
       </dd>
@@ -242,33 +262,30 @@ function ChangePlan({
   label,
   value,
   density,
-  accentColor,
 }: {
   number: string;
   label: string;
   value: string;
   density: TicketDensity;
-  accentColor: string;
 }) {
   const valueSize =
     density === "tight" || value.length > 55
-      ? "text-base"
+      ? "text-lg"
       : density === "compact"
-        ? "text-lg"
+        ? "text-[19px]"
         : "text-xl";
 
   return (
-    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)] gap-x-4 py-5">
-      <span
-        className="pt-0.5 text-sm font-light"
-        style={{ color: accentColor }}
-      >
+    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-x-3 py-[clamp(13px,1.8vh,18px)] [@media(max-height:800px)]:py-2.5">
+      <span className="pt-0.5 text-sm font-semibold text-[#00B0F0]">
         {number}
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-light text-[#f0eadf]/55">{label}</p>
+        <p className="text-base font-semibold tracking-[0.04em] text-[#6f7e88] uppercase">
+          {label}
+        </p>
         <p
-          className={`mt-2 leading-relaxed font-extralight break-keep text-[#f0eadf]/90 ${valueSize}`}
+          className={`mt-1.5 leading-relaxed font-medium break-keep text-[#26343d] ${valueSize}`}
         >
           {value}
         </p>
@@ -279,11 +296,14 @@ function ChangePlan({
 
 type TicketDensity = "comfortable" | "compact" | "tight";
 
-function getSituationAccent(situationLabel: string): string {
-  if (situationLabel === "소개팅") return "#bd8878";
-  if (situationLabel === "면접") return "#82a1b6";
-  if (situationLabel === "첫 출근") return "#91a486";
-  return "#a9a18f";
+function TicketPerforation() {
+  return (
+    <div className="relative flex h-7 shrink-0 items-center" aria-hidden>
+      <span className="absolute left-0 h-7 w-3.5 -translate-x-1/2 rounded-r-full bg-[#e9eef1]" />
+      <div className="mx-5 w-full border-t border-dashed border-[#00B0F0]/65" />
+      <span className="absolute right-0 h-7 w-3.5 translate-x-1/2 rounded-l-full bg-[#e9eef1]" />
+    </div>
+  );
 }
 
 function getTicketDensity(
@@ -322,12 +342,12 @@ function TicketProgress({
           : "기록을 정리하고 있습니다");
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[#252a2e] px-8 text-center">
-      <div className="drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-[#9aa8ad]">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[#e9eef1] px-8 text-center">
+      <div>
+        <p className="mb-4 text-xs font-semibold tracking-[0.28em] text-[#00B0F0]">
           CHANGE CARD
         </p>
-        <h2 className="text-3xl font-extralight tracking-wide text-[#f0eadf] md:text-4xl">
+        <h2 className="text-3xl font-semibold tracking-[-0.03em] text-[#172027] md:text-4xl">
           티켓을 준비하고 있습니다
         </h2>
       </div>
