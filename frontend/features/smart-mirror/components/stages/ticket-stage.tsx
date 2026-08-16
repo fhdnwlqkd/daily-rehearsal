@@ -87,7 +87,7 @@ function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
           </header>
 
           <article className="relative flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-[#dce3e7] bg-white shadow-[0_16px_44px_rgba(24,39,49,0.09)]">
-            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 px-[clamp(24px,4vw,38px)] py-[clamp(18px,2.5vh,28px)] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:py-3">
+            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 px-[clamp(24px,4vw,38px)] py-[clamp(12px,1.8vh,18px)] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:py-2.5">
               <div className="min-w-0">
                 <p className="text-sm font-semibold tracking-[0.16em] text-[#73808a] uppercase">
                   Daily Rehearsal · Result Ticket
@@ -120,22 +120,15 @@ function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
             <TicketPerforation />
 
             <div className="flex flex-col px-[clamp(24px,4vw,38px)] pt-[clamp(14px,2vh,20px)] pb-[clamp(14px,2vh,20px)] [@media(max-height:800px)]:grid [@media(max-height:800px)]:grid-cols-[0.85fr_1.5fr] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:pt-2 [@media(max-height:800px)]:pb-3">
-              <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3.5 border-b border-[#e5eaed] pb-[clamp(14px,1.8vh,18px)] [@media(max-height:800px)]:grid-cols-1 [@media(max-height:800px)]:gap-y-2.5 [@media(max-height:800px)]:border-r [@media(max-height:800px)]:border-b-0 [@media(max-height:800px)]:pr-7 [@media(max-height:800px)]:pb-0">
-                <div className="col-span-2 [@media(max-height:800px)]:col-span-1">
-                  <TicketFact
-                    label="중요한 순간"
-                    value={snapshot.criticalMoment}
-                    density={density}
-                  />
-                </div>
+              <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3.5 border-b border-[#e5eaed] pb-[clamp(14px,1.8vh,18px)] [@media(max-height:800px)]:gap-y-2.5 [@media(max-height:800px)]:border-r [@media(max-height:800px)]:border-b-0 [@media(max-height:800px)]:pr-7 [@media(max-height:800px)]:pb-0">
                 <TicketFact
-                  label="목표 인상"
-                  value={snapshot.desiredPersonaLabel}
+                  label="중요한 순간"
+                  value={snapshot.criticalMoment}
                   density={density}
                 />
                 <TicketFact
-                  label="선택한 스타일"
-                  value={snapshot.selectedOutfitLabel}
+                  label="목표 인상"
+                  value={snapshot.desiredPersonaLabel}
                   density={density}
                 />
               </dl>
@@ -313,7 +306,6 @@ function getTicketDensity(
   const totalLength = [
     snapshot.criticalMoment,
     snapshot.desiredPersonaLabel,
-    snapshot.selectedOutfitLabel,
     changeCard.todayAction,
     changeCard.tomorrowAttitude,
     changeCard.ifThenPlan,

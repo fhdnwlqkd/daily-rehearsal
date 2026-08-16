@@ -33,3 +33,10 @@ export const SIMULATION_COMPLETE_LINGER_MS = 3000;
  * 덮여 사라져 버리는 문제 완화 (2026-08-16 관람 피드백).
  */
 export const SIMULATION_TURN_FEEDBACK_LINGER_MS = 4000;
+
+/**
+ * 턴 진입 시 "몇 턴째 · 어떤 상황인지"를 큰 글씨로 먼저 보여주는 인트로 연출의
+ * 노출 시간. 이 시간이 끝나면 fade-out 후 상대 발화·행동 요구·답변 입력으로
+ * 전환된다 — 재시도(같은 턴)에는 다시 재생하지 않는다.
+ */
+export const SIMULATION_INTRO_DURATION_MS = 2600;
