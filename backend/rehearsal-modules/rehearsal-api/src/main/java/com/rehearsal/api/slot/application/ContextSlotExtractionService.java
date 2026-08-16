@@ -14,12 +14,16 @@ import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Description("active schema 조회, AI raw slot 추출, domain slot processing을 연결하는 application service")
 @Service
 @RequiredArgsConstructor
 public class ContextSlotExtractionService {
+
+  private static final Logger log = LoggerFactory.getLogger(ContextSlotExtractionService.class);
 
   private final SlotExtractorClient slotExtractorClient;
   private final SlotExtractionProcessor slotExtractionProcessor;
@@ -63,6 +67,11 @@ public class ContextSlotExtractionService {
                   command.targetSlotKeys())),
           false);
     } catch (RuntimeException exception) {
+      log.warn(
+          "Slot extraction AI call failed for schema {} and mode {}",
+          schema.getSituationType().getKey(),
+          command.mode(),
+          exception);
       return new RawExtraction(new SlotExtractionRawResult(Map.of()), true);
     }
   }

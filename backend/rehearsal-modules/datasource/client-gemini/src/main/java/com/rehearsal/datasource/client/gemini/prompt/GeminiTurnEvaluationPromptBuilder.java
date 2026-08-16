@@ -30,6 +30,8 @@ public class GeminiTurnEvaluationPromptBuilder {
         - Evaluate semantic intent, not exact wording. When ACCEPTED_INTENT_HINT lists alternatives,
           satisfying any one alternative is enough unless it explicitly says otherwise.
         - Do not reject an on-topic response only because its wording or delivery could improve.
+        - When FEEDBACK_FOCUS contains minimum accepted examples, use them only to recognize weak
+          but on-topic answers as accepted. Do not turn those examples into extra requirements.
         - Do not add requirements from FINAL_CONTEXT, SELECTED_OUTFIT, an ideal persona, or
           FEEDBACK_FOCUS when ACTION_PROMPT and ACCEPTED_INTENT_HINT do not require them.
         - Always fill feedback with a short Korean coaching comment.
