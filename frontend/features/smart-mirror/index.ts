@@ -1,4 +1,5 @@
 export { SmartMirror } from "./smart-mirror";
+export { TicketPreview } from "./components/stages/ticket-stage";
 export { useCamera } from "./hooks/use-camera";
 export { useGestureEngine } from "./hooks/use-gesture-engine";
 export { useGestureController } from "./hooks/use-gesture-controller";

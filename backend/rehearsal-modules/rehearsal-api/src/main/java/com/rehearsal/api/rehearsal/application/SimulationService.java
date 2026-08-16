@@ -14,6 +14,7 @@ import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigDefinition;
 import com.rehearsal.domain.rehearsal.registry.RehearsalConfigRegistry;
+import com.rehearsal.domain.rehearsal.usecase.FinishSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -32,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SimulationService
     implements StartSimulationUseCase,
+        FinishSimulationUseCase,
         SubmitTurnEvaluationUseCase,
         GetTurnEvaluationUseCase,
         SubmitNextOpponentLineUseCase,
@@ -65,6 +67,24 @@ public class SimulationService
         config.maxTurn(),
         TurnGenerationMode.STATIC,
         config.firstTurn());
+  }
+
+  @Override
+  @Transactional
+  public void finishSimulation(String sessionId) {
+    ClientSession session = sessionReader.getForUpdate(sessionId);
+    if (session.getStatus() == SessionStatus.COMPLETED) {
+      return;
+    }
+    if (session.getStatus() == SessionStatus.REHEARSAL_READY) {
+      RehearsalConfigDefinition config = config(session);
+      session.startSimulation(config.maxTurn());
+      sessionRepository.saveTurn(
+          SimulationTurn.completed(
+              sessionId, session.getCurrentTurn(), TurnGenerationMode.STATIC, config.firstTurn()));
+    }
+    session.expireSimulation();
+    sessionRepository.saveSession(session);
   }
 
   @Override
