@@ -45,10 +45,6 @@ export function OutfitStage({
   const { outfits, status: listStatus } = useGetOutfits(sessionId);
   const { status: confirmStatus, confirm } = useConfirmOutfit(sessionId);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  // 하이라이트된 옷의 스펙 — 착장 캡션(설명 문구)이 소비한다.
-  const [highlightedSpec, setHighlightedSpec] = useState<DecartSpec | null>(
-    null,
-  );
   // 스펙은 정적 설정이라 스와이프 왕복 시 재조회하지 않는다.
   const specCacheRef = useRef(new Map<string, DecartSpec>());
 
@@ -76,12 +72,10 @@ export function OutfitStage({
         const spec = cached ?? (await getOutfitSpec(sessionId, outfitId));
         specCacheRef.current.set(outfitId, spec);
         if (cancelled) return;
-        setHighlightedSpec(spec);
         applyOutfit(spec);
       } catch (error) {
         // 스펙 조회 실패 = 이 옷만 못 입혀보는 것 — 스와이프 진행은 막지 않는다.
         console.error("Failed to load outfit spec:", error);
-        if (!cancelled) setHighlightedSpec(null);
       }
     }
 
@@ -165,22 +159,6 @@ export function OutfitStage({
         )}
       </div>
 
-      {/* 착장 캡션 — 지금 입고 있는 옷의 이름과 설명 */}
-      <div className="mb-5 h-14 text-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
-        {highlighted && (
-          <>
-            <p className="text-xl font-extralight tracking-[0.06em]">
-              {highlighted.label}
-            </p>
-            {highlightedSpec && (
-              <p className="mt-1 text-sm font-light tracking-[0.08em] text-white/60">
-                {highlightedSpec.prompt}
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
       {listStatus === "LOADING" && <StatusLine text="옷장을 여는 중…" />}
       {listStatus === "ERROR" && (
         <StatusLine text="옷 목록을 불러오지 못했습니다" error />
@@ -241,28 +219,31 @@ function OutfitCard({
   const charging = confirmProgress > 0;
 
   return (
-    // 타입 카드와 같은 문법: 비선택 카드를 죽여서 선택을 드러낸다.
+    // 비선택 카드의 텍스트까지 흐려지지 않도록 크기·표면·썸네일로만
+    // 선택 상태를 구분한다.
     <div
-      className={`transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
+      className={`transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
     >
       <GlassPanel
         className={`px-5 py-4 ${
-          highlighted ? "border-white/60 bg-white/20" : "border-white/10"
+          highlighted
+            ? "border-white/60 bg-white/20"
+            : "border-white/20 bg-black/15"
         }`}
         pulsing={highlighted}
         pulseColor="rgba(255, 255, 255, 0.35)"
       >
         <div className="flex w-36 flex-col items-center gap-2.5 text-center">
-          <span className="text-xs font-light tracking-[0.3em] text-white/50">
+          <span className="text-xs font-normal tracking-[0.3em] text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
             {String(order).padStart(2, "0")}
           </span>
           {/* 썸네일은 <img> 표시 전용이라 CORS가 필요 없다 — 원본 URL 직결 */}
           <img
             src={outfit.thumbnailUrl}
             alt={outfit.label}
-            className="h-20 w-20 rounded-xl border border-white/15 object-cover"
+            className={`h-20 w-20 rounded-xl border border-white/15 object-cover transition-opacity duration-300 ${highlighted ? "" : "opacity-70"}`}
           />
-          <span className="text-lg font-extralight tracking-wide">
+          <span className="text-lg font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
             {outfit.label}
           </span>
           {/* 팜홀드 차징 바 — 차오를 때만 트랙과 함께 나타난다 (시프트 없음).
