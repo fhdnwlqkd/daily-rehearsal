@@ -348,6 +348,8 @@ export interface VideoUploadResponse {
   sessionId: string;
   videoUrl: string | null;
   status: VideoUploadStatus;
+  /** FAILED일 때 서버 저장소가 남긴 실패 원인. 운영 진단용이다. */
+  failureReason?: string;
 }
 
 export type TicketJobStatus = "PENDING" | "COMPLETED" | "FAILED";
