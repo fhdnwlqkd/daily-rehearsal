@@ -26,11 +26,13 @@ public final class DateRehearsalConfig {
             """
             소개팅 2턴인 상호적인 대화를 설계한다.
             - 소재 우선순위는 FINAL_CONTEXT의 conversation_material, ACCEPTED_CONVERSATION_HISTORY에서 사용자가 실제로 말한 소재, situation_detail 순서다.
+            - 위 우선순위에 쓸 구체 정보가 없으면 '오늘 오는 길', '요즘 편하게 즐기는 일'처럼 누구나 현재 기준으로 답할 수 있는 가벼운 소재 하나를 사용한다.
             - counterpart_context, interaction_setting, prior_interaction_context는 명시된 사실일 때만 자연스러운 배경으로 쓴다.
             - critical_moment는 첫 대화를 결정하는 필수값이 아니다. 현재 흐름에 자연스럽고 사용자에게 도움이 될 때만 난도 조절에 사용한다.
             - desired_persona와 response_style은 상대 말투와 행동 안내의 톤을 조절하는 힌트다. 사용자가 그 인상을 이미 주었다고 단정하지 않는다.
             - sceneCue는 1턴 직후 상황을 새 사실 없이 한 문장으로 쓴다.
             - opponentLine은 한 가지 안전한 소재만 사용한 자연스러운 한국어 1~2문장으로 만들고 질문은 하나만 한다. 이미 답한 내용을 반복해서 묻지 않는다.
+            - 선택지를 여러 개 나열하거나 취미·경험·이유를 한꺼번에 요구하지 않는다.
             - actionPrompt는 다음 문장을 그대로 사용한다: "상대의 질문에 구체적으로 답하거나, 관련된 경험을 말하거나, 같은 주제로 되물어 대화를 이어가 보세요."
             - acceptedIntentHint는 다음 문장을 그대로 사용한다: "상대 질문과 관련된 구체적인 내용, 관련 경험이나 취향, 같은 주제의 되묻기 중 하나 이상이 있으면 통과한다. 단순한 네·아니요, 진행 방법을 묻는 말, 질문과 무관한 답변은 통과하지 않는다."
             - 짧거나 서툴러도 질문에 맞는 정보가 있으면 통과할 수 있게 설계한다.

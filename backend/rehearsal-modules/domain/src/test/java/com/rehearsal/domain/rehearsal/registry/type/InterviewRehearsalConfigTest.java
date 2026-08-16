@@ -47,4 +47,18 @@ class InterviewRehearsalConfigTest {
         .doesNotContain("한 가지 경험부터 설명하게 한다");
     assertThat(definition.technicalFallback().acceptedIntentHint()).contains("행동 또는 입장 하나");
   }
+
+  @Test
+  void generatedTurnsAskOnlyOneAnswerableThingAndUseContextAsBackground() {
+    assertThat(definition.maxTurn()).isEqualTo(3);
+    assertThat(definition.maxAttemptsPerTurn()).isEqualTo(2);
+    assertThat(definition.turnObjectives().get(1))
+        .contains(
+            "anticipated_question", "critical_moment", "한 번에 판단할 내용 하나", "과거 사례나 성과 수치를 강요하지 않는다")
+        .contains("selectedOutfit", "사용하지 않는다");
+    assertThat(definition.turnObjectives().get(2))
+        .contains("직전 수용 답변", "이유, 판단 기준, 다음 행동 중 하나", "없는 경험을 전제하지 않는다")
+        .contains("selectedOutfit", "사용하지 않는다");
+    assertThat(definition.feedbackFocus()).contains("추가 통과 조건으로 만들지 않는다");
+  }
 }
