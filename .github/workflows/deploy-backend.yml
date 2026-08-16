@@ -89,7 +89,7 @@ jobs:
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             GEMINI_ENABLED=${{ vars.GEMINI_ENABLED || 'true' }}
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-정            DECART_ENABLED=${{ vars.DECART_ENABLED || 'true' }}
+            DECART_ENABLED=${{ vars.DECART_ENABLED || 'true' }}
             DECART_API_KEY=${{ secrets.DECART_API_KEY }}
             VIDEO_STORAGE_PUBLIC_BASE_URL=${{ secrets.VIDEO_STORAGE_PUBLIC_BASE_URL }}
             TICKET_DOWNLOAD_PAGE_BASE_URL=${{ secrets.TICKET_DOWNLOAD_PAGE_BASE_URL || 'https://d1ay2vsnaftdcj.cloudfront.net' }}
