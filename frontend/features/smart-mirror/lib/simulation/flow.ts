@@ -15,6 +15,7 @@ import {
   SIMULATION_POLL_INTERVAL_MS,
   SIMULATION_POLL_MAX_CONSECUTIVE_ERRORS,
   SIMULATION_POLL_TIMEOUT_MS,
+  SIMULATION_TURN_FEEDBACK_LINGER_MS,
 } from "./constants";
 
 export interface SimulationFlowApi {
@@ -34,6 +35,7 @@ export interface SimulationFlowControllerOptions {
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
   maxConsecutivePollErrors?: number;
+  turnFeedbackLingerMs?: number;
 }
 
 type RetryStep =
@@ -64,6 +66,7 @@ export class SimulationFlowController {
   private readonly pollIntervalMs: number;
   private readonly pollTimeoutMs: number;
   private readonly maxConsecutivePollErrors: number;
+  private readonly turnFeedbackLingerMs: number;
 
   private status: SimulationFlowSnapshot["status"] = "STARTING";
   private currentTurn = 0;
@@ -81,6 +84,7 @@ export class SimulationFlowController {
   private polling: PollingHandle<
     TurnEvaluationResponse | NextLineResponse
   > | null = null;
+  private feedbackLingerTimer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
 
   constructor(options: SimulationFlowControllerOptions) {
@@ -91,6 +95,8 @@ export class SimulationFlowController {
     this.maxConsecutivePollErrors =
       options.maxConsecutivePollErrors ??
       SIMULATION_POLL_MAX_CONSECUTIVE_ERRORS;
+    this.turnFeedbackLingerMs =
+      options.turnFeedbackLingerMs ?? SIMULATION_TURN_FEEDBACK_LINGER_MS;
   }
 
   begin(): void {
@@ -123,6 +129,10 @@ export class SimulationFlowController {
     this.disposed = true;
     this.polling?.cancel();
     this.polling = null;
+    if (this.feedbackLingerTimer !== null) {
+      clearTimeout(this.feedbackLingerTimer);
+      this.feedbackLingerTimer = null;
+    }
   }
 
   private runStart(): void {
@@ -199,8 +209,20 @@ export class SimulationFlowController {
       this.update({ status: "COMPLETED", evaluation: feedback });
       return;
     }
-    this.update({ evaluation: feedback });
-    this.runNextLine(this.currentTurn + 1);
+    // 다음 발화를 요청하기 전, 방금 받은 피드백을 최소 시간 동안 화면에
+    // 붙잡아 둔다 — 그대로 바로 요청하면 폴링이 빨리 끝날 때 피드백이
+    // 뜨자마자 다음 턴 화면에 덮여 스치듯 사라진다.
+    const nextTurnNo = this.currentTurn + 1;
+    this.update({
+      status: "NEXT_LINE",
+      evaluation: feedback,
+      failReason: null,
+    });
+    this.feedbackLingerTimer = setTimeout(() => {
+      this.feedbackLingerTimer = null;
+      if (this.disposed) return;
+      this.runNextLine(nextTurnNo);
+    }, this.turnFeedbackLingerMs);
   }
 
   private runNextLine(turnNo: number): void {
