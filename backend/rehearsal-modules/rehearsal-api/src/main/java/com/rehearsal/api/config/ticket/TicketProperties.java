@@ -11,11 +11,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "rehearsal.ticket")
 public class TicketProperties {
 
-  private String downloadPageBaseUrl = "http://localhost:3000";
+  private static final String DEFAULT_DOWNLOAD_PAGE_BASE_URL = "http://localhost:3000";
+
+  private String downloadPageBaseUrl = DEFAULT_DOWNLOAD_PAGE_BASE_URL;
 
   public void setDownloadPageBaseUrl(String downloadPageBaseUrl) {
     if (downloadPageBaseUrl == null || downloadPageBaseUrl.isBlank()) {
-      throw new IllegalArgumentException("Ticket download page base URL must not be blank");
+      this.downloadPageBaseUrl = DEFAULT_DOWNLOAD_PAGE_BASE_URL;
+      return;
     }
 
     String normalized = downloadPageBaseUrl.strip();
