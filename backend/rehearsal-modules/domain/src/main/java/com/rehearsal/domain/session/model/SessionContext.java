@@ -30,7 +30,7 @@ public class SessionContext {
     Map<String, Object> merged = values();
     if (extractedValues != null) {
       for (Map.Entry<String, Object> entry : extractedValues.entrySet()) {
-        if (!SITUATION_TYPE_KEY.equals(entry.getKey())) {
+        if (!SITUATION_TYPE_KEY.equals(entry.getKey()) && entry.getValue() != null) {
           merged.put(entry.getKey(), entry.getValue());
         }
       }

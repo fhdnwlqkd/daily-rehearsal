@@ -31,7 +31,22 @@ class ContextSlotValueNormalizerTest {
                 "ignored"));
 
     assertThat(values.keySet())
-        .containsExactly("desired_persona", "critical_moment", "outfit_direction");
+        .containsExactly(
+            "situation_detail",
+            "desired_persona",
+            "desired_outcome",
+            "conversation_material",
+            "critical_moment",
+            "counterpart_context",
+            "response_style",
+            "familiarity_level",
+            "user_strength",
+            "prior_interaction_context",
+            "interaction_setting",
+            "supporting_example",
+            "anticipated_question",
+            "interaction_constraint",
+            "outfit_direction");
     assertThat(values.get("desired_persona").status()).isEqualTo(ContextSlotValueStatus.FILLED);
     assertThat(values.get("desired_persona").source()).isEqualTo(ContextSlotValueSource.EXTRACTED);
     assertThat(values.get("critical_moment").value()).isEqualTo("첫 인사");

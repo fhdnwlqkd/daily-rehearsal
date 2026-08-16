@@ -6,6 +6,7 @@ import com.rehearsal.domain.extraction.model.ContextSlotValue;
 import com.rehearsal.domain.extraction.service.ContextSlotValueNormalizer;
 import com.rehearsal.domain.extraction.service.MissingRequiredSlotResolver;
 import com.rehearsal.domain.slot.registry.ContextSlotSchemaType;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -17,9 +18,11 @@ class MissingRequiredSlotResolverTest {
   @Test
   void returnsOnlyRequiredMissingOrInvalidSlotsByPriority() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
-    Map<String, ContextSlotValue> slots =
-        normalizer.normalize(
-            schema, Map.of("desired_persona", "invalid", "critical_moment", "첫 인사"));
+    Map<String, Object> rawSlots =
+        new LinkedHashMap<>(SlotExtractionTestFixtures.dateRequiredSlots());
+    rawSlots.put("desired_persona", "invalid");
+    rawSlots.put("critical_moment", "첫 인사");
+    Map<String, ContextSlotValue> slots = normalizer.normalize(schema, rawSlots);
 
     assertThat(resolver.resolve(slots)).containsExactly("desired_persona");
   }
@@ -28,9 +31,9 @@ class MissingRequiredSlotResolverTest {
   void softRequiredMissingDoesNotBlock() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> slots =
-        normalizer.normalize(
-            schema, Map.of("desired_persona", "calm_confident", "critical_moment", "첫 인사"));
+        normalizer.normalize(schema, SlotExtractionTestFixtures.dateRequiredSlots());
 
     assertThat(resolver.resolve(slots)).isEmpty();
+    assertThat(slots.get("critical_moment").requiredLevel().name()).isEqualTo("SOFT_REQUIRED");
   }
 }

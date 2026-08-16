@@ -26,3 +26,10 @@ export const EVALUATION_FALLBACK_FEEDBACK =
 
 /** COMPLETED 연출(마지막 피드백 + 리허설 완료)을 보여준 뒤 onComplete까지의 여운. */
 export const SIMULATION_COMPLETE_LINGER_MS = 3000;
+
+/**
+ * 턴 완료(ACCEPTED/FORCED_ADVANCE) 피드백을 다음 발화 요청 전 최소 이만큼 보여준다.
+ * 다음 발화 폴링이 빨리 끝나면(특히 fake/캐시 응답) 피드백이 뜨자마자 다음 질문으로
+ * 덮여 사라져 버리는 문제 완화 (2026-08-16 관람 피드백).
+ */
+export const SIMULATION_TURN_FEEDBACK_LINGER_MS = 2200;
