@@ -27,12 +27,7 @@ export function StageFrame({
   // 결과 화면만 불투명하게 덮어 앞선 스테이지와 같은 제품 문법을 이어간다.
   if (phase.id === "ticket") {
     return (
-      <div className="relative h-full w-full overflow-hidden bg-[#252a2e] text-[#f0eadf]">
-        <StageHeader
-          phase={phase}
-          phaseIndex={phaseIndex}
-          totalPhases={totalPhases}
-        />
+      <div className="relative h-full w-full overflow-hidden bg-[#e9eef1] text-[#172027]">
         {children}
         <TapHint phase={phase.id} />
       </div>
@@ -89,13 +84,13 @@ function StageHeader({
   return (
     <div className="absolute top-6 right-8 left-8 z-20 flex items-center justify-between">
       <span
-        className={`text-xs font-light tracking-[0.32em] ${isTicket ? "text-[#f0eadf]/70" : "text-white/70"}`}
+        className={`text-xs font-light tracking-[0.32em] ${isTicket ? "text-[#40515b]" : "text-white/70"}`}
       >
         DAILY REHEARSAL
       </span>
       <div className="flex items-center gap-3">
         <span
-          className={`text-xs font-light tracking-[0.16em] ${isTicket ? "text-[#f0eadf]/60" : "text-white/60"}`}
+          className={`text-xs font-light tracking-[0.16em] ${isTicket ? "text-[#60707a]" : "text-white/60"}`}
         >
           {phase.label}
         </span>
@@ -106,10 +101,10 @@ function StageHeader({
               className={`h-1.5 w-7 rounded-full ${
                 index <= phaseIndex
                   ? isTicket
-                    ? "bg-[#9aa8ad]"
+                    ? "bg-[#00B0F0]"
                     : "bg-white/70"
                   : isTicket
-                    ? "bg-[#f0eadf]/15"
+                    ? "bg-[#cbd5da]"
                     : "bg-white/15"
               }`}
             />
@@ -174,10 +169,10 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
 
   return (
     <motion.div
-      className={`absolute bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full px-5 py-2 text-center text-sm font-light tracking-[0.2em] backdrop-blur-sm ${
+      className={`absolute bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full px-5 py-2 text-center font-light tracking-[0.2em] backdrop-blur-sm ${
         phase === "ticket"
-          ? "border border-[#f0eadf]/15 bg-[#252a2e]/85 text-[#f0eadf]/75"
-          : "bg-black/40 text-white/80"
+          ? "border border-[#cbd5da] bg-white/90 text-base text-[#4d5e68] shadow-sm"
+          : "bg-black/40 text-sm text-white/80"
       }`}
       animate={{ opacity: [0.45, 0.9, 0.45] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}

@@ -2,13 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
-import { getTicketGeneration } from "../../apis";
+import { getSessionVideo, getTicketGeneration } from "../../apis";
 import { startPolling } from "../../lib/polling/poller";
 import {
   ticketPreviewData,
   type TicketPreviewSituation,
 } from "../../lib/ticket/preview-data";
-import type { TicketJobResponse } from "../../types";
+import type {
+  TicketJobResponse,
+  VideoUploadResponse,
+  VideoUploadStatus,
+} from "../../types";
+
+const VIDEO_POLL_TIMEOUT_MS = 120_000;
 
 interface MobileDownloadPageProps {
   sessionId: string;
@@ -17,6 +23,8 @@ interface MobileDownloadPageProps {
 export function MobileDownloadPage({ sessionId }: MobileDownloadPageProps) {
   const [ticket, setTicket] = useState<TicketJobResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [video, setVideo] = useState<VideoUploadResponse | null>(null);
+  const [videoLookupFinished, setVideoLookupFinished] = useState(false);
 
   useEffect(() => {
     const poll = startPolling({
@@ -44,6 +52,25 @@ export function MobileDownloadPage({ sessionId }: MobileDownloadPageProps) {
     return poll.cancel;
   }, [sessionId]);
 
+  useEffect(() => {
+    const poll = startPolling({
+      fetch: () => getSessionVideo(sessionId),
+      isTerminal: (response) => isVideoTerminal(response.status),
+      intervalMs: 1000,
+      timeoutMs: VIDEO_POLL_TIMEOUT_MS,
+      onUpdate: setVideo,
+    });
+
+    void poll.promise.then((result) => {
+      if (result.kind === "TERMINAL") {
+        setVideo(result.value);
+      }
+      setVideoLookupFinished(true);
+    });
+
+    return poll.cancel;
+  }, [sessionId]);
+
   if (errorMessage) {
     return <MessageView message={errorMessage} />;
   }
@@ -55,7 +82,13 @@ export function MobileDownloadPage({ sessionId }: MobileDownloadPageProps) {
     return <MessageView message="변화 카드를 불러오고 있습니다." loading />;
   }
 
-  return <TicketDownloadView ticket={ticket} />;
+  return (
+    <TicketDownloadView
+      ticket={ticket}
+      video={video}
+      videoLookupFinished={videoLookupFinished}
+    />
+  );
 }
 
 /** 실제 세션 없이 QR→모바일 저장 흐름을 확인하는 개발 전용 화면. */
@@ -73,12 +106,37 @@ export function TicketDownloadPreview({
     videoAvailable: false,
   };
 
-  return <TicketDownloadView ticket={ticket} />;
+  return (
+    <TicketDownloadView
+      ticket={ticket}
+      video={{
+        sessionId: "preview-session",
+        videoUrl: null,
+        status: "NONE",
+      }}
+      videoLookupFinished
+    />
+  );
 }
 
-function TicketDownloadView({ ticket }: { ticket: TicketJobResponse }) {
-  const { snapshot, changeCard, videoAvailable, videoUrl } = ticket;
+function TicketDownloadView({
+  ticket,
+  video,
+  videoLookupFinished,
+}: {
+  ticket: TicketJobResponse;
+  video: VideoUploadResponse | null;
+  videoLookupFinished: boolean;
+}) {
+  const { snapshot, changeCard } = ticket;
   if (!snapshot || !changeCard) return null;
+
+  const videoUrl = video?.videoUrl ?? ticket.videoUrl;
+  const videoAvailable =
+    video?.status === "COMPLETED" ||
+    (video == null && ticket.videoAvailable === true);
+  const videoPending = !videoLookupFinished || video?.status === "PENDING";
+  const videoFailed = video?.status === "FAILED";
 
   const downloadText = () => {
     const content = [
@@ -163,13 +221,22 @@ function TicketDownloadView({ ticket }: { ticket: TicketJobResponse }) {
               />
               <a
                 className="mt-4 inline-flex h-11 items-center gap-2 border border-white/30 px-4 text-sm text-white"
-                href={videoUrl}
+                href={`/download/${encodeURIComponent(ticket.sessionId)}/video`}
                 download
               >
                 <Download size={16} aria-hidden />
                 영상 다운로드
               </a>
             </>
+          ) : videoPending ? (
+            <p className="mt-3 text-sm leading-6 text-white/55">
+              영상을 저장하고 있습니다. 준비가 끝나면 다운로드 버튼이
+              표시됩니다.
+            </p>
+          ) : videoFailed ? (
+            <p className="mt-3 text-sm leading-6 text-white/55">
+              영상 저장에 실패했습니다. 변화 카드는 계속 저장할 수 있습니다.
+            </p>
           ) : (
             <p className="mt-3 text-sm leading-6 text-white/55">
               이번 리허설 영상은 준비되지 않았습니다. 변화 카드는 저장할 수
@@ -180,6 +247,10 @@ function TicketDownloadView({ ticket }: { ticket: TicketJobResponse }) {
       </div>
     </main>
   );
+}
+
+function isVideoTerminal(status: VideoUploadStatus) {
+  return status === "NONE" || status === "COMPLETED" || status === "FAILED";
 }
 
 function MobileFact({ label, value }: { label: string; value: string }) {

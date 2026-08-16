@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko">
-      <body className="overflow-hidden bg-black font-sans antialiased">
+      <body className="overflow-hidden bg-black antialiased">
         {children}
         {process.env.NODE_ENV === "production" && <Analytics />}
       </body>
