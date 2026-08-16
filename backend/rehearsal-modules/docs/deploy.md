@@ -82,6 +82,7 @@ ECR push 권한(`AmazonEC2ContainerRegistryPowerUser`)을 가진 IAM 사용자�
 | `GEMINI_API_KEY` | Gemini API key. 없으면 앱이 기동 실패할 수 있음 |
 | `DECART_API_KEY` | Decart API key. Decart 기능을 사용하지 않으면 생략 가능 |
 | `VIDEO_STORAGE_PUBLIC_BASE_URL` | 영상/다운로드 URL의 외부 base URL. 필요 없으면 생략 가능. 예: `http://<EC2_HOST>:8080` |
+| `TICKET_DOWNLOAD_PAGE_BASE_URL` | QR이 열 모바일 프론트 주소. 미등록 시 현재 CloudFront 주소를 사용한다. |
 
 GitHub repo → Settings → Secrets and variables → Actions → **Variables**에
 `GEMINI_ENABLED`를 등록할 수 있다. `false`면 브리핑 추출, 시뮬레이션 판정/상대 발화,

@@ -7,7 +7,9 @@ import type { AnswerInputMode } from "../shared/answer-area";
 import { GlassPanel } from "../shared/glass-panel";
 import { ScanningEffect } from "../shared/scanning-effect";
 import { StatusLine } from "../shared/status-line";
+import { StageCountdown } from "../shared/stage-countdown";
 import { SttPanel } from "../shared/stt-panel";
+import { useCountdown } from "../../hooks/use-countdown";
 import { useGestureController } from "../../hooks/use-gesture-controller";
 import { useSimulationFlow } from "../../hooks/use-simulation-flow";
 import { useSpeechToText } from "../../hooks/use-speech-to-text";
@@ -16,6 +18,7 @@ import {
   SIMULATION_COMPLETE_LINGER_MS,
 } from "../../lib/simulation/constants";
 import { STT_MAX_FAILS_BEFORE_FALLBACK } from "../../lib/stt/constants";
+import { SIMULATION_DURATION_SECONDS } from "../../lib/timing/constants";
 import type {
   GestureActionEvent,
   GestureEngineHandle,
@@ -32,6 +35,8 @@ interface SimulationStageProps {
   /** 부스 수명 장비 — 확정(CONFIRM)/다시 말하기(PREV) 입력용. */
   engine: GestureEngineHandle;
   stream: MediaStream | null;
+  /** 정상 완료 또는 제한시간 만료 시 Decart 연결을 즉시 끊는다. */
+  onStopDecart: () => void;
   /** 전체 턴 성공(COMPLETED) 연출 후 호출 — 세션 층이 티켓으로 넘긴다. */
   onComplete: () => void;
 }
@@ -39,8 +44,8 @@ interface SimulationStageProps {
 /**
  * 4. 시뮬레이션 — 상황 속 대화를 N턴 연습한다 (이슈 #68).
  * 턴 반복은 이 스테이지의 내부 상태다(브리핑의 재질문과 같은 원칙):
- * 턴마다 발화→판정/피드백을 받고, 실패하면 같은 턴을 재시도한다
- * (재시도 무제한 — 기획 확정). maxTurn(성공 횟수) 도달 판정은 프론트 책임.
+ * 턴마다 발화→판정/피드백을 받고, 실패하면 같은 턴을 한 번 재시도한다.
+ * maxTurn 도달 또는 전체 제한시간 만료 판정은 프론트 책임이다.
  * 흐름 상태머신은 SimulationFlowController에 있고, 여기는
  * (flowStatus, sttSnapshot, inputMode)에서 화면을 파생하는 조합만 한다.
  *
@@ -51,10 +56,23 @@ export function SimulationStage({
   sessionId,
   engine,
   stream,
+  onStopDecart,
   onComplete,
 }: SimulationStageProps) {
   const flow = useSimulationFlow(sessionId);
   const [inputMode, setInputMode] = useState<AnswerInputMode>("VOICE");
+  const [timeLimitReached, setTimeLimitReached] = useState(false);
+
+  const { finish } = flow;
+  const handleTimeLimitReached = useCallback(() => {
+    setTimeLimitReached(true);
+    onStopDecart();
+    finish();
+  }, [finish, onStopDecart]);
+  const remainingSeconds = useCountdown({
+    durationSeconds: SIMULATION_DURATION_SECONDS,
+    onExpire: handleTimeLimitReached,
+  });
 
   const { submitAnswer } = flow;
   // 음성·키보드 공통 제출 합류점. 빈 답변은 보내지 않는다 —
@@ -98,9 +116,11 @@ export function SimulationStage({
   // 완료 연출(마지막 피드백 + 리허설 완료) 여운 후 세션 층에 신호
   useEffect(() => {
     if (flow.status !== "COMPLETED") return;
-    const timer = setTimeout(onComplete, SIMULATION_COMPLETE_LINGER_MS);
+    onStopDecart();
+    const lingerMs = timeLimitReached ? 0 : SIMULATION_COMPLETE_LINGER_MS;
+    const timer = setTimeout(onComplete, lingerMs);
     return () => clearTimeout(timer);
-  }, [flow.status, onComplete]);
+  }, [flow.status, timeLimitReached, onStopDecart, onComplete]);
 
   const { status: flowStatus, retry: flowRetry } = flow;
   const sttStatus = stt.status;
@@ -140,38 +160,72 @@ export function SimulationStage({
 
   // --- 화면 파생 ---
 
+  const countdown =
+    flow.status === "COMPLETED" ? null : (
+      <StageCountdown
+        label="리허설 종료까지"
+        remainingSeconds={remainingSeconds}
+      />
+    );
+
   if (flow.status === "STARTING") {
     return (
-      <CenterColumn>
-        <ScanningEffect />
-        <StatusLine text="시뮬레이션을 준비하는 중…" />
-      </CenterColumn>
+      <>
+        {countdown}
+        <CenterColumn>
+          <ScanningEffect />
+          <StatusLine text="시뮬레이션을 준비하는 중…" />
+        </CenterColumn>
+      </>
     );
   }
 
   if (flow.status === "FAILED") {
-    return <FailedView reason={flow.failReason} />;
+    return (
+      <>
+        {countdown}
+        <FailedView reason={flow.failReason} />
+      </>
+    );
+  }
+
+  if (flow.status === "FINISHING") {
+    return (
+      <>
+        {countdown}
+        <CenterColumn>
+          <ScanningEffect />
+          <StatusLine text="제한시간이 끝나 리허설을 마무리하고 있어요…" />
+        </CenterColumn>
+      </>
+    );
   }
 
   if (flow.status === "EVALUATING") {
     return (
-      <CenterColumn>
-        {flow.transcript && (
-          <SttPanel text={flow.transcript} label="YOUR ANSWER" />
-        )}
-        <ScanningEffect />
-        <StatusLine text="상대가 당신의 말을 듣고 있어요…" />
-      </CenterColumn>
+      <>
+        {countdown}
+        <CenterColumn>
+          {flow.transcript && (
+            <SttPanel text={flow.transcript} label="YOUR ANSWER" />
+          )}
+          <ScanningEffect />
+          <StatusLine text="상대가 당신의 말을 듣고 있어요…" />
+        </CenterColumn>
+      </>
     );
   }
 
   if (flow.status === "NEXT_LINE") {
     return (
-      <CenterColumn>
-        {flow.evaluation && <FeedbackPanel evaluation={flow.evaluation} />}
-        <ScanningEffect />
-        <StatusLine text="상대가 다음 말을 고르는 중…" />
-      </CenterColumn>
+      <>
+        {countdown}
+        <CenterColumn>
+          {flow.evaluation && <FeedbackPanel evaluation={flow.evaluation} />}
+          <ScanningEffect />
+          <StatusLine text="상대가 다음 말을 고르는 중…" />
+        </CenterColumn>
+      </>
     );
   }
 
@@ -198,28 +252,31 @@ export function SimulationStage({
 
   // ANSWERING — 상대 발화 표시 + 답변 대기 (직전 판정이 실패면 재시도 화면)
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10 px-8">
-      <OpponentLine
-        turn={flow.currentTurn}
-        maxTurn={flow.maxTurn}
-        sceneCue={flow.sceneCue ?? ""}
-        line={flow.opponentLine ?? ""}
-        actionPrompt={flow.actionPrompt ?? ""}
-      />
+    <>
+      {countdown}
+      <div className="flex h-full flex-col items-center justify-center gap-10 px-8">
+        <OpponentLine
+          turn={flow.currentTurn}
+          maxTurn={flow.maxTurn}
+          sceneCue={flow.sceneCue ?? ""}
+          line={flow.opponentLine ?? ""}
+          actionPrompt={flow.actionPrompt ?? ""}
+        />
 
-      {flow.evaluation && flow.evaluation.outcome === "RETRY_REQUIRED" && (
-        <FeedbackPanel evaluation={flow.evaluation} />
-      )}
+        {flow.evaluation && flow.evaluation.outcome === "RETRY_REQUIRED" && (
+          <FeedbackPanel evaluation={flow.evaluation} />
+        )}
 
-      <AnswerArea
-        inputMode={inputMode}
-        stt={stt}
-        onSubmitTyped={handleAnswer}
-        sttLabel="YOUR ANSWER"
-        typedPlaceholder="상대에게 할 말을 입력해 주세요"
-        autoConfirmMs={SIMULATION_AUTO_CONFIRM_MS}
-      />
-    </div>
+        <AnswerArea
+          inputMode={inputMode}
+          stt={stt}
+          onSubmitTyped={handleAnswer}
+          sttLabel="YOUR ANSWER"
+          typedPlaceholder="상대에게 할 말을 입력해 주세요"
+          autoConfirmMs={SIMULATION_AUTO_CONFIRM_MS}
+        />
+      </div>
+    </>
   );
 }
 

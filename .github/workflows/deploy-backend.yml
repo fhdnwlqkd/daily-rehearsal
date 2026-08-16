@@ -92,7 +92,7 @@ jobs:
             DECART_ENABLED=${{ vars.DECART_ENABLED || 'false' }}
             DECART_API_KEY=${{ secrets.DECART_API_KEY }}
             VIDEO_STORAGE_PUBLIC_BASE_URL=${{ secrets.VIDEO_STORAGE_PUBLIC_BASE_URL }}
-            TICKET_DOWNLOAD_PAGE_BASE_URL=${{ secrets.TICKET_DOWNLOAD_PAGE_BASE_URL }}
+            TICKET_DOWNLOAD_PAGE_BASE_URL=${{ secrets.TICKET_DOWNLOAD_PAGE_BASE_URL || 'https://d1ay2vsnaftdcj.cloudfront.net' }}
             VIDEO_STORAGE_BUCKET=${{ secrets.VIDEO_STORAGE_BUCKET }}
             AWS_REGION=${{ secrets.AWS_REGION }}
             ECR_IMAGE=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY }}

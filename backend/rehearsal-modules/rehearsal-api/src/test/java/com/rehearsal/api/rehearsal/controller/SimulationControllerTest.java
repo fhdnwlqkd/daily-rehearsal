@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -18,6 +19,7 @@ import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
+import com.rehearsal.domain.rehearsal.usecase.FinishSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -39,6 +41,7 @@ class SimulationControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private StartSimulationUseCase startSimulationUseCase;
+  @MockitoBean private FinishSimulationUseCase finishSimulationUseCase;
   @MockitoBean private SubmitTurnEvaluationUseCase submitTurnEvaluationUseCase;
   @MockitoBean private GetTurnEvaluationUseCase getTurnEvaluationUseCase;
   @MockitoBean private SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase;
@@ -57,6 +60,16 @@ class SimulationControllerTest {
         .andExpect(jsonPath("$.data.currentTurn").value(1))
         .andExpect(jsonPath("$.data.generationMode").value("STATIC"))
         .andExpect(jsonPath("$.data.opponentLine").value("first line"));
+  }
+
+  @Test
+  void finishSimulation() throws Exception {
+    mockMvc
+        .perform(post("/api/v1/sessions/session-id/simulation/finish"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true));
+
+    verify(finishSimulationUseCase).finishSimulation("session-id");
   }
 
   @Test

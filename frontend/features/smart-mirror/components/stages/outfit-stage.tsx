@@ -4,10 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getOutfitSpec } from "../../apis";
 import { useConfirmOutfit } from "../../hooks/use-confirm-outfit";
+import { useCountdown } from "../../hooks/use-countdown";
 import { useGestureController } from "../../hooks/use-gesture-controller";
 import { useGetOutfits } from "../../hooks/use-get-outfits";
+import { OUTFIT_SELECTION_DURATION_SECONDS } from "../../lib/timing/constants";
 import { GestureHint } from "../shared/gesture-hint";
 import { GlassPanel } from "../shared/glass-panel";
+import { StageCountdown } from "../shared/stage-countdown";
 import { StatusLine } from "../shared/status-line";
 import type {
   DecartConnectionHandle,
@@ -45,8 +48,20 @@ export function OutfitStage({
   const { outfits, status: listStatus } = useGetOutfits(sessionId);
   const { status: confirmStatus, confirm } = useConfirmOutfit(sessionId);
   const [highlightIndex, setHighlightIndex] = useState(0);
+  const [selectionExpired, setSelectionExpired] = useState(false);
+
   // 스펙은 정적 설정이라 스와이프 왕복 시 재조회하지 않는다.
   const specCacheRef = useRef(new Map<string, DecartSpec>());
+  const confirmRequestedRef = useRef(false);
+  const autoConfirmAttemptedRef = useRef(false);
+
+  const handleSelectionExpired = useCallback(() => {
+    setSelectionExpired(true);
+  }, []);
+  const remainingSeconds = useCountdown({
+    durationSeconds: OUTFIT_SELECTION_DURATION_SECONDS,
+    onExpire: handleSelectionExpired,
+  });
 
   // 진입 시 기본 옷(defaultOutfit)부터 입혀 보인다 — 목록의 첫 옷이 아닐 수 있다.
   useEffect(() => {
@@ -86,25 +101,49 @@ export function OutfitStage({
     };
   }, [highlightedId, sessionId, applyOutfit]);
 
-  const confirmHighlighted = useCallback(() => {
-    // 프리뷰 게이트(2026-08-08 결정): 변환 연결 중에는 확정을 받지 않는다 —
-    // 입혀본 모습을 보기도 전에 스테이지를 지나치는 것을 막는다. 그 외
-    // 상태(CONNECTED는 물론, 연결 실패 ERROR·종료 CLOSED·카메라 없음 IDLE)는
-    // 허용해 전시가 여기서 멈추지 않게 한다.
-    if (decart.status === "CONNECTING") return;
-    // LOADING(중복 요청)·READY(이미 확정) 중에는 막는다. ERROR는 재시도 허용.
-    if (
-      !highlighted ||
-      confirmStatus === "LOADING" ||
-      confirmStatus === "READY"
-    )
+  const confirmHighlighted = useCallback(
+    (ignorePreviewGate = false) => {
+      // 프리뷰 게이트(2026-08-08 결정): 변환 연결 중에는 확정을 받지 않는다 —
+      // 입혀본 모습을 보기도 전에 스테이지를 지나치는 것을 막는다. 그 외
+      // 상태(CONNECTED는 물론, 연결 실패 ERROR·종료 CLOSED·카메라 없음 IDLE)는
+      // 허용해 전시가 여기서 멈추지 않게 한다.
+      if (!ignorePreviewGate && decart.status === "CONNECTING") return;
+      // LOADING(중복 요청)·READY(이미 확정) 중에는 막는다. ERROR는 재시도 허용.
+      if (
+        !highlighted ||
+        confirmRequestedRef.current ||
+        confirmStatus === "LOADING" ||
+        confirmStatus === "READY"
+      )
+        return;
+      confirmRequestedRef.current = true;
+      confirm(highlighted.outfitId);
+    },
+    [decart.status, highlighted, confirmStatus, confirm],
+  );
+
+  useEffect(() => {
+    if (confirmStatus === "ERROR") confirmRequestedRef.current = false;
+  }, [confirmStatus]);
+
+  // 제한시간이 끝난 순간의 하이라이트를 잠그고 자동 확정한다. 목록 로딩이
+  // 늦었다면 첫 후보가 준비되는 즉시 한 번만 확정한다.
+  useEffect(() => {
+    if (!selectionExpired || !highlighted || autoConfirmAttemptedRef.current)
       return;
-    confirm(highlighted.outfitId);
-  }, [decart.status, highlighted, confirmStatus, confirm]);
+    autoConfirmAttemptedRef.current = true;
+    confirmHighlighted(true);
+  }, [selectionExpired, highlighted, confirmHighlighted]);
 
   const handleAction = useCallback(
     (event: GestureActionEvent) => {
       if (listStatus !== "READY") return;
+      if (selectionExpired) {
+        if (event.action === "CONFIRM" && confirmStatus === "ERROR") {
+          confirmHighlighted(true);
+        }
+        return;
+      }
 
       if (event.action === "NEXT") {
         setHighlightIndex((index) => Math.min(outfits.length - 1, index + 1));
@@ -116,7 +155,13 @@ export function OutfitStage({
         confirmHighlighted();
       }
     },
-    [listStatus, outfits.length, confirmHighlighted],
+    [
+      listStatus,
+      selectionExpired,
+      confirmStatus,
+      outfits.length,
+      confirmHighlighted,
+    ],
   );
 
   const {
@@ -128,7 +173,9 @@ export function OutfitStage({
     stream,
     onAction: handleAction,
     // 확정 성공 후에는 인식 루프·키 입력을 정지해 이중 확정을 막는다.
-    enabled: confirmStatus !== "READY",
+    enabled:
+      confirmStatus !== "READY" &&
+      (!selectionExpired || confirmStatus === "ERROR"),
   });
 
   // 확정 성공 → 세션 층으로 올린다 (시뮬레이션 스테이지로 전환).
@@ -140,6 +187,7 @@ export function OutfitStage({
     // pb-20: StageFrame의 TapHint(absolute bottom-6)가 이 아래 깔리므로
     // 하단 안내 슬롯이 그 위에서 끝나도록 여백을 확보한다 (겹침 방지).
     <div className="flex h-full flex-col items-center px-8 pt-24 pb-20">
+      <StageCountdown label="옷 선택까지" remainingSeconds={remainingSeconds} />
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
         <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
           TOMORROW&apos;S LOOK

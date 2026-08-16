@@ -13,7 +13,6 @@ public final class InterviewRehearsalConfig {
     return new RehearsalConfigDefinition(
         SituationType.INTERVIEW,
         3,
-        2,
         new SimulationTurnPlan(
             "면접실에 들어가 면접관과 마주 앉았습니다.",
             "반갑습니다. 먼저 간단하게 자기소개 부탁드립니다.",

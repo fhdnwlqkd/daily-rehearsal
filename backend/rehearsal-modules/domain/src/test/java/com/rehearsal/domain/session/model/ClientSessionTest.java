@@ -74,6 +74,19 @@ class ClientSessionTest {
   }
 
   @Test
+  void expiringSimulationConsumesEveryRemainingTurn() {
+    ClientSession session = rehearsalReadySession();
+    session.startSimulation(3);
+
+    session.expireSimulation();
+
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.REHEARSAL_PLAYING);
+    assertThat(session.getCurrentTurn()).isEqualTo(4);
+    session.completeSimulation();
+    assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+  }
+
+  @Test
   void invalidTransitionThrowsBusinessException() {
     ClientSession session = ClientSession.create(SituationType.DATE);
 

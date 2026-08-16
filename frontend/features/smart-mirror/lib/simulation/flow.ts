@@ -20,6 +20,7 @@ import {
 
 export interface SimulationFlowApi {
   start: () => Promise<SimulationStartResponse>;
+  finish: () => Promise<void>;
   submitEvaluation: (
     turnNo: number,
     transcript: string,
@@ -40,8 +41,11 @@ export interface SimulationFlowControllerOptions {
 
 type RetryStep =
   | { kind: "START" }
+  | { kind: "FINISH" }
   | { kind: "EVALUATION"; transcript: string }
   | { kind: "NEXT_LINE"; turnNo: number };
+
+const MAX_ATTEMPTS_PER_TURN = 2;
 
 /**
  * 시뮬레이션 스테이지의 턴 진행 상태머신 (React 무관 순수 로직 —
@@ -53,9 +57,8 @@ type RetryStep =
  *   두 번째 실패나 AI fallback은 실패 결과를 유지한 채 다음 턴으로 전진한다.
  * - 종료 판정은 프론트 책임: currentTurn == maxTurn에서 턴이 완료되면 next-line을
  *   요청하지 않고 COMPLETED로 끝낸다 (초과 요청은 서버가 409로 거부).
- * - 판정 워커 장애(status=FAILED)는 flow 실패가 아니라 "실패 판정 + 고정
- *   피드백"으로 흡수한다 — 전시 안 멈춤. 서버는 FAILED attempt 뒤 재제출을
- *   새 시도로 받아준다.
+ * - 첫 번째 판정 워커 장애(status=FAILED)는 "실패 판정 + 고정 피드백"으로
+ *   흡수해 한 번 더 답할 수 있게 한다. 두 번째 장애는 추가 답변을 받지 않는다.
  * - FAILED에서 retry()는 마지막 단계(start/판정 제출/다음 발화 요청)를
  *   그대로 다시 밟는다. 202 이후 폴링만 실패한 경우에도 POST부터 다시 하지만,
  *   서버가 진행 중·완료된 작업을 그대로 돌려주므로(idempotent) 안전하다.
@@ -85,6 +88,7 @@ export class SimulationFlowController {
     TurnEvaluationResponse | NextLineResponse
   > | null = null;
   private feedbackLingerTimer: ReturnType<typeof setTimeout> | null = null;
+  private finishRequested = false;
   private disposed = false;
 
   constructor(options: SimulationFlowControllerOptions) {
@@ -116,6 +120,9 @@ export class SimulationFlowController {
       case "START":
         this.runStart();
         break;
+      case "FINISH":
+        this.finish();
+        break;
       case "EVALUATION":
         this.runEvaluation(this.lastStep.transcript);
         break;
@@ -123,6 +130,32 @@ export class SimulationFlowController {
         this.runNextLine(this.lastStep.turnNo);
         break;
     }
+  }
+
+  finish(): void {
+    if (
+      this.disposed ||
+      this.status === "FINISHING" ||
+      this.status === "COMPLETED"
+    )
+      return;
+    this.finishRequested = true;
+    this.polling?.cancel();
+    this.polling = null;
+    if (this.feedbackLingerTimer !== null) {
+      clearTimeout(this.feedbackLingerTimer);
+      this.feedbackLingerTimer = null;
+    }
+    this.lastStep = { kind: "FINISH" };
+    this.update({ status: "FINISHING", failReason: null });
+    this.api.finish().then(
+      () => {
+        if (!this.disposed) this.update({ status: "COMPLETED" });
+      },
+      () => {
+        if (!this.disposed) this.fail("NETWORK");
+      },
+    );
   }
 
   dispose(): void {
@@ -140,7 +173,7 @@ export class SimulationFlowController {
     this.update({ status: "STARTING", failReason: null });
     this.api.start().then(
       (response) => {
-        if (this.disposed) return;
+        if (this.disposed || this.finishRequested) return;
         this.maxTurn = response.maxTurn;
         this.enterTurn(
           response.currentTurn,
@@ -151,7 +184,7 @@ export class SimulationFlowController {
         );
       },
       () => {
-        if (!this.disposed) this.fail("NETWORK");
+        if (!this.disposed && !this.finishRequested) this.fail("NETWORK");
       },
     );
   }
@@ -167,10 +200,11 @@ export class SimulationFlowController {
     });
     this.api.submitEvaluation(turnNo, transcript).then(
       () => {
-        if (!this.disposed) this.pollEvaluation(turnNo);
+        if (!this.disposed && !this.finishRequested)
+          this.pollEvaluation(turnNo);
       },
       () => {
-        if (!this.disposed) this.fail("NETWORK");
+        if (!this.disposed && !this.finishRequested) this.fail("NETWORK");
       },
     );
   }
@@ -180,7 +214,11 @@ export class SimulationFlowController {
       () => this.api.getEvaluation(turnNo),
       (response) => {
         if (response.status === "FAILED") {
-          // 판정 워커 장애 — 실패 판정 + 고정 피드백으로 흡수한다(전시 안 멈춤).
+          if (response.attemptNo >= MAX_ATTEMPTS_PER_TURN) {
+            this.fail("SERVER_FAILED");
+            return;
+          }
+          // 첫 판정 워커 장애는 실패 판정 + 고정 피드백으로 흡수한다.
           this.handleEvaluationOutcome({
             outcome: "RETRY_REQUIRED",
             feedback: EVALUATION_FALLBACK_FEEDBACK,
@@ -230,10 +268,10 @@ export class SimulationFlowController {
     this.update({ status: "NEXT_LINE", failReason: null });
     this.api.requestNextLine(turnNo).then(
       () => {
-        if (!this.disposed) this.pollNextLine(turnNo);
+        if (!this.disposed && !this.finishRequested) this.pollNextLine(turnNo);
       },
       () => {
-        if (!this.disposed) this.fail("NETWORK");
+        if (!this.disposed && !this.finishRequested) this.fail("NETWORK");
       },
     );
   }
@@ -270,7 +308,7 @@ export class SimulationFlowController {
     });
     this.polling = polling;
     void polling.promise.then((result) => {
-      if (this.disposed) return;
+      if (this.disposed || this.finishRequested) return;
       this.polling = null;
       switch (result.kind) {
         case "TERMINAL":
