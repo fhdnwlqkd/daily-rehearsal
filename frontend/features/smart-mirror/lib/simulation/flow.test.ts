@@ -16,6 +16,7 @@ function createFakeApi() {
   const nextLines: NextLineResponse[] = [];
   const evaluationSubmits: Array<{ turnNo: number; transcript: string }> = [];
   const nextLineRequests: number[] = [];
+  let finishCalls = 0;
 
   return {
     api: {
@@ -29,6 +30,10 @@ function createFakeApi() {
           opponentLine: "안녕하세요.",
           actionPrompt: "자연스럽게 인사해보세요.",
         }),
+      finish: () => {
+        finishCalls += 1;
+        return Promise.resolve();
+      },
       submitEvaluation: (turnNo: number, transcript: string) => {
         evaluationSubmits.push({ turnNo, transcript });
         return Promise.resolve({
@@ -62,6 +67,7 @@ function createFakeApi() {
     },
     evaluationSubmits,
     nextLineRequests,
+    finishCalls: () => finishCalls,
     queueEvaluationResponse: (...responses: TurnEvaluationResponse[]) => {
       evaluations.push(...responses);
     },
@@ -254,6 +260,61 @@ describe("SimulationFlowController", () => {
     await flush();
 
     expect(latest()).toMatchObject({ status: "COMPLETED", currentTurn: 3 });
+  });
+
+  it("cancels in-flight polling and finishes when the total time expires", async () => {
+    const { controller, latest, queueEvaluationResponse, finishCalls } =
+      setup();
+    controller.begin();
+    await flush();
+    queueEvaluationResponse({
+      sessionId: "session-id",
+      turnNo: 1,
+      attemptNo: 1,
+      status: "PENDING",
+      turnCompleted: false,
+    });
+    controller.submitAnswer("시간 안에 한 답변");
+    await flush();
+
+    controller.finish();
+    expect(latest().status).toBe("FINISHING");
+    await flush();
+
+    expect(finishCalls()).toBe(1);
+    expect(latest().status).toBe("COMPLETED");
+    await vi.advanceTimersByTimeAsync(POLL_INTERVAL * 2);
+    expect(latest().status).toBe("COMPLETED");
+  });
+
+  it("retries server finalization without reopening the simulation", async () => {
+    const fake = createFakeApi();
+    let finishCalls = 0;
+    fake.api.finish = () => {
+      finishCalls += 1;
+      return finishCalls === 1
+        ? Promise.reject(new Error("network"))
+        : Promise.resolve();
+    };
+    const snapshots: SimulationFlowSnapshot[] = [];
+    const controller = new SimulationFlowController({
+      api: fake.api,
+      onChange: (snapshot) => snapshots.push(snapshot),
+    });
+    controller.begin();
+    await flush();
+
+    controller.finish();
+    await flush();
+    expect(snapshots.at(-1)).toMatchObject({
+      status: "FAILED",
+      failReason: "NETWORK",
+    });
+
+    controller.retry();
+    await flush();
+    expect(finishCalls).toBe(2);
+    expect(snapshots.at(-1)?.status).toBe("COMPLETED");
   });
 
   it("absorbs an infrastructure evaluation failure as a retryable fallback", async () => {

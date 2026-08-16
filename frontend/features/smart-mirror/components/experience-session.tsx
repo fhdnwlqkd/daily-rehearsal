@@ -186,6 +186,7 @@ export function ExperienceSession({
               onSessionCreated: handleSessionCreated,
               onBriefingComplete: goToNextPhase,
               onOutfitConfirmed: goToNextPhase,
+              onSimulationStopDecart: decart.disconnect,
               onSimulationComplete: goToNextPhase,
             })}
           </StageFrame>
@@ -243,6 +244,7 @@ interface StageContext {
   ) => void;
   onBriefingComplete: () => void;
   onOutfitConfirmed: () => void;
+  onSimulationStopDecart: () => void;
   onSimulationComplete: () => void;
 }
 
@@ -303,6 +305,7 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
           sessionId={context.session.sessionId}
           engine={context.engine}
           stream={context.stream}
+          onStopDecart={context.onSimulationStopDecart}
           onComplete={context.onSimulationComplete}
         />
       );

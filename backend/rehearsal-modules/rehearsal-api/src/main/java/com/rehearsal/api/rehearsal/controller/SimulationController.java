@@ -9,6 +9,7 @@ import com.rehearsal.domain.rehearsal.model.SimulationStart;
 import com.rehearsal.domain.rehearsal.model.SimulationTurn;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnMetrics;
+import com.rehearsal.domain.rehearsal.usecase.FinishSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -34,6 +35,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class SimulationController {
 
   private final StartSimulationUseCase startSimulationUseCase;
+  private final FinishSimulationUseCase finishSimulationUseCase;
   private final SubmitTurnEvaluationUseCase submitTurnEvaluationUseCase;
   private final GetTurnEvaluationUseCase getTurnEvaluationUseCase;
   private final SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase;
@@ -44,6 +46,11 @@ public class SimulationController {
   public SimulationStartResponse start(@PathVariable @NotBlank String sessionId) {
     SimulationStart result = startSimulationUseCase.startSimulation(sessionId);
     return SimulationStartResponse.from(result);
+  }
+
+  @PostMapping("/{sessionId}/simulation/finish")
+  public void finish(@PathVariable @NotBlank String sessionId) {
+    finishSimulationUseCase.finishSimulation(sessionId);
   }
 
   @ResponseStatus(HttpStatus.ACCEPTED)

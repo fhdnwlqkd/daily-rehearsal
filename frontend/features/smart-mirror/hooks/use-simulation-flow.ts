@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  finishSimulation,
   getNextLine,
   getTurnEvaluation,
   requestNextLine,
@@ -30,6 +31,8 @@ export interface UseSimulationFlowResult extends SimulationFlowSnapshot {
   submitAnswer: (transcript: string) => void;
   /** FAILED에서 마지막 단계를 다시 밟는다. */
   retry: () => void;
+  /** 전체 제한시간 만료 시 진행 중 작업을 취소하고 남은 턴을 종료한다. */
+  finish: () => void;
 }
 
 /**
@@ -48,6 +51,7 @@ export function useSimulationFlow(sessionId: string): UseSimulationFlowResult {
     const controller = new SimulationFlowController({
       api: {
         start: () => startSimulation(sessionId),
+        finish: () => finishSimulation(sessionId),
         submitEvaluation: (turnNo, transcript) =>
           submitTurnEvaluation(sessionId, turnNo, transcript),
         getEvaluation: (turnNo) => getTurnEvaluation(sessionId, turnNo),
@@ -73,5 +77,9 @@ export function useSimulationFlow(sessionId: string): UseSimulationFlowResult {
     controllerRef.current?.retry();
   }, []);
 
-  return { ...snapshot, submitAnswer, retry };
+  const finish = useCallback(() => {
+    controllerRef.current?.finish();
+  }, []);
+
+  return { ...snapshot, submitAnswer, retry, finish };
 }
