@@ -17,43 +17,43 @@ class FinalSlotValueResolverTest {
   private final FinalSlotValueResolver resolver = new FinalSlotValueResolver();
 
   @Test
-  void appliesDefaultOptionBeforeLiteralDefault() {
+  void appliesOnlyAnExplicitProductDefault() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> normalized = normalizer.normalize(schema, Map.of());
 
     Map<String, ContextSlotValue> finalSlots = resolver.resolve(schema, normalized);
 
-    assertThat(finalSlots.get("desired_persona").value()).isEqualTo("calm_confident");
-    assertThat(finalSlots.get("desired_persona").status())
+    assertThat(finalSlots.get("outfit_direction").value()).isEqualTo("neat_casual");
+    assertThat(finalSlots.get("outfit_direction").status())
         .isEqualTo(ContextSlotValueStatus.DEFAULTED);
-    assertThat(finalSlots.get("desired_persona").source())
+    assertThat(finalSlots.get("outfit_direction").source())
         .isEqualTo(ContextSlotValueSource.DEFAULT_OPTION);
   }
 
   @Test
-  void appliesDefaultLiteralWhenNoDefaultOptionExists() {
+  void keepsMissingValueWhenSlotHasNoRealDefault() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> normalized = normalizer.normalize(schema, Map.of());
 
     Map<String, ContextSlotValue> finalSlots = resolver.resolve(schema, normalized);
 
-    assertThat(finalSlots.get("critical_moment").value()).isEqualTo("첫 인사와 가벼운 대화");
+    assertThat(finalSlots.get("critical_moment").value()).isNull();
     assertThat(finalSlots.get("critical_moment").status())
-        .isEqualTo(ContextSlotValueStatus.DEFAULTED);
-    assertThat(finalSlots.get("critical_moment").source())
-        .isEqualTo(ContextSlotValueSource.DEFAULT_LITERAL);
+        .isEqualTo(ContextSlotValueStatus.MISSING);
+    assertThat(finalSlots.get("critical_moment").source()).isEqualTo(ContextSlotValueSource.EMPTY);
   }
 
   @Test
-  void invalidSelectValueIsCorrectedByDefault() {
+  void invalidSelectValueBecomesMissingWhenSlotHasNoRealDefault() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
     Map<String, ContextSlotValue> normalized =
         normalizer.normalize(schema, Map.of("desired_persona", "invalid"));
 
     Map<String, ContextSlotValue> finalSlots = resolver.resolve(schema, normalized);
 
-    assertThat(finalSlots.get("desired_persona").value()).isEqualTo("calm_confident");
+    assertThat(finalSlots.get("desired_persona").value()).isNull();
     assertThat(finalSlots.get("desired_persona").status())
-        .isEqualTo(ContextSlotValueStatus.DEFAULTED);
+        .isEqualTo(ContextSlotValueStatus.MISSING);
+    assertThat(finalSlots.get("desired_persona").source()).isEqualTo(ContextSlotValueSource.EMPTY);
   }
 }

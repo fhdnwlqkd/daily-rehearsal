@@ -20,10 +20,7 @@ class SlotExtractionProcessorTest {
 
     SlotExtractionProcessingResult result =
         processor.process(
-            schema,
-            new SlotExtractionRawResult(
-                Map.of("desired_persona", "calm_confident", "critical_moment", "첫 인사")),
-            0);
+            schema, new SlotExtractionRawResult(SlotExtractionTestFixtures.dateRequiredSlots()), 0);
 
     assertThat(result.readyForSimulation()).isTrue();
     assertThat(result.missingRequiredSlotKeys()).isEmpty();
@@ -34,27 +31,36 @@ class SlotExtractionProcessorTest {
   void asksFollowUpWhenRequiredSlotsAreMissingAndAttemptRemains() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
+    Map<String, Object> rawSlots =
+        new java.util.LinkedHashMap<>(SlotExtractionTestFixtures.dateRequiredSlots());
+    rawSlots.remove("conversation_material");
     SlotExtractionProcessingResult result =
-        processor.process(
-            schema, new SlotExtractionRawResult(Map.of("desired_persona", "calm_confident")), 0);
+        processor.process(schema, new SlotExtractionRawResult(rawSlots), 0);
 
     assertThat(result.readyForSimulation()).isFalse();
-    assertThat(result.missingRequiredSlotKeys()).containsExactly("critical_moment");
+    assertThat(result.missingRequiredSlotKeys()).containsExactly("conversation_material");
     assertThat(result.followUpQuestion()).isNotBlank();
-    assertThat(result.slots().get("critical_moment").status())
+    assertThat(result.slots().get("conversation_material").status())
         .isEqualTo(ContextSlotValueStatus.MISSING);
   }
 
   @Test
-  void defaultsWhenRequiredSlotsAreMissingAndAttemptIsExhausted() {
+  void advancesWithMissingRequiredSlotsWhenAttemptIsExhausted() {
     ContextSlotSchemaType schema = SlotExtractionTestFixtures.p1Schema();
 
     SlotExtractionProcessingResult result =
         processor.process(schema, new SlotExtractionRawResult(Map.of()), 1);
 
     assertThat(result.readyForSimulation()).isTrue();
-    assertThat(result.missingRequiredSlotKeys()).isEmpty();
-    assertThat(result.slots().get("desired_persona").value()).isEqualTo("calm_confident");
-    assertThat(result.slots().get("critical_moment").value()).isEqualTo("첫 인사와 가벼운 대화");
+    assertThat(result.followUpQuestion()).isNull();
+    assertThat(result.missingRequiredSlotKeys())
+        .containsExactly(
+            "situation_detail", "desired_persona", "desired_outcome", "conversation_material");
+    assertThat(result.slots().get("situation_detail").value()).isNull();
+    assertThat(result.slots().get("desired_persona").value()).isNull();
+    assertThat(result.slots().get("desired_outcome").value()).isNull();
+    assertThat(result.slots().get("conversation_material").value()).isNull();
+    assertThat(result.slots().get("situation_detail").status())
+        .isEqualTo(ContextSlotValueStatus.MISSING);
   }
 }

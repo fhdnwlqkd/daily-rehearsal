@@ -54,7 +54,7 @@ Daily Rehearsal의 시뮬레이션 엔진은 소개팅, 면접, 첫 출근에 �
 
 ## 타입별 문서
 
+- [공용 context slot](context-slots.md)
 - [소개팅](date.md)
 - [면접](interview.md)
 - [첫 출근](first-day.md)
-
