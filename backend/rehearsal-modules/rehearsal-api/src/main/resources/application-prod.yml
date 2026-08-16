@@ -36,7 +36,7 @@ rehearsal:
         situation-types: []
         outfit-direction: ""
         default-outfit: true
-        enhance: false
+        enhance: true
       gray_shirt:
         label: "그레이 셔츠"
         reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/gray_shirt.png"
@@ -45,7 +45,7 @@ rehearsal:
         situation-types: []
         outfit-direction: ""
         default-outfit: false
-        enhance: false
+        enhance: true
       cream_knit:
         label: "크림 니트"
         reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/cream_knit.png"
@@ -54,7 +54,7 @@ rehearsal:
         situation-types: []
         outfit-direction: ""
         default-outfit: false
-        enhance: false
+        enhance: true
       gray_hoodie:
         label: "그레이 후드"
         reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/gray_hoodie.png"
@@ -63,7 +63,7 @@ rehearsal:
         situation-types: []
         outfit-direction: ""
         default-outfit: false
-        enhance: false
+        enhance: true
       light_blue_shirt:
         label: "라이트 블루 셔츠"
         reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/light_blue_shirt.png"
@@ -72,7 +72,7 @@ rehearsal:
         situation-types: []
         outfit-direction: ""
         default-outfit: false
-        enhance: false
+        enhance: true
       black_denim_jacket_white_tee:
         label: "블랙 데님 자켓"
         reference-image-url: "https://dg0nfh2xt4e4z.cloudfront.net/outfits/black_denim_jacket_white_tee.png"
@@ -81,4 +81,4 @@ rehearsal:
         situation-types: []
         outfit-direction: ""
         default-outfit: false
-        enhance: false
+        enhance: true

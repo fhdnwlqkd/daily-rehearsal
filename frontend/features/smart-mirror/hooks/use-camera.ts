@@ -7,8 +7,12 @@ export type CameraStatus = "pending" | "granted" | "denied";
 const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
   video: {
     facingMode: "user",
-    width: { ideal: 1920 },
-    height: { ideal: 1080 },
+    // lucy-vton-latest의 네이티브 입력(1088×624, 30fps)에 맞춘다.
+    // 1080p 원본을 SDK가 매 프레임 축소하게 두면 업스트림 대역폭과 인코딩
+    // 부하만 커져 프레임 드롭이 늘어난다.
+    width: { ideal: 1088 },
+    height: { ideal: 624 },
+    frameRate: { ideal: 30, max: 30 },
   },
   // 오디오는 미래 STT용으로 취득만 해둔다(현재 소비처 없음).
   audio: true,
