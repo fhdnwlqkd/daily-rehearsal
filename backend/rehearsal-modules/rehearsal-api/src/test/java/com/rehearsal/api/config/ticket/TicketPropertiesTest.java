@@ -17,6 +17,15 @@ class TicketPropertiesTest {
   }
 
   @Test
+  void usesSafeDefaultWhenDownloadPageBaseUrlIsBlank() {
+    TicketProperties properties = new TicketProperties();
+
+    properties.setDownloadPageBaseUrl("   ");
+
+    assertThat(properties.getDownloadPageBaseUrl()).isEqualTo("http://localhost:3000");
+  }
+
+  @Test
   void rejectsDownloadPageBaseUrlWithoutHttpScheme() {
     TicketProperties properties = new TicketProperties();
 
