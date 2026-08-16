@@ -174,7 +174,7 @@ function TicketDownloadView({
   };
 
   return (
-    <main className="min-h-dvh bg-[#e9eef1] px-4 py-6 text-[#172027] sm:px-6 sm:py-10">
+    <main className="h-dvh overflow-y-auto overscroll-y-contain bg-[#e9eef1] px-4 py-6 text-[#172027] [-webkit-overflow-scrolling:touch] sm:px-6 sm:py-10">
       <div className="mx-auto max-w-xl">
         <header className="px-1 pb-5">
           <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-[#52616b] uppercase">
