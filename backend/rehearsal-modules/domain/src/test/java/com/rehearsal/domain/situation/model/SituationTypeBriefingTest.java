@@ -28,4 +28,24 @@ class SituationTypeBriefingTest {
         .hasSize(4)
         .allSatisfy(item -> assertThat(item.slotType().getFollowUpHint()).isNotNull().isNotBlank());
   }
+
+  @Test
+  void interviewBriefingUsesGeneralInterviewLanguage() {
+    SituationType interview = SituationType.INTERVIEW;
+
+    assertThat(interview.getBriefingTitle())
+        .contains("어떤 면접", "걱정되는 질문이나 순간", "남기고 싶은 인상")
+        .doesNotContain("백엔드", "개발자", "프로젝트");
+    assertThat(interview.getExampleAnswer())
+        .contains("서비스직", "갈등 상황", "침착하고 책임감")
+        .doesNotContain("백엔드", "개발자");
+  }
+
+  @Test
+  void interviewRequiresOnlyTheThreeContextsNeededToStartPractice() {
+    assertThat(ContextSlotSchemaType.INTERVIEW.getItems())
+        .filteredOn(item -> item.requiredLevel() == RequiredLevel.REQUIRED)
+        .extracting(item -> item.slotType().getKey())
+        .containsExactly("situation_detail", "desired_persona", "critical_moment");
+  }
 }
