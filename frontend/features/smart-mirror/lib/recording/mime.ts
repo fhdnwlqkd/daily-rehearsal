@@ -1,14 +1,14 @@
 /**
- * 코덱을 명시하지 않으면("video/mp4") 크롬이 오디오를 Opus-in-MP4로 녹음하는데,
- * 이 조합은 카카오톡·iOS 등 외부 플레이어/변환기가 못 읽어 소리가 사라진다.
- * H.264(avc1) + AAC(mp4a.40.2)를 명시해 어디서든 재생되는 표준 mp4를 우선한다
- * (#90 PoC 검증). webm은 mp4 미지원 브라우저용 마지막 보루다.
+ * Chrome은 MP4/H.264를 isTypeSupported=true로 보고해도 WebRTC remote track
+ * (Decart)을 실제 MediaRecorder에 연결하면 EncodingError(Internal Error)로
+ * 중단되는 경우가 있다. 전시장 녹화의 안정성을 우선해 Chrome에서 가장 오래
+ * 검증된 WebM/VP8을 먼저 쓰고, WebM을 지원하지 않는 환경에서만 MP4로 간다.
  */
 export const RECORDING_MIME_CANDIDATES = [
-  'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
-  "video/mp4",
   "video/webm;codecs=vp8",
   "video/webm",
+  'video/mp4;codecs="avc1.42E01E,mp4a.40.2"',
+  "video/mp4",
 ] as const;
 
 /**

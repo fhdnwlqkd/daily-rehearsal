@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  getSessionVideo,
   getTicketGeneration,
   submitTicketGeneration,
   uploadSessionVideo,
@@ -12,10 +11,9 @@ import type {
   SessionRecorderStatus,
   SessionRecording,
 } from "./use-session-recorder";
-import type { TicketJobResponse, VideoUploadStatus } from "../types";
+import type { TicketJobResponse } from "../types";
 
 const POLL_INTERVAL_MS = 800;
-const VIDEO_POLL_TIMEOUT_MS = 30_000;
 const TICKET_POLL_TIMEOUT_MS = 45_000;
 
 export type TicketFlowStatus =
@@ -50,7 +48,6 @@ export function useTicketFlow(
 
     startedRef.current = true;
     let cancelled = false;
-    let cancelVideoPolling = () => {};
     let cancelTicketPolling = () => {};
 
     const update = (next: TicketFlowState) => {
@@ -110,21 +107,9 @@ export function useTicketFlow(
             recording.blob,
             recording.mimeType,
           );
-          update({
-            status: "WAITING_FOR_VIDEO",
-            ticket: null,
-            errorMessage: null,
-          });
-          const poll = startPolling({
-            fetch: () => getSessionVideo(sessionId),
-            isTerminal: (video) => isVideoTerminal(video.status),
-            intervalMs: POLL_INTERVAL_MS,
-            timeoutMs: VIDEO_POLL_TIMEOUT_MS,
-          });
-          cancelVideoPolling = poll.cancel;
-          await poll.promise;
-        } catch {
+        } catch (error) {
           // A recording failure must not prevent a text ticket without a video.
+          console.error("세션 영상 업로드 요청에 실패했습니다:", error);
         }
       }
       if (!cancelled) await generateTicket();
@@ -133,14 +118,9 @@ export function useTicketFlow(
     void uploadVideoAndGenerateTicket();
     return () => {
       cancelled = true;
-      cancelVideoPolling();
       cancelTicketPolling();
     };
   }, [recording, recorderStatus, sessionId]);
 
   return state;
-}
-
-function isVideoTerminal(status: VideoUploadStatus) {
-  return status === "COMPLETED" || status === "FAILED";
 }

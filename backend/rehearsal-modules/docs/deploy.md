@@ -90,8 +90,8 @@ GitHub repo → Settings → Secrets and variables → Actions → **Variables**
 미등록 또는 `true`면 Gemini를 사용한다. 값을 바꾼 뒤 백엔드 workflow를 다시 실행한다.
 
 같은 Variables에 `DECART_ENABLED`도 등록할 수 있다. `false`면 백엔드에서 토큰 발급을
-차단해 Decart 외부 호출과 과금을 막는다. 현재 배포 workflow는 변수가 없을 때도
-Decart는 `false`, Gemini는 `true`로 배포한다.
+차단해 Decart 외부 호출과 과금을 막는다. 미등록 또는 `true`면 Decart를 사용하며,
+현재 배포 workflow는 Decart와 Gemini를 모두 `true`로 배포한다.
 
 > 보안 강화(나중에): access key 대신 GitHub OIDC + IAM Role로 바꾸면 장기 자격증명을 GitHub에 저장하지 않아도 된다. 지금은 access key로 시작하고 익숙해진 뒤 전환을 권장.
 
