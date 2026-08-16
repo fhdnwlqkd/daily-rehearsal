@@ -12,8 +12,8 @@ const ticket: TicketJobResponse = {
 };
 
 describe("mobile video download state", () => {
-  it("keeps polling when the upload has not appeared yet", () => {
-    expect(isVideoTerminal("NONE")).toBe(false);
+  it("stops immediately when no upload was accepted", () => {
+    expect(isVideoTerminal("NONE")).toBe(true);
     expect(isVideoTerminal("PENDING")).toBe(false);
   });
 

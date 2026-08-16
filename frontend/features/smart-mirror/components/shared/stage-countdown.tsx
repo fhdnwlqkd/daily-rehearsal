@@ -11,10 +11,8 @@ export function StageCountdown({
 
   return (
     <div
-      className={`pointer-events-none absolute top-16 right-8 z-30 min-w-28 rounded-2xl border px-4 py-3 text-right backdrop-blur-xl transition-colors ${
-        urgent
-          ? "border-amber-300/50 bg-amber-950/55 text-amber-100"
-          : "border-white/15 bg-black/45 text-white"
+      className={`pointer-events-none absolute top-16 right-8 z-30 min-w-28 px-1 py-1 text-right drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] transition-colors ${
+        urgent ? "text-amber-200" : "text-white"
       }`}
       aria-label={`${label} ${remainingSeconds}초`}
     >
