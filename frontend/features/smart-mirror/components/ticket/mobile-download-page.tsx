@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { getTicketGeneration } from "../../apis";
 import { startPolling } from "../../lib/polling/poller";
+import {
+  ticketPreviewData,
+  type TicketPreviewSituation,
+} from "../../lib/ticket/preview-data";
 import type { TicketJobResponse } from "../../types";
 
 interface MobileDownloadPageProps {
@@ -54,6 +58,24 @@ export function MobileDownloadPage({ sessionId }: MobileDownloadPageProps) {
   return <TicketDownloadView ticket={ticket} />;
 }
 
+/** 실제 세션 없이 QR→모바일 저장 흐름을 확인하는 개발 전용 화면. */
+export function TicketDownloadPreview({
+  situation,
+}: {
+  situation: TicketPreviewSituation;
+}) {
+  const data = ticketPreviewData[situation];
+  const ticket: TicketJobResponse = {
+    sessionId: "preview-session",
+    status: "COMPLETED",
+    snapshot: data.snapshot,
+    changeCard: data.changeCard,
+    videoAvailable: false,
+  };
+
+  return <TicketDownloadView ticket={ticket} />;
+}
+
 function TicketDownloadView({ ticket }: { ticket: TicketJobResponse }) {
   const { snapshot, changeCard, videoAvailable, videoUrl } = ticket;
   if (!snapshot || !changeCard) return null;
@@ -77,8 +99,12 @@ function TicketDownloadView({ ticket }: { ticket: TicketJobResponse }) {
     const anchor = document.createElement("a");
     anchor.href = href;
     anchor.download = "daily-rehearsal-change-card.txt";
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(href);
+    window.setTimeout(() => {
+      anchor.remove();
+      URL.revokeObjectURL(href);
+    }, 1000);
   };
 
   return (
