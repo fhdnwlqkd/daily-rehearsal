@@ -7,7 +7,7 @@
 | 목적 | 파일 | 수정 시점 |
 |---|---|---|
 | 타입 이름과 브리핑 안내 | `domain/.../situation/model/SituationType.java` | 프론트에 보이는 타입명, 브리핑 질문 또는 예시 답변을 바꿀 때 |
-| 브리핑에서 수집할 정보 | `domain/.../slot/registry/ContextSlotSchemaType.java` | 타입별 required/optional slot, 재질문, 기본값을 바꿀 때 |
+| 브리핑에서 수집할 정보 | `domain/.../slot/registry/ContextSlotSchemaType.java` | 타입별 required/optional slot과 재질문 우선순위를 바꿀 때 |
 | 턴 진행과 AI 생성 방향 | `domain/.../rehearsal/registry/type/*RehearsalConfig.java` | 첫 턴, 턴별 목표, 피드백 기준, 복구 방향을 바꿀 때 |
 | 티켓 장애 대응 문구 | `domain/.../ticket/registry/TicketCopyRegistry.java` | AI 티켓 생성 실패 시 사용할 fallback 문구를 바꿀 때 |
 | 기획 의도와 튜닝 기록 | `docs/simulation-types/{type}.md` | 타입별 시나리오 의도와 검증 사례를 정리할 때 |
@@ -44,21 +44,21 @@
 
 이 파일은 턴마다 사용자의 답변을 평가하는 규칙이 아니다. 시뮬레이션 시작 전에 받은 briefing transcript에서 어떤 정보를 수집할지 정의한다.
 
-현재 공통 핵심 정보는 다음과 같다.
-
-- `desired_persona`: 사용자가 남기고 싶은 인상
-- `critical_moment`: 가장 걱정하거나 연습하고 싶은 순간
-- `outfit_direction`: 원하는 스타일 방향
+사용 가능한 공용 catalog는 상황, 인상, 결과, 대화 소재, 어려운 순간, 상대, 진행 환경,
+이전 상호작용, 강점, 구체 경험, 예상 질문, 말하기 방식, 제약, 경험 정도, 의상 방향의 15개
+slot으로 구성한다. 각 타입은 이 catalog에서 필요한 slot을 선택하고 `REQUIRED`,
+`SOFT_REQUIRED`, `OPTIONAL` 등급과 우선순위를 정한다. 전체 목록과 공용 추출 기준은
+[공용 Context Slot 설계](context-slots.md)를 따른다.
 
 각 slot에는 다음 설정이 포함될 수 있다.
 
-- required/optional 여부
+- required/soft required/optional 여부
 - 추출 힌트
 - 누락 시 표시할 고정 재질문
-- AI 실패 또는 최대 재질문 횟수 초과 시 사용할 default
+- 실제 기능에서 그대로 사용해도 되는 제품 default
 - 선택형 slot의 options
 
-흐름은 `briefing transcript -> slot normalize -> required 누락 판단 -> follow-up 또는 default -> SessionContext 저장`이다. 특정 타입의 턴 생성에 반드시 필요한 정보가 현재 slot으로 표현되지 않을 때만 새 slot을 추가한다. 단순히 프롬프트 문장을 바꾸기 위해 slot을 늘리지는 않는다.
+흐름은 `briefing transcript -> slot normalize -> required 누락 판단 -> 최대 한 번 follow-up -> SessionContext 저장`이다. 재질문 뒤에도 누락된 값은 `null`로 유지하지만 횟수를 소진했으므로 시뮬레이션은 진행한다. default는 누락을 감추는 placeholder가 아니라 실제 기능에서 사용 가능한 값에만 둔다. 특정 타입의 턴 생성에 반드시 필요한 정보가 현재 slot으로 표현되지 않을 때만 새 slot을 추가한다. 단순히 프롬프트 문장을 바꾸기 위해 slot을 늘리지는 않는다.
 
 ## 타입별 RehearsalConfig
 

@@ -4,8 +4,10 @@
 
 ## 1. 기본 원칙
 
-- 질문 문구는 AI가 만들지 않는다.
-- slot 질문과 default는 enum/정적 매핑에 둔다.
+- briefing 질문과 누락 slot 재질문은 정적으로 관리하고 AI가 만들지 않는다.
+- 1턴 상대 질문은 타입별 고정 설정을 사용하고 2·3턴 상대 질문은 context와 통과한
+  대화 이력을 바탕으로 AI가 생성한다.
+- slot 질문과 실제 제품 default는 enum/정적 매핑에 둔다.
 - AI는 사용자 답변을 해석하고 정규화한다.
 - AI 실패는 전시 중단 사유가 아니다.
 - 모든 AI 호출에는 fallback이 있어야 한다.
@@ -25,9 +27,9 @@
 
 - slot key
 - 값 타입
-- required 여부
+- required 여부와 재질문 우선순위
 - 고정 질문 문구
-- default 값
+- 실제 기능에서 그대로 사용할 수 있는 default 값
 - 선택지
 
 ### Outfit 정의
@@ -61,8 +63,10 @@
 ```json
 {
   "slots": {
+    "situation_detail": "지인 소개로 처음 만나는 소개팅",
     "desired_persona": "warm_natural",
-    "critical_moment": "첫 인사를 나누는 순간"
+    "desired_outcome": "서로 편하게 대화를 마치는 것",
+    "conversation_material": "전시와 산책"
   }
 }
 ```
@@ -76,7 +80,9 @@
 
 fallback:
 
-- AI 실패 또는 timeout이면 target slot에 default를 적용한다.
+- AI 실패 또는 timeout이면 target slot에 내부 default를 적용해 흐름을 마감한다.
+- 사용자가 말하지 않은 non-outfit default는 최종 context에 `null`로 저장한다.
+- `outfit_direction`만 변환 흐름을 위해 안정적인 기본 후보를 유지한다.
 
 ### Simulation Evaluation
 
@@ -122,14 +128,20 @@ fallback:
 
 출력:
 
-- 순수 텍스트 상대 발화
-- SSE token stream
+```json
+{
+  "sceneCue": "대화가 자연스럽게 이어집니다.",
+  "opponentLine": "전시를 좋아하신다고 했는데 최근에도 다녀오셨어요?",
+  "actionPrompt": "질문에 답하거나 같은 주제로 되물어보세요.",
+  "acceptedIntentHint": "관련된 답이나 되묻기 중 하나를 표현한다."
+}
+```
 
 규칙:
 
-- JSON을 반환하지 않는다.
+- 구조화 JSON으로 응답한다.
 - 피드백을 섞지 않는다.
-- 토큰 스트리밍 연출을 위해 SSE로 반환한다.
+- `final context`와 이전 `ACCEPTED` 대화만 사실로 사용한다.
 
 fallback:
 
@@ -174,7 +186,9 @@ fallback:
 
 ### 턴 종료
 
-시뮬레이션은 성공한 turn 수가 `N`에 도달하면 종료한다. 실패 turn은 같은 turn을 재시도하며 실패 횟수 제한은 두지 않는다.
+시뮬레이션은 3턴으로 진행한다. 각 턴은 최대 2회 답할 수 있다. 첫 실패는 같은 턴을 한
+번 더 시도하고, 두 번째 답변도 실패하면 `FORCED_ADVANCE`로 다음 턴에 진행한다. 실패한
+답변은 다음 턴의 대화 이력에 포함하지 않는다.
 
 ### Metrics
 

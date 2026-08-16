@@ -80,6 +80,8 @@ class TicketGenerationWorkerTest {
     assertThat(job.result().changeCard().todayAction()).isNotBlank();
     assertThat(job.result().changeCard().tomorrowAttitude()).isNotBlank();
     assertThat(job.result().changeCard().ifThenPlan()).isNotBlank();
+    assertThat(job.result().snapshot().criticalMoment()).isEqualTo("따로 정하지 않음");
+    assertThat(job.result().snapshot().desiredPersonaLabel()).isEqualTo("따로 정하지 않음");
     assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
   }
 

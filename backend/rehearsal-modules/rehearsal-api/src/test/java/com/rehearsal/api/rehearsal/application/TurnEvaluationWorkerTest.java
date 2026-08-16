@@ -63,7 +63,7 @@ class TurnEvaluationWorkerTest {
     SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 2).orElseThrow();
     assertThat(attempt.getOutcome()).isEqualTo(TurnEvaluationOutcome.FORCED_ADVANCE);
     assertThat(attempt.getFallback()).isFalse();
-    assertThat(attempt.getFeedback()).isEqualTo("두 번의 연습을 마쳤어요. 다음 단계로 넘어갈게요.");
+    assertThat(attempt.getFeedback()).isEqualTo("try again 두 번의 연습을 마쳤어요. 다음 단계로 넘어갈게요.");
     assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(2);
   }
 

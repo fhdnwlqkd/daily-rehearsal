@@ -67,7 +67,9 @@ class SessionServiceTest {
 
     assertThat(state.status()).isEqualTo(ContextStatus.FOLLOW_UP_REQUIRED);
     assertThat(state.context().values()).containsEntry("desired_persona", "warm_natural");
-    assertThat(state.missingSlotKeys()).contains("critical_moment");
+    assertThat(state.missingSlotKeys())
+        .containsExactly("situation_detail", "desired_outcome", "conversation_material")
+        .doesNotContain("critical_moment");
     assertThat(state.followUpQuestions()).isNotEmpty();
   }
 
