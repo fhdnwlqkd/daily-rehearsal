@@ -55,7 +55,9 @@ public class TurnEvaluationWorker {
       if (result.outcome() == TurnEvaluationOutcome.FORCED_ADVANCE && !result.fallback()) {
         result =
             new TurnEvaluationResult(
-                TurnEvaluationOutcome.FORCED_ADVANCE, ATTEMPTS_EXHAUSTED_FEEDBACK, false);
+                TurnEvaluationOutcome.FORCED_ADVANCE,
+                feedbackWithProgress(result.feedback()),
+                false);
       }
 
       attempt.complete(result);
@@ -132,5 +134,12 @@ public class TurnEvaluationWorker {
 
   private RehearsalConfigDefinition requiredConfig(ClientSession session) {
     return RehearsalConfigRegistry.findByType(session.getSituationType()).orElseThrow();
+  }
+
+  private String feedbackWithProgress(String feedback) {
+    if (feedback == null || feedback.isBlank()) {
+      return ATTEMPTS_EXHAUSTED_FEEDBACK;
+    }
+    return "%s %s".formatted(feedback.strip(), ATTEMPTS_EXHAUSTED_FEEDBACK);
   }
 }
