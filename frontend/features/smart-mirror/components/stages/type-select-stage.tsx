@@ -181,7 +181,7 @@ function TypeCard({
           <span className="text-xs font-medium tracking-[0.3em] text-white/75">
             {String(order).padStart(2, "0")}
           </span>
-          <span className="text-2xl font-extralight tracking-wide">
+          <span className="text-2xl font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
             {type.label}
           </span>
           {/* 팜홀드 차징 바 — 평소엔 투명해서 구분선처럼 안 보이고,
