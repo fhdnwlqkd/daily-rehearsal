@@ -27,4 +27,11 @@ class SimulationTurnAttemptTest {
 
     assertThatThrownBy(() -> attempt.fail("late failure")).isInstanceOf(BusinessException.class);
   }
+
+  @Test
+  void rejectsAnAttemptBeyondTheGlobalLimit() {
+    assertThat(SimulationTurnAttempt.MAX_ATTEMPT).isEqualTo(2);
+    assertThatThrownBy(() -> SimulationTurnAttempt.pending(1L, 3, "third answer"))
+        .isInstanceOf(BusinessException.class);
+  }
 }

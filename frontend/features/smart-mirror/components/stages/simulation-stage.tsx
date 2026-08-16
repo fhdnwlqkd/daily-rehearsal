@@ -239,7 +239,7 @@ function OpponentLine({
 }) {
   return (
     <div className="max-w-4xl text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-      <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+      <p className="mb-4 text-sm font-normal tracking-[0.34em] text-white/90">
         SIMULATION · TURN {turn} / {maxTurn}
       </p>
       <p className="mb-3 text-base font-light text-white/65">{sceneCue}</p>
