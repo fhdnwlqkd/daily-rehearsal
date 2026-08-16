@@ -1,18 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
+import { toPng } from "html-to-image";
 import { getSessionVideo, getTicketGeneration } from "../../apis";
 import { startPolling } from "../../lib/polling/poller";
+import {
+  isVideoDownloadAvailable,
+  isVideoTerminal,
+} from "../../lib/ticket/video-state";
 import {
   ticketPreviewData,
   type TicketPreviewSituation,
 } from "../../lib/ticket/preview-data";
-import type {
-  TicketJobResponse,
-  VideoUploadResponse,
-  VideoUploadStatus,
-} from "../../types";
+import type { TicketJobResponse, VideoUploadResponse } from "../../types";
 
 const VIDEO_POLL_TIMEOUT_MS = 120_000;
 
@@ -129,144 +130,204 @@ function TicketDownloadView({
   videoLookupFinished: boolean;
 }) {
   const { snapshot, changeCard } = ticket;
+  const ticketCardRef = useRef<HTMLElement>(null);
+  const [isSavingCard, setIsSavingCard] = useState(false);
+  const [cardSaveError, setCardSaveError] = useState<string | null>(null);
+
   if (!snapshot || !changeCard) return null;
 
   const videoUrl = video?.videoUrl ?? ticket.videoUrl;
-  const videoAvailable =
-    video?.status === "COMPLETED" ||
-    (video == null && ticket.videoAvailable === true);
+  const videoAvailable = isVideoDownloadAvailable(video, ticket);
   const videoPending = !videoLookupFinished || video?.status === "PENDING";
   const videoFailed = video?.status === "FAILED";
 
-  const downloadText = () => {
-    const content = [
-      "내일의 변화 카드",
-      "",
-      `상황: ${snapshot.situationLabel}`,
-      `내일의 중요한 순간: ${snapshot.criticalMoment}`,
-      `목표 인상: ${snapshot.desiredPersonaLabel}`,
-      `선택한 스타일: ${snapshot.selectedOutfitLabel}`,
-      "",
-      `오늘의 행동 변화: ${changeCard.todayAction}`,
-      `내일 유지할 태도: ${changeCard.tomorrowAttitude}`,
-      `If-Then: ${changeCard.ifThenPlan}`,
-    ].join("\n");
-    const href = URL.createObjectURL(
-      new Blob([content], { type: "text/plain;charset=utf-8" }),
-    );
-    const anchor = document.createElement("a");
-    anchor.href = href;
-    anchor.download = "daily-rehearsal-change-card.txt";
-    document.body.appendChild(anchor);
-    anchor.click();
-    window.setTimeout(() => {
+  const downloadCardImage = async () => {
+    const card = ticketCardRef.current;
+    if (!card || isSavingCard) return;
+
+    setIsSavingCard(true);
+    setCardSaveError(null);
+    try {
+      await document.fonts.ready;
+      const imageUrl = await toPng(card, {
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        pixelRatio: 2,
+        filter: (node) =>
+          !(
+            node instanceof HTMLElement && node.dataset.exportIgnore === "true"
+          ),
+      });
+      const anchor = document.createElement("a");
+      anchor.href = imageUrl;
+      anchor.download = `daily-rehearsal-${ticket.sessionId}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
       anchor.remove();
-      URL.revokeObjectURL(href);
-    }, 1000);
+    } catch {
+      setCardSaveError(
+        "이미지를 만들지 못했습니다. 잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setIsSavingCard(false);
+    }
   };
 
   return (
-    <main className="min-h-dvh bg-neutral-950 px-5 py-8 text-white">
+    <main className="h-dvh overflow-y-auto overscroll-y-contain bg-[#e9eef1] px-4 py-6 text-[#172027] [-webkit-overflow-scrolling:touch] sm:px-6 sm:py-10">
       <div className="mx-auto max-w-xl">
-        <p className="text-xs tracking-[0.3em] text-white/50">
-          DAILY REHEARSAL
-        </p>
-        <h1 className="mt-4 text-3xl font-light">내일의 변화 카드</h1>
+        <header className="px-1 pb-5">
+          <p className="flex items-center gap-2 text-xs font-semibold tracking-[0.14em] text-[#52616b] uppercase">
+            <span className="h-2 w-2 rounded-full bg-[#00B0F0]" />
+            Rehearsal complete
+          </p>
+          <h1 className="mt-2 text-[34px] leading-[1.1] font-semibold tracking-[-0.025em]">
+            내일을 위한 티켓
+          </h1>
+        </header>
 
-        <section className="mt-8 border border-white/20 bg-white p-6 text-neutral-950">
-          <dl className="divide-y divide-neutral-200">
-            <MobileFact label="상황" value={snapshot.situationLabel} />
-            <MobileFact
-              label="내일의 중요한 순간"
-              value={snapshot.criticalMoment}
-            />
-            <MobileFact
-              label="목표 인상"
-              value={snapshot.desiredPersonaLabel}
-            />
-            <MobileFact
-              label="선택한 스타일"
-              value={snapshot.selectedOutfitLabel}
-            />
-          </dl>
-          <div className="mt-8 space-y-6 border-t border-neutral-200 pt-6">
-            <MobilePlan
-              label="오늘의 행동 변화"
-              value={changeCard.todayAction}
-            />
-            <MobilePlan
-              label="내일 유지할 태도"
-              value={changeCard.tomorrowAttitude}
-            />
-            <MobilePlan label="If-Then" value={changeCard.ifThenPlan} />
+        <article
+          ref={ticketCardRef}
+          className="relative overflow-hidden rounded-[24px] border border-[#dce3e7] bg-white shadow-[0_16px_44px_rgba(24,39,49,0.09)]"
+        >
+          <div className="px-6 py-4">
+            <p className="text-xs font-semibold tracking-[0.16em] text-[#73808a] uppercase">
+              Daily Rehearsal · Result Ticket
+            </p>
+            <p className="mt-2 text-base font-semibold text-[#00B0F0]">
+              {snapshot.situationLabel}
+            </p>
+            <h2 className="mt-1 text-[30px] leading-[1.15] font-semibold tracking-[-0.025em]">
+              내일 기억할 세 가지
+            </h2>
+            <p className="mt-1.5 text-[15px] leading-[1.55] text-[#6a7881]">
+              오늘의 리허설에서 찾은 행동을 내일의 장면에 가져가세요.
+            </p>
           </div>
+
+          <MobilePerforation />
+
+          <div className="px-6 pt-4 pb-5">
+            <dl className="grid grid-cols-2 gap-x-5 gap-y-4 border-b border-[#e5eaed] pb-5">
+              <MobileFact label="중요한 순간" value={snapshot.criticalMoment} />
+              <MobileFact
+                label="목표 인상"
+                value={snapshot.desiredPersonaLabel}
+              />
+            </dl>
+
+            <ol className="divide-y divide-[#e7ecef]">
+              <MobilePlan
+                number="01"
+                label="먼저 바꿀 행동"
+                value={changeCard.todayAction}
+              />
+              <MobilePlan
+                number="02"
+                label="유지할 태도"
+                value={changeCard.tomorrowAttitude}
+              />
+              <MobilePlan
+                number="03"
+                label="막히는 순간에는"
+                value={changeCard.ifThenPlan}
+              />
+            </ol>
+          </div>
+        </article>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={downloadText}
-            className="mt-8 inline-flex h-11 items-center gap-2 border border-neutral-900 px-4 text-sm font-medium text-neutral-900"
+            onClick={() => void downloadCardImage()}
+            disabled={isSavingCard}
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#172027] bg-transparent px-3 text-sm font-semibold text-[#172027] transition-colors active:bg-white/70 disabled:cursor-wait disabled:opacity-55"
           >
-            <Download size={16} aria-hidden />
-            카드 저장
+            <Download size={17} aria-hidden />
+            {isSavingCard ? "이미지 생성 중…" : "변화 카드 저장"}
           </button>
-        </section>
 
-        <section className="mt-8 border border-white/15 p-5">
-          <h2 className="text-lg font-light">리허설 영상</h2>
           {videoAvailable && videoUrl ? (
-            <>
-              <video
-                className="mt-4 aspect-video w-full bg-black"
-                controls
-                src={videoUrl}
-              />
-              <a
-                className="mt-4 inline-flex h-11 items-center gap-2 border border-white/30 px-4 text-sm text-white"
-                href={`/download/${encodeURIComponent(ticket.sessionId)}/video`}
-                download
-              >
-                <Download size={16} aria-hidden />
-                영상 다운로드
-              </a>
-            </>
-          ) : videoPending ? (
-            <p className="mt-3 text-sm leading-6 text-white/55">
-              영상을 저장하고 있습니다. 준비가 끝나면 다운로드 버튼이
-              표시됩니다.
-            </p>
-          ) : videoFailed ? (
-            <p className="mt-3 text-sm leading-6 text-white/55">
-              영상 저장에 실패했습니다. 변화 카드는 계속 저장할 수 있습니다.
-            </p>
+            <a
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#172027] px-3 text-sm font-semibold text-white"
+              href={`/download/${encodeURIComponent(ticket.sessionId)}/video`}
+              download
+            >
+              <Download size={17} aria-hidden />
+              연습 영상 저장
+            </a>
           ) : (
-            <p className="mt-3 text-sm leading-6 text-white/55">
-              이번 리허설 영상은 준비되지 않았습니다. 변화 카드는 저장할 수
-              있습니다.
-            </p>
+            <button
+              type="button"
+              disabled
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#aebbc2] bg-transparent px-3 text-sm font-semibold text-[#7a8992] disabled:cursor-wait"
+            >
+              <Download size={17} aria-hidden />
+              {videoPending ? "영상 준비 중" : "영상 저장 불가"}
+            </button>
           )}
-        </section>
+        </div>
+
+        {(cardSaveError || videoFailed) && (
+          <div className="mt-3 space-y-1 text-center text-sm" role="status">
+            {cardSaveError && <p className="text-red-600">{cardSaveError}</p>}
+            {videoFailed && (
+              <p className="text-[#60707a]">
+                영상 저장에 실패했습니다. 변화 카드는 저장할 수 있습니다.
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
 }
 
-function isVideoTerminal(status: VideoUploadStatus) {
-  return status === "NONE" || status === "COMPLETED" || status === "FAILED";
-}
-
 function MobileFact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="py-4">
-      <dt className="text-xs text-neutral-500">{label}</dt>
-      <dd className="mt-1 text-lg leading-relaxed font-light">{value}</dd>
+    <div className="min-w-0">
+      <dt className="text-sm font-semibold tracking-[0.04em] text-[#6f7e88]">
+        {label}
+      </dt>
+      <dd className="mt-1.5 text-[17px] leading-[1.45] font-medium break-keep text-[#26343d]">
+        {value}
+      </dd>
     </div>
   );
 }
 
-function MobilePlan({ label, value }: { label: string; value: string }) {
+function MobilePlan({
+  number,
+  label,
+  value,
+}: {
+  number: string;
+  label: string;
+  value: string;
+}) {
   return (
-    <div>
-      <p className="text-xs text-neutral-500">{label}</p>
-      <p className="mt-2 text-base leading-relaxed font-light">{value}</p>
+    <li className="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-x-2 py-4">
+      <span className="pt-0.5 text-sm font-semibold text-[#00B0F0]">
+        {number}
+      </span>
+      <div className="min-w-0">
+        <p className="text-sm font-semibold tracking-[0.03em] text-[#6f7e88]">
+          {label}
+        </p>
+        <p className="mt-1.5 text-[17px] leading-[1.55] font-medium break-keep text-[#26343d]">
+          {value}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+function MobilePerforation() {
+  return (
+    <div className="relative flex h-7 items-center" aria-hidden>
+      <span className="absolute left-0 h-7 w-3.5 -translate-x-1/2 rounded-r-full bg-[#e9eef1]" />
+      <div className="mx-5 w-full border-t border-dashed border-[#00B0F0]/65" />
+      <span className="absolute right-0 h-7 w-3.5 translate-x-1/2 rounded-l-full bg-[#e9eef1]" />
     </div>
   );
 }
@@ -279,12 +340,12 @@ function MessageView({
   loading?: boolean;
 }) {
   return (
-    <main className="flex min-h-dvh items-center justify-center bg-neutral-950 px-8 text-center text-white">
+    <main className="flex min-h-dvh items-center justify-center bg-[#e9eef1] px-8 text-center text-[#172027]">
       <div>
         {loading && (
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-[#b9c7ce] border-t-[#00B0F0]" />
         )}
-        <p className="mt-5 text-lg font-light text-white/75">{message}</p>
+        <p className="mt-5 text-lg font-medium text-[#52616b]">{message}</p>
       </div>
     </main>
   );

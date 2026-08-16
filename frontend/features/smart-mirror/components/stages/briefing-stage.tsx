@@ -15,6 +15,7 @@ import {
   BRIEFING_AUTO_CONFIRM_MS,
   BRIEFING_COMPLETE_LINGER_MS,
 } from "../../lib/briefing/constants";
+import { splitSentences } from "../../lib/briefing/sentences";
 import { STT_MAX_FAILS_BEFORE_FALLBACK } from "../../lib/stt/constants";
 import type {
   BriefingFlowFailReason,
@@ -210,18 +211,49 @@ function BriefingQuestion({
   title: string;
   example: string;
 }) {
+  const titleSentences = splitSentences(title);
+  const exampleSentences = splitSentences(example);
+
   return (
-    <div className="max-w-4xl text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-      <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+    <div className="w-full max-w-4xl drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
+      <p className="mb-4 text-center text-xs font-light tracking-[0.34em] text-white/65">
         BRIEFING
       </p>
-      <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
-        {title}
-      </h2>
-      {/* 예시는 발화 유도 장치 — 밝은 영상 위에서도 읽히도록 필 스크림 + 큰 글자 */}
-      <p className="mt-8 inline-block rounded-2xl bg-black/40 px-7 py-3 text-xl font-extralight tracking-wide text-white/85 backdrop-blur-sm md:text-2xl">
-        예: “{example}”
-      </p>
+      <GlassPanel className="w-full px-8 py-6 md:px-10">
+        <div className="space-y-3 text-left">
+          {titleSentences.map((sentence, index) => (
+            <p
+              key={`${sentence}-${index}`}
+              className={`text-xl leading-[1.5] tracking-[0.01em] break-keep md:text-2xl ${
+                index === 0
+                  ? "font-medium text-white"
+                  : "font-light text-white/[0.88]"
+              }`}
+            >
+              {sentence}
+            </p>
+          ))}
+        </div>
+
+        {/* 예시는 질문과 분리해 사용자가 그대로 읽어야 하는 답으로 오해하지 않게 한다. */}
+        <div className="mt-5 border-t border-white/15 pt-4">
+          <p className="text-xs font-medium tracking-[0.18em] text-white/55">
+            이렇게 말해볼 수 있어요
+          </p>
+          <div className="mt-2 space-y-1.5">
+            {exampleSentences.map((sentence, index) => (
+              <p
+                key={`${sentence}-${index}`}
+                className="text-lg leading-[1.5] font-light break-keep text-white/[0.82] md:text-xl"
+              >
+                {index === 0 ? "“" : ""}
+                {sentence}
+                {index === exampleSentences.length - 1 ? "”" : ""}
+              </p>
+            ))}
+          </div>
+        </div>
+      </GlassPanel>
     </div>
   );
 }
