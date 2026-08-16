@@ -15,6 +15,7 @@ import {
   SIMULATION_POLL_INTERVAL_MS,
   SIMULATION_POLL_MAX_CONSECUTIVE_ERRORS,
   SIMULATION_POLL_TIMEOUT_MS,
+  SIMULATION_TURN_FEEDBACK_LINGER_MS,
 } from "./constants";
 
 export interface SimulationFlowApi {
@@ -34,12 +35,15 @@ export interface SimulationFlowControllerOptions {
   pollIntervalMs?: number;
   pollTimeoutMs?: number;
   maxConsecutivePollErrors?: number;
+  turnFeedbackLingerMs?: number;
 }
 
 type RetryStep =
   | { kind: "START" }
   | { kind: "EVALUATION"; transcript: string }
   | { kind: "NEXT_LINE"; turnNo: number };
+
+const MAX_ATTEMPTS_PER_TURN = 2;
 
 /**
  * 시뮬레이션 스테이지의 턴 진행 상태머신 (React 무관 순수 로직 —
@@ -51,9 +55,8 @@ type RetryStep =
  *   두 번째 실패나 AI fallback은 실패 결과를 유지한 채 다음 턴으로 전진한다.
  * - 종료 판정은 프론트 책임: currentTurn == maxTurn에서 턴이 완료되면 next-line을
  *   요청하지 않고 COMPLETED로 끝낸다 (초과 요청은 서버가 409로 거부).
- * - 판정 워커 장애(status=FAILED)는 flow 실패가 아니라 "실패 판정 + 고정
- *   피드백"으로 흡수한다 — 전시 안 멈춤. 서버는 FAILED attempt 뒤 재제출을
- *   새 시도로 받아준다.
+ * - 첫 번째 판정 워커 장애(status=FAILED)는 "실패 판정 + 고정 피드백"으로
+ *   흡수해 한 번 더 답할 수 있게 한다. 두 번째 장애는 추가 답변을 받지 않는다.
  * - FAILED에서 retry()는 마지막 단계(start/판정 제출/다음 발화 요청)를
  *   그대로 다시 밟는다. 202 이후 폴링만 실패한 경우에도 POST부터 다시 하지만,
  *   서버가 진행 중·완료된 작업을 그대로 돌려주므로(idempotent) 안전하다.
@@ -64,6 +67,7 @@ export class SimulationFlowController {
   private readonly pollIntervalMs: number;
   private readonly pollTimeoutMs: number;
   private readonly maxConsecutivePollErrors: number;
+  private readonly turnFeedbackLingerMs: number;
 
   private status: SimulationFlowSnapshot["status"] = "STARTING";
   private currentTurn = 0;
@@ -81,6 +85,7 @@ export class SimulationFlowController {
   private polling: PollingHandle<
     TurnEvaluationResponse | NextLineResponse
   > | null = null;
+  private feedbackLingerTimer: ReturnType<typeof setTimeout> | null = null;
   private disposed = false;
 
   constructor(options: SimulationFlowControllerOptions) {
@@ -91,6 +96,8 @@ export class SimulationFlowController {
     this.maxConsecutivePollErrors =
       options.maxConsecutivePollErrors ??
       SIMULATION_POLL_MAX_CONSECUTIVE_ERRORS;
+    this.turnFeedbackLingerMs =
+      options.turnFeedbackLingerMs ?? SIMULATION_TURN_FEEDBACK_LINGER_MS;
   }
 
   begin(): void {
@@ -123,6 +130,10 @@ export class SimulationFlowController {
     this.disposed = true;
     this.polling?.cancel();
     this.polling = null;
+    if (this.feedbackLingerTimer !== null) {
+      clearTimeout(this.feedbackLingerTimer);
+      this.feedbackLingerTimer = null;
+    }
   }
 
   private runStart(): void {
@@ -170,7 +181,11 @@ export class SimulationFlowController {
       () => this.api.getEvaluation(turnNo),
       (response) => {
         if (response.status === "FAILED") {
-          // 판정 워커 장애 — 실패 판정 + 고정 피드백으로 흡수한다(전시 안 멈춤).
+          if (response.attemptNo >= MAX_ATTEMPTS_PER_TURN) {
+            this.fail("SERVER_FAILED");
+            return;
+          }
+          // 첫 판정 워커 장애는 실패 판정 + 고정 피드백으로 흡수한다.
           this.handleEvaluationOutcome({
             outcome: "RETRY_REQUIRED",
             feedback: EVALUATION_FALLBACK_FEEDBACK,
@@ -199,8 +214,20 @@ export class SimulationFlowController {
       this.update({ status: "COMPLETED", evaluation: feedback });
       return;
     }
-    this.update({ evaluation: feedback });
-    this.runNextLine(this.currentTurn + 1);
+    // 다음 발화를 요청하기 전, 방금 받은 피드백을 최소 시간 동안 화면에
+    // 붙잡아 둔다 — 그대로 바로 요청하면 폴링이 빨리 끝날 때 피드백이
+    // 뜨자마자 다음 턴 화면에 덮여 스치듯 사라진다.
+    const nextTurnNo = this.currentTurn + 1;
+    this.update({
+      status: "NEXT_LINE",
+      evaluation: feedback,
+      failReason: null,
+    });
+    this.feedbackLingerTimer = setTimeout(() => {
+      this.feedbackLingerTimer = null;
+      if (this.disposed) return;
+      this.runNextLine(nextTurnNo);
+    }, this.turnFeedbackLingerMs);
   }
 
   private runNextLine(turnNo: number): void {

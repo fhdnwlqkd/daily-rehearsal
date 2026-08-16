@@ -9,6 +9,7 @@ import { SimulationFlowController } from "./flow";
 
 const POLL_INTERVAL = 1000;
 const POLL_TIMEOUT = 10_000;
+const TURN_FEEDBACK_LINGER = 0;
 
 function createFakeApi() {
   const evaluations: TurnEvaluationResponse[] = [];
@@ -101,6 +102,7 @@ function setup() {
     onChange: (snapshot) => snapshots.push(snapshot),
     pollIntervalMs: POLL_INTERVAL,
     pollTimeoutMs: POLL_TIMEOUT,
+    turnFeedbackLingerMs: TURN_FEEDBACK_LINGER,
   });
   return {
     ...fake,
@@ -155,6 +157,44 @@ describe("SimulationFlowController", () => {
       sceneCue: "scene-2",
       opponentLine: "line-2",
       actionPrompt: "action-2",
+    });
+  });
+
+  it("holds the accepted-turn feedback on screen before requesting the next line", async () => {
+    const fake = createFakeApi();
+    const snapshots: SimulationFlowSnapshot[] = [];
+    const lingerMs = 500;
+    const controller = new SimulationFlowController({
+      api: fake.api,
+      onChange: (snapshot) => snapshots.push(snapshot),
+      pollIntervalMs: POLL_INTERVAL,
+      pollTimeoutMs: POLL_TIMEOUT,
+      turnFeedbackLingerMs: lingerMs,
+    });
+    fake.queueEvaluation(1, "ACCEPTED");
+    fake.queueNextLine(2, "NORMAL");
+
+    controller.begin();
+    await flush();
+    controller.submitAnswer("안녕하세요. 반갑습니다.");
+    await flush();
+
+    // 피드백은 즉시 보이지만, 다음 발화는 아직 요청되지 않아야 한다.
+    expect(snapshots.at(-1)).toMatchObject({
+      status: "NEXT_LINE",
+      currentTurn: 1,
+      evaluation: { outcome: "ACCEPTED" },
+    });
+    expect(fake.nextLineRequests).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(lingerMs);
+    await flush();
+
+    expect(fake.nextLineRequests).toEqual([2]);
+    expect(snapshots.at(-1)).toMatchObject({
+      status: "ANSWERING",
+      currentTurn: 2,
+      opponentLine: "line-2",
     });
   });
 
@@ -233,6 +273,7 @@ describe("SimulationFlowController", () => {
       onChange: (snapshot) => snapshots.push(snapshot),
       pollIntervalMs: POLL_INTERVAL,
       pollTimeoutMs: POLL_TIMEOUT,
+      turnFeedbackLingerMs: TURN_FEEDBACK_LINGER,
     });
 
     controller.begin();
@@ -249,6 +290,43 @@ describe("SimulationFlowController", () => {
         turnCompleted: false,
       },
     });
+  });
+
+  it("does not collect another answer after the second evaluation worker failure", async () => {
+    const fake = createFakeApi();
+    fake.api.getEvaluation = () =>
+      Promise.resolve({
+        sessionId: "session-id",
+        turnNo: 1,
+        attemptNo: 2,
+        status: "FAILED" as const,
+        turnCompleted: false,
+        failureReason: "database error",
+      });
+    const snapshots: SimulationFlowSnapshot[] = [];
+    const controller = new SimulationFlowController({
+      api: fake.api,
+      onChange: (snapshot) => snapshots.push(snapshot),
+      pollIntervalMs: POLL_INTERVAL,
+      pollTimeoutMs: POLL_TIMEOUT,
+    });
+
+    controller.begin();
+    await flush();
+    controller.submitAnswer("두 번째 답변");
+    await flush();
+
+    expect(snapshots.at(-1)).toMatchObject({
+      status: "FAILED",
+      failReason: "SERVER_FAILED",
+      currentTurn: 1,
+    });
+
+    controller.submitAnswer("세 번째 답변");
+    await flush();
+    expect(fake.evaluationSubmits).toEqual([
+      { turnNo: 1, transcript: "두 번째 답변" },
+    ]);
   });
 
   it("retries a failed next-line worker request", async () => {
@@ -346,6 +424,7 @@ describe("SimulationFlowController", () => {
       onChange: (snapshot) => snapshots.push(snapshot),
       pollIntervalMs: POLL_INTERVAL,
       pollTimeoutMs: POLL_TIMEOUT,
+      turnFeedbackLingerMs: TURN_FEEDBACK_LINGER,
     });
 
     controller.begin();
@@ -379,6 +458,7 @@ describe("SimulationFlowController", () => {
       onChange: (snapshot) => snapshots.push(snapshot),
       pollIntervalMs: POLL_INTERVAL,
       pollTimeoutMs: POLL_TIMEOUT,
+      turnFeedbackLingerMs: TURN_FEEDBACK_LINGER,
     });
 
     controller.begin();

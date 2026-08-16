@@ -1,5 +1,6 @@
 package com.rehearsal.domain.rehearsal.registry;
 
+import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.SimulationTurnPlan;
 import com.rehearsal.domain.situation.model.SituationType;
 import java.util.List;
@@ -7,7 +8,6 @@ import java.util.List;
 public record RehearsalConfigDefinition(
     SituationType situationType,
     int maxTurn,
-    int maxAttemptsPerTurn,
     SimulationTurnPlan firstTurn,
     List<String> turnObjectives,
     String feedbackFocus,
@@ -26,5 +26,9 @@ public record RehearsalConfigDefinition(
       throw new IllegalArgumentException("turnNo is outside the configured range: " + turnNo);
     }
     return turnObjectives.get(turnNo - 1);
+  }
+
+  public int maxAttemptsPerTurn() {
+    return SimulationTurnAttempt.MAX_ATTEMPT;
   }
 }

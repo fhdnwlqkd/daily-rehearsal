@@ -13,7 +13,6 @@ public final class FirstDayRehearsalConfig {
     return new RehearsalConfigDefinition(
         SituationType.FIRST_DAY,
         3,
-        2,
         new SimulationTurnPlan(
             "첫 출근한 사무실에서 팀원들이 당신을 바라보고 있습니다.",
             "오늘부터 함께 일하게 됐다고 들었어요. 간단히 소개해주시겠어요?",

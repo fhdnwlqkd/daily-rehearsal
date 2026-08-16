@@ -2,6 +2,9 @@ package com.rehearsal.api.rehearsal.application;
 
 import static com.rehearsal.api.support.SimulationTestFixtures.completedTurn;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.mock;
 
 import com.rehearsal.api.session.application.SessionReader;
 import com.rehearsal.api.support.InMemorySessionRepository;
@@ -89,6 +92,45 @@ class TurnEvaluationWorkerTest {
   }
 
   @Test
+  void firstWorkerFailureLeavesOneRetry() {
+    InMemorySessionRepository repository = repositoryWithPendingAttempt(1);
+    SimulationContextReader contextReader = mock(SimulationContextReader.class);
+    given(contextReader.context(any(ClientSession.class)))
+        .willThrow(new IllegalStateException("worker failed"));
+    TurnEvaluationWorker worker =
+        worker(repository, contextReader, command -> new TurnEvaluationRawResult(true, "unused"));
+
+    worker.evaluate(new TurnEvaluationRequested("session-id", 1, 1, null));
+
+    SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
+    SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 1).orElseThrow();
+    assertThat(attempt.getEvaluationStatus()).isEqualTo(EvaluationStatus.FAILED);
+    assertThat(attempt.canRetry()).isTrue();
+    assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(1);
+  }
+
+  @Test
+  void secondWorkerFailureForcesAdvanceWithoutOpeningAnotherRetry() {
+    InMemorySessionRepository repository = repositoryWithPendingAttempt(2);
+    SimulationContextReader contextReader = mock(SimulationContextReader.class);
+    given(contextReader.context(any(ClientSession.class)))
+        .willThrow(new IllegalStateException("worker failed"));
+    TurnEvaluationWorker worker =
+        worker(repository, contextReader, command -> new TurnEvaluationRawResult(true, "unused"));
+
+    worker.evaluate(new TurnEvaluationRequested("session-id", 1, 2, null));
+
+    SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
+    SimulationTurnAttempt attempt = repository.findAttempt(turn.getId(), 2).orElseThrow();
+    assertThat(attempt.getEvaluationStatus()).isEqualTo(EvaluationStatus.COMPLETED);
+    assertThat(attempt.getOutcome()).isEqualTo(TurnEvaluationOutcome.FORCED_ADVANCE);
+    assertThat(attempt.getFallback()).isTrue();
+    assertThat(attempt.getFeedback()).isEqualTo("두 번의 연습을 마쳤어요. 다음 단계로 넘어갈게요.");
+    assertThat(attempt.canRetry()).isFalse();
+    assertThat(repository.findSession("session-id").orElseThrow().getCurrentTurn()).isEqualTo(2);
+  }
+
+  @Test
   void secondRejectedAttemptForcesAdvanceWithoutAddingFailedAnswerToHistory() {
     InMemorySessionRepository repository = repositoryWithPendingAttempt(1);
     SimulationTurn turn = repository.findTurn("session-id", 1).orElseThrow();
@@ -110,8 +152,15 @@ class TurnEvaluationWorkerTest {
   private TurnEvaluationWorker worker(
       InMemorySessionRepository repository,
       com.rehearsal.domain.rehearsal.port.TurnEvaluationClient client) {
+    return worker(repository, new SimulationContextReader(repository), client);
+  }
+
+  private TurnEvaluationWorker worker(
+      InMemorySessionRepository repository,
+      SimulationContextReader contextReader,
+      com.rehearsal.domain.rehearsal.port.TurnEvaluationClient client) {
     return new TurnEvaluationWorker(
-        new SessionReader(repository), repository, new SimulationContextReader(repository), client);
+        new SessionReader(repository), repository, contextReader, client);
   }
 
   private InMemorySessionRepository repositoryWithPendingAttempt(int attemptNo) {
