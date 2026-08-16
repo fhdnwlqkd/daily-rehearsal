@@ -36,6 +36,8 @@ interface SimulationStageProps {
   /** 부스 수명 장비 — 확정(CONFIRM)/다시 말하기(PREV) 입력용. */
   engine: GestureEngineHandle;
   stream: MediaStream | null;
+  /** Decart 트랙을 끊기 전에 녹화의 마지막 청크를 확정한다. */
+  onStopRecording: () => void;
   /** 정상 완료 또는 제한시간 만료 시 Decart 연결을 즉시 끊는다. */
   onStopDecart: () => void;
   /** 전체 턴 성공(COMPLETED) 연출 후 호출 — 세션 층이 티켓으로 넘긴다. */
@@ -57,6 +59,7 @@ export function SimulationStage({
   sessionId,
   engine,
   stream,
+  onStopRecording,
   onStopDecart,
   onComplete,
 }: SimulationStageProps) {
@@ -80,9 +83,10 @@ export function SimulationStage({
   const { finish } = flow;
   const handleTimeLimitReached = useCallback(() => {
     setTimeLimitReached(true);
+    onStopRecording();
     onStopDecart();
     finish();
-  }, [finish, onStopDecart]);
+  }, [finish, onStopRecording, onStopDecart]);
   const remainingSeconds = useCountdown({
     durationSeconds: SIMULATION_DURATION_SECONDS,
     onExpire: handleTimeLimitReached,
@@ -138,11 +142,18 @@ export function SimulationStage({
   // 완료 연출(마지막 피드백 + 리허설 완료) 여운 후 세션 층에 신호
   useEffect(() => {
     if (flow.status !== "COMPLETED") return;
+    onStopRecording();
     onStopDecart();
     const lingerMs = timeLimitReached ? 0 : SIMULATION_COMPLETE_LINGER_MS;
     const timer = setTimeout(onComplete, lingerMs);
     return () => clearTimeout(timer);
-  }, [flow.status, timeLimitReached, onStopDecart, onComplete]);
+  }, [
+    flow.status,
+    timeLimitReached,
+    onStopRecording,
+    onStopDecart,
+    onComplete,
+  ]);
 
   const { status: flowStatus, retry: flowRetry } = flow;
   const sttStatus = stt.status;

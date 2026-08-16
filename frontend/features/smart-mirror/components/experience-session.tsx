@@ -59,6 +59,7 @@ export function ExperienceSession({
   // 옷 입히기~시뮬레이션 구간 — Decart 변환과 녹화가 함께 살아 있는 구간이다.
   const isMirrorPhase =
     currentPhase?.id === "outfit" || currentPhase?.id === "simulation";
+  const isSimulationPhase = currentPhase?.id === "simulation";
 
   // Decart 변환 연결 — 스테이지가 아니라 세션 층이 소유한다: 스테이지
   // 전환(언마운트)에도 프리뷰가 유지되어야 하고, 녹화가 같은 스트림을 쓴다.
@@ -68,10 +69,10 @@ export function ExperienceSession({
     enabled: isMirrorPhase,
   });
 
-  // 세션 녹화(#94) — 옷 입히기 진입~시뮬레이션 종료를 한 테이크로 담는다.
-  // 티켓 진입(구간 이탈) 시 정지된다. 업로드는 아직 연결하지 않는다(폐기).
+  // 세션 녹화(#94) — 실제 연습인 시뮬레이션 구간만 담아 파일 크기와
+  // 업로드 시간을 줄인다. 티켓 진입(구간 이탈) 시 정지된다.
   const recorder = useSessionRecorder({
-    enabled: isMirrorPhase,
+    enabled: isSimulationPhase,
     decartStatus: decart.status,
     decartStream: decart.remoteStream,
     cameraStream: stream,
@@ -183,6 +184,7 @@ export function ExperienceSession({
               decart,
               recorderStatus: recorder.status,
               recording: recorder.recording,
+              onSimulationStopRecording: recorder.stop,
               onSessionCreated: handleSessionCreated,
               onBriefingComplete: goToNextPhase,
               onOutfitConfirmed: goToNextPhase,
@@ -238,6 +240,8 @@ interface StageContext {
   decart: DecartConnectionHandle;
   recorderStatus: SessionRecorderStatus;
   recording: SessionRecording | null;
+  /** Decart 입력 트랙을 끊기 전에 MediaRecorder의 마지막 청크를 확정한다. */
+  onSimulationStopRecording: () => void;
   onSessionCreated: (
     session: CreateSessionResponse,
     situationType: SituationType,
@@ -305,6 +309,7 @@ function renderStage(phaseId: ExperiencePhaseId, context: StageContext) {
           sessionId={context.session.sessionId}
           engine={context.engine}
           stream={context.stream}
+          onStopRecording={context.onSimulationStopRecording}
           onStopDecart={context.onSimulationStopDecart}
           onComplete={context.onSimulationComplete}
         />

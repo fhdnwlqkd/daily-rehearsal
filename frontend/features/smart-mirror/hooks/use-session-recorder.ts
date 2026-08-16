@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   DEFAULT_AV_SYNC_DELAY_MS,
+  RECORDER_AUDIO_BITS_PER_SECOND,
   RECORDER_TIMESLICE_MS,
+  RECORDER_VIDEO_BITS_PER_SECOND,
 } from "../lib/recording/constants";
 import { pickRecordingMimeType } from "../lib/recording/mime";
 import { decideRecordingSource } from "../lib/recording/source";
@@ -23,7 +25,7 @@ export interface SessionRecording {
 }
 
 interface UseSessionRecorderArgs {
-  /** 옷 입히기~시뮬레이션 구간만 true. false로 내려가면 녹화를 끝낸다. */
+  /** 시뮬레이션 구간만 true. false로 내려가면 녹화를 끝낸다. */
   enabled: boolean;
   /** 소스 결정용 — CONNECTING 동안은 기다리고, ERROR/CLOSED면 원본으로 폴백한다. */
   decartStatus: DecartConnectionStatus;
@@ -38,23 +40,22 @@ interface UseSessionRecorderArgs {
 interface UseSessionRecorderResult {
   status: SessionRecorderStatus;
   recording: SessionRecording | null;
+  /** 마지막 청크를 확정한 뒤 입력 스트림을 끊을 수 있도록 명시적으로 종료한다. */
+  stop: () => void;
 }
 
 /**
  * 세션 녹화의 단일 소유자 (세션 층 전용 — 이슈 #94).
  *
- * 스테이지가 아니라 세션 층이 소유하는 이유: 녹화는 옷 입히기 진입부터
- * 시뮬레이션 종료까지 스테이지 전환(언마운트)을 가로질러 이어진다 —
- * Decart 연결과 같은 소유권 논리다.
+ * 스테이지가 아니라 세션 층이 소유하는 이유: 시뮬레이션 종료와 티켓 전환
+ * 사이에서도 마지막 MediaRecorder 청크를 안전하게 수집해야 하기 때문이다.
  *
  * A/V 싱크 (#90 PoC 검증): 비디오는 Decart 왕복+AI 추론만큼 늦게 도착해
  * 소리가 앞서간다 → 마이크를 Web Audio DelayNode로 같은 만큼 지연시킨다.
  * 실측(g2gMs) 도착 전에는 PoC 실측 기반 기본값으로 시작하고, 도착하면
  * delayTime을 그 값으로 갱신한다 (원본 폴백 녹화는 지연 0).
  *
- * 업로드는 아직 연결하지 않는다 — 종료 시 결과 blob 크기만 로그로 남기고
- * 폐기한다. 업로드 연결(POST /video)은 #94 잔여분으로 티켓 스테이지와
- * 함께 붙인다.
+ * 종료된 blob은 티켓 스테이지의 useTicketFlow가 POST /video로 업로드한다.
  *
  * 한 세션 한 테이크: 시작 후 소스가 바뀌어도(TTL로 Decart가 끊기는 등)
  * 갈아타지 않는다 — MediaRecorder는 소스 교체가 불가능하고, 끊김 시
@@ -166,25 +167,32 @@ export function useSessionRecorder({
     try {
       const recorder = new MediaRecorder(new MediaStream(recordingTracks), {
         mimeType,
+        videoBitsPerSecond: RECORDER_VIDEO_BITS_PER_SECOND,
+        audioBitsPerSecond: RECORDER_AUDIO_BITS_PER_SECOND,
       });
       recorder.ondataavailable = (event) => {
         if (event.data.size > 0) chunksRef.current.push(event.data);
       };
       recorder.onstop = () => {
-        // 업로드 미연결(#94 잔여) — 결과는 크기만 확인하고 폐기한다.
         const blob = new Blob(chunksRef.current, { type: mimeType });
         if (blob.size > 0) {
           setRecording({ blob, mimeType });
         }
         console.info(
-          `세션 녹화 종료 — ${(blob.size / 1024 / 1024).toFixed(2)}MB (${mimeType}) · 업로드 미연결로 폐기`,
+          `세션 녹화 종료 — ${(blob.size / 1024 / 1024).toFixed(2)}MB (${mimeType}) · 업로드 준비 완료`,
         );
         chunksRef.current = [];
         cleanupAudio();
         setStatus("STOPPED");
       };
       recorder.onerror = (event) => {
-        console.error("세션 녹화 recorder 에러:", event);
+        const recorderError = (event as Event & { error?: DOMException }).error;
+        console.error("세션 녹화 recorder 에러:", {
+          name: recorderError?.name ?? "UnknownError",
+          message: recorderError?.message ?? "MediaRecorder error event",
+          state: recorder.state,
+          videoTrackState: videoTrack.readyState,
+        });
       };
       recorder.start(RECORDER_TIMESLICE_MS);
       recorderRef.current = recorder;
@@ -219,5 +227,5 @@ export function useSessionRecorder({
   // 언마운트(세션 층 리마운트 포함) 안전망.
   useEffect(() => () => stopRecording(), [stopRecording]);
 
-  return { status, recording };
+  return { status, recording, stop: stopRecording };
 }
