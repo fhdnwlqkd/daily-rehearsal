@@ -65,6 +65,20 @@ export function MobileDownloadPage({ sessionId }: MobileDownloadPageProps) {
     void poll.promise.then((result) => {
       if (result.kind === "TERMINAL") {
         setVideo(result.value);
+      } else {
+        // 폴링이 끝내 종결 상태를 못 받고 포기한 경우 — 마지막으로 본 상태가
+        // PENDING이면 그대로 두면 videoPending이 계속 true로 남아 "영상 준비
+        // 중" 화면에 영원히 갇힌다. 화면에서는 실패로 간주해 다음 단계(변화
+        // 카드만 저장)로 넘어가게 한다.
+        setVideo((current) =>
+          current && current.status === "PENDING"
+            ? {
+                ...current,
+                status: "FAILED",
+                failureReason: "영상 준비가 오래 걸리고 있습니다.",
+              }
+            : current,
+        );
       }
       setVideoLookupFinished(true);
     });
