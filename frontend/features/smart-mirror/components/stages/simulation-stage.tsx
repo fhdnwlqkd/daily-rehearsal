@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { AnswerArea } from "../shared/answer-area";
 import type { AnswerInputMode } from "../shared/answer-area";
 import { GlassPanel } from "../shared/glass-panel";
@@ -16,6 +16,7 @@ import { useSpeechToText } from "../../hooks/use-speech-to-text";
 import {
   SIMULATION_AUTO_CONFIRM_MS,
   SIMULATION_COMPLETE_LINGER_MS,
+  SIMULATION_INTRO_DURATION_MS,
 } from "../../lib/simulation/constants";
 import { STT_MAX_FAILS_BEFORE_FALLBACK } from "../../lib/stt/constants";
 import { SIMULATION_DURATION_SECONDS } from "../../lib/timing/constants";
@@ -63,6 +64,19 @@ export function SimulationStage({
   const [inputMode, setInputMode] = useState<AnswerInputMode>("VOICE");
   const [timeLimitReached, setTimeLimitReached] = useState(false);
 
+  // 턴 인트로(1·2번: 턴 표시 + 상황) → 본문(3·4번: 상대 발화 + 행동 요구) 연출.
+  // 턴이 실제로 바뀔 때만(재시도 제외) 인트로를 다시 재생한다.
+  const [revealPhase, setRevealPhase] = useState<"INTRO" | "MAIN">("INTRO");
+  const turnKey = `${flow.currentTurn}-${flow.opponentLine ?? ""}`;
+  useEffect(() => {
+    setRevealPhase("INTRO");
+    const timer = setTimeout(
+      () => setRevealPhase("MAIN"),
+      SIMULATION_INTRO_DURATION_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [turnKey]);
+
   const { finish } = flow;
   const handleTimeLimitReached = useCallback(() => {
     setTimeLimitReached(true);
@@ -106,12 +120,20 @@ export function SimulationStage({
     if (shouldFallback) setInputMode("KEYBOARD");
   }, [shouldFallback]);
 
-  // 마이크 자동 시작 — 답변 가능 화면에서 음성 모드가 IDLE일 때만
+  // 마이크 자동 시작 — 답변 가능 화면에서, 인트로가 끝나 본문(상대 발화)이
+  // 보이고, 음성 모드가 IDLE일 때만. 인트로 중엔 상대 발화를 아직 안 보여줬으니
+  // 마이크부터 열리지 않게 막는다.
   useEffect(() => {
-    if (!canAnswer || inputMode !== "VOICE" || stt.status !== "IDLE") return;
+    if (
+      !canAnswer ||
+      revealPhase !== "MAIN" ||
+      inputMode !== "VOICE" ||
+      stt.status !== "IDLE"
+    )
+      return;
     const timer = setTimeout(() => sttStart(), MIC_START_DELAY_MS);
     return () => clearTimeout(timer);
-  }, [canAnswer, inputMode, stt.status, sttStart]);
+  }, [canAnswer, revealPhase, inputMode, stt.status, sttStart]);
 
   // 완료 연출(마지막 피드백 + 리허설 완료) 여운 후 세션 층에 신호
   useEffect(() => {
@@ -130,7 +152,7 @@ export function SimulationStage({
         flowRetry();
         return;
       }
-      if (!canAnswer) return;
+      if (!canAnswer || revealPhase !== "MAIN") return;
       if (event.action === "CONFIRM") {
         if (sttStatus === "CANDIDATE") sttConfirm();
         else if (sttStatus === "ERROR") sttRetry();
@@ -143,6 +165,7 @@ export function SimulationStage({
       flowStatus,
       flowRetry,
       canAnswer,
+      revealPhase,
       sttStatus,
       sttConfirm,
       sttRetry,
@@ -250,56 +273,95 @@ export function SimulationStage({
     );
   }
 
-  // ANSWERING — 상대 발화 표시 + 답변 대기 (직전 판정이 실패면 재시도 화면)
+  // ANSWERING — 인트로(턴 표시+상황) → 본문(상대 발화+답변 대기) 순서로 보여준다
+  // (직전 판정이 실패면 본문은 재시도 화면이 된다)
   return (
     <>
       {countdown}
       <div className="flex h-full flex-col items-center justify-center gap-10 px-8">
-        <OpponentLine
-          turn={flow.currentTurn}
-          maxTurn={flow.maxTurn}
-          sceneCue={flow.sceneCue ?? ""}
-          line={flow.opponentLine ?? ""}
-          actionPrompt={flow.actionPrompt ?? ""}
-        />
+        <AnimatePresence mode="wait">
+          {revealPhase === "INTRO" ? (
+            <IntroCue
+              key={`intro-${turnKey}`}
+              turn={flow.currentTurn}
+              maxTurn={flow.maxTurn}
+              sceneCue={flow.sceneCue ?? ""}
+            />
+          ) : (
+            <motion.div
+              key={`main-${turnKey}`}
+              className="flex flex-col items-center gap-10"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, ease: "easeOut" }}
+            >
+              <OpponentLine
+                turn={flow.currentTurn}
+                line={flow.opponentLine ?? ""}
+                actionPrompt={flow.actionPrompt ?? ""}
+              />
 
-        {flow.evaluation && flow.evaluation.outcome === "RETRY_REQUIRED" && (
-          <FeedbackPanel evaluation={flow.evaluation} />
-        )}
+              {flow.evaluation &&
+                flow.evaluation.outcome === "RETRY_REQUIRED" && (
+                  <FeedbackPanel evaluation={flow.evaluation} />
+                )}
 
-        <AnswerArea
-          inputMode={inputMode}
-          stt={stt}
-          onSubmitTyped={handleAnswer}
-          sttLabel="YOUR ANSWER"
-          typedPlaceholder="상대에게 할 말을 입력해 주세요"
-          autoConfirmMs={SIMULATION_AUTO_CONFIRM_MS}
-        />
+              <AnswerArea
+                inputMode={inputMode}
+                stt={stt}
+                onSubmitTyped={handleAnswer}
+                sttLabel="YOUR ANSWER"
+                typedPlaceholder="상대에게 할 말을 입력해 주세요"
+                autoConfirmMs={SIMULATION_AUTO_CONFIRM_MS}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </>
   );
 }
 
-/** 상대 발화 — 턴 진행 표시와 함께 지금 응답해야 할 말을 보여준다. */
-function OpponentLine({
+/** 인트로 연출(1·2번) — 지금 몇 턴째이고 어떤 상황인지 큰 글씨로 먼저 알려준다. */
+function IntroCue({
   turn,
   maxTurn,
   sceneCue,
-  line,
-  actionPrompt,
 }: {
   turn: number;
   maxTurn: number;
   sceneCue: string;
+}) {
+  return (
+    <motion.div
+      className="max-w-4xl text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.45, ease: "easeOut" }}
+    >
+      <p className="mb-5 text-sm font-normal tracking-[0.34em] text-white/90">
+        SIMULATION · TURN {turn} / {maxTurn}
+      </p>
+      <p className="text-2xl font-light text-white/85 md:text-3xl">
+        {sceneCue}
+      </p>
+    </motion.div>
+  );
+}
+
+/** 본문 연출(3·4번) — 지금 응답해야 할 상대 발화와 행동 요구를 보여준다. */
+function OpponentLine({
+  turn,
+  line,
+  actionPrompt,
+}: {
+  turn: number;
   line: string;
   actionPrompt: string;
 }) {
   return (
     <div className="max-w-4xl text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-      <p className="mb-4 text-sm font-normal tracking-[0.34em] text-white/90">
-        SIMULATION · TURN {turn} / {maxTurn}
-      </p>
-      <p className="mb-3 text-base font-light text-white/65">{sceneCue}</p>
       {/* 발화가 바뀔 때만 다시 페이드 — 같은 턴 재시도에선 출렁이지 않는다 */}
       <motion.h2
         key={`${turn}-${line}`}
