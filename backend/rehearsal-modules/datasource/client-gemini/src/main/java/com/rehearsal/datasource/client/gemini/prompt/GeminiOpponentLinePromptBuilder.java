@@ -34,6 +34,14 @@ public class GeminiOpponentLinePromptBuilder {
           question already answered in accepted CONVERSATION_HISTORY.
         - Keep actionPrompt achievable in one short voice response. Make acceptedIntentHint match
           the requested action exactly and describe a lenient minimum, not an ideal answer.
+        - Make actionPrompt a concrete response scaffold: require exactly one minimum response
+          element unless TURN_OBJECTIVE explicitly requires multiple elements, and indicate a short
+          target length. Never add a reason, example, or result when the objective only asks for an
+          action or stance.
+        - Make acceptedIntentHint require the same elements as actionPrompt, no more and no less.
+          Prefer simplifying actionPrompt over making the acceptance threshold stricter.
+        - Never provide a model answer, blanks, placeholders, or a vague instruction such as
+          "answer well".
         - Follow TURN_OBJECTIVE as the situation-specific contract. Do not weaken an exact wording
           requirement contained there.
         - For RECOVERY mode, preserve the original turn goal, simplify the entry point, and

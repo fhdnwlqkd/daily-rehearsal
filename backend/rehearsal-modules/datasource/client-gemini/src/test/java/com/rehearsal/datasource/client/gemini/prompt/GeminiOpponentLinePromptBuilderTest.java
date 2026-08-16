@@ -42,6 +42,11 @@ class GeminiOpponentLinePromptBuilderTest {
             "at most one question",
             "question already answered",
             "lenient minimum",
+            "concrete response scaffold",
+            "exactly one minimum response",
+            "element unless TURN_OBJECTIVE",
+            "the same elements as actionPrompt",
+            "Never provide a model answer",
             "preserve the original turn goal");
     assertThat(messages.userMessage())
         .contains(

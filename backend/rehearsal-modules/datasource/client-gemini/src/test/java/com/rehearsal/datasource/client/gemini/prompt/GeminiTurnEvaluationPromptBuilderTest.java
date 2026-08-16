@@ -39,6 +39,7 @@ class GeminiTurnEvaluationPromptBuilderTest {
             "any phrase ending in \"제공되지 않음\"",
             "Evaluate semantic intent",
             "satisfying any one alternative is enough",
+            "minimum accepted examples",
             "Do not add requirements from FINAL_CONTEXT",
             "only one immediately actionable change");
     assertThat(messages.userMessage())
