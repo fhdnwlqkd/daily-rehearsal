@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
-import { toPng } from "html-to-image";
+import { toBlob } from "html-to-image";
 import { getSessionVideo, getTicketGeneration } from "../../apis";
 import { startPolling } from "../../lib/polling/poller";
 import {
@@ -133,23 +133,27 @@ function TicketDownloadView({
   const ticketCardRef = useRef<HTMLElement>(null);
   const [isSavingCard, setIsSavingCard] = useState(false);
   const [cardSaveError, setCardSaveError] = useState<string | null>(null);
-
-  if (!snapshot || !changeCard) return null;
+  const [cardFile, setCardFile] = useState<File | null>(null);
+  const [isSavingVideo, setIsSavingVideo] = useState(false);
+  const [videoSaveError, setVideoSaveError] = useState<string | null>(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
 
   const videoUrl = video?.videoUrl ?? ticket.videoUrl;
   const videoAvailable = isVideoDownloadAvailable(video, ticket);
   const videoPending = !videoLookupFinished || video?.status === "PENDING";
   const videoFailed = video?.status === "FAILED";
 
-  const downloadCardImage = async () => {
+  // 모바일 공유는 버튼 클릭의 사용자 활성화가 살아 있을 때 즉시 호출해야
+  // 안정적이다. 화면이 그려진 직후 PNG를 미리 만들어 둔다.
+  useEffect(() => {
     const card = ticketCardRef.current;
-    if (!card || isSavingCard) return;
+    if (!card) return;
+    const targetCard = card;
+    let cancelled = false;
 
-    setIsSavingCard(true);
-    setCardSaveError(null);
-    try {
+    async function prepareCard() {
       await document.fonts.ready;
-      const imageUrl = await toPng(card, {
+      const blob = await toBlob(targetCard, {
         backgroundColor: "#ffffff",
         cacheBust: true,
         pixelRatio: 2,
@@ -158,18 +162,86 @@ function TicketDownloadView({
             node instanceof HTMLElement && node.dataset.exportIgnore === "true"
           ),
       });
-      const anchor = document.createElement("a");
-      anchor.href = imageUrl;
-      anchor.download = `daily-rehearsal-${ticket.sessionId}.png`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-    } catch {
-      setCardSaveError(
-        "이미지를 만들지 못했습니다. 잠시 후 다시 시도해주세요.",
+      if (!blob) throw new Error("empty card image");
+      if (!cancelled) {
+        setCardFile(
+          new File([blob], `daily-rehearsal-${ticket.sessionId}.png`, {
+            type: "image/png",
+          }),
+        );
+      }
+    }
+
+    void prepareCard().catch(() => {
+      if (!cancelled) {
+        setCardSaveError(
+          "이미지를 만들지 못했습니다. 잠시 후 다시 시도해주세요.",
+        );
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ticket.sessionId]);
+
+  // 영상도 공유 버튼을 누르기 전에 받아 둬야 iOS의 사진/비디오 저장 메뉴를
+  // 사용자 클릭 순간 바로 열 수 있다.
+  useEffect(() => {
+    if (!videoAvailable || !videoUrl) return;
+    const controller = new AbortController();
+
+    async function prepareVideo() {
+      const response = await fetch(
+        `/download/${encodeURIComponent(ticket.sessionId)}/video`,
+        { signal: controller.signal, cache: "no-store" },
       );
+      if (!response.ok)
+        throw new Error(`video download failed: ${response.status}`);
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error("empty video");
+      const contentType = blob.type || "video/webm";
+      const extension = contentType.includes("mp4") ? "mp4" : "webm";
+      setVideoFile(
+        new File([blob], `daily-rehearsal-${ticket.sessionId}.${extension}`, {
+          type: contentType,
+        }),
+      );
+    }
+
+    void prepareVideo().catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setVideoSaveError(
+        "영상을 준비하지 못했습니다. 잠시 후 다시 시도해주세요.",
+      );
+    });
+    return () => controller.abort();
+  }, [ticket.sessionId, videoAvailable, videoUrl]);
+
+  if (!snapshot || !changeCard) return null;
+
+  const saveCardImage = async () => {
+    if (!cardFile || isSavingCard) return;
+    setIsSavingCard(true);
+    setCardSaveError(null);
+    try {
+      await shareOrDownload(cardFile, "내일을 위한 변화 카드");
+    } catch {
+      setCardSaveError("이미지를 저장하지 못했습니다. 다시 시도해주세요.");
     } finally {
       setIsSavingCard(false);
+    }
+  };
+
+  const saveVideo = async () => {
+    if (!videoFile || isSavingVideo) return;
+    setIsSavingVideo(true);
+    setVideoSaveError(null);
+    try {
+      await shareOrDownload(videoFile, "Daily Rehearsal 연습 영상");
+    } catch {
+      setVideoSaveError("영상을 저장하지 못했습니다. 다시 시도해주세요.");
+    } finally {
+      setIsSavingVideo(false);
     }
   };
 
@@ -239,23 +311,32 @@ function TicketDownloadView({
         <div className="mt-4 grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => void downloadCardImage()}
-            disabled={isSavingCard}
+            onClick={() => void saveCardImage()}
+            disabled={!cardFile || isSavingCard}
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#172027] bg-transparent px-3 text-sm font-semibold text-[#172027] transition-colors active:bg-white/70 disabled:cursor-wait disabled:opacity-55"
           >
             <Download size={17} aria-hidden />
-            {isSavingCard ? "이미지 생성 중…" : "변화 카드 저장"}
+            {!cardFile
+              ? "이미지 준비 중…"
+              : isSavingCard
+                ? "저장 메뉴 여는 중…"
+                : "사진으로 저장"}
           </button>
 
           {videoAvailable && videoUrl ? (
-            <a
+            <button
+              type="button"
+              onClick={() => void saveVideo()}
+              disabled={!videoFile || isSavingVideo}
               className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#172027] px-3 text-sm font-semibold text-white"
-              href={`/download/${encodeURIComponent(ticket.sessionId)}/video`}
-              download
             >
               <Download size={17} aria-hidden />
-              연습 영상 저장
-            </a>
+              {!videoFile
+                ? "영상 준비 중…"
+                : isSavingVideo
+                  ? "저장 메뉴 여는 중…"
+                  : "영상으로 저장"}
+            </button>
           ) : (
             <button
               type="button"
@@ -268,9 +349,10 @@ function TicketDownloadView({
           )}
         </div>
 
-        {(cardSaveError || videoFailed) && (
+        {(cardSaveError || videoSaveError || videoFailed) && (
           <div className="mt-3 space-y-1 text-center text-sm" role="status">
             {cardSaveError && <p className="text-red-600">{cardSaveError}</p>}
+            {videoSaveError && <p className="text-red-600">{videoSaveError}</p>}
             {videoFailed && (
               <p className="text-[#60707a]">
                 영상 저장에 실패했습니다. 변화 카드는 저장할 수 있습니다.
@@ -281,6 +363,32 @@ function TicketDownloadView({
       </div>
     </main>
   );
+}
+
+/** 모바일은 시스템 공유창(사진/비디오 저장)을, PC·미지원 환경은 다운로드를 쓴다. */
+async function shareOrDownload(file: File, title: string) {
+  if (
+    typeof navigator.share === "function" &&
+    typeof navigator.canShare === "function" &&
+    navigator.canShare({ files: [file] })
+  ) {
+    try {
+      await navigator.share({ files: [file], title });
+      return;
+    } catch (error) {
+      // 사용자가 공유창을 닫은 것은 저장 오류가 아니다.
+      if (error instanceof DOMException && error.name === "AbortError") return;
+    }
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+  const anchor = document.createElement("a");
+  anchor.href = objectUrl;
+  anchor.download = file.name;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 1_000);
 }
 
 function MobileFact({ label, value }: { label: string; value: string }) {

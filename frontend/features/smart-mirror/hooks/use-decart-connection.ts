@@ -14,7 +14,7 @@ import type { DecartConnectionHandle, DecartSpec } from "../types";
  * 백엔드 outfit-spec의 model과 같은 값(전시 중 불변). 연결은 스펙 조회보다
  * 먼저 일어나므로 응답을 기다리지 않고 상수로 고정한다.
  */
-const DECART_MODEL = "lucy-vton-latest";
+const DECART_MODEL = models.realtime("lucy-vton-latest");
 
 interface UseDecartConnectionArgs {
   /** 세션 생성 전에는 null — 연결하지 않는다. */
@@ -162,7 +162,11 @@ export function useDecartConnection({
         const videoOnlyStream = new MediaStream(sourceStream.getVideoTracks());
 
         client = await decart.realtime.connect(videoOnlyStream, {
-          model: models.realtime(DECART_MODEL),
+          model: DECART_MODEL,
+          // 서버 기본 720p 대신 큰 거울 화면에 맞는 출력을 받고, 브라우저와
+          // MediaRecorder 모두에서 안정적인 VP8 경로를 사용한다.
+          resolution: "1080p",
+          preferredVideoCodec: "vp8",
           onRemoteStream: (stream) => {
             if (!isCancelled()) setRemoteStream(stream);
           },
@@ -171,6 +175,11 @@ export function useDecartConnection({
           debugQuality: true,
           onConnectionQuality: (report) => {
             if (isCancelled() || report.warmingUp) return;
+            console.info("Decart connection quality:", {
+              quality: report.quality,
+              limitingFactor: report.limitingFactor,
+              ...report.metrics,
+            });
             const measured = report.metrics.g2gMs;
             if (measured != null) {
               setG2gMs((current) => current ?? Math.round(measured));
