@@ -25,8 +25,10 @@ export interface SessionRecording {
 }
 
 interface UseSessionRecorderArgs {
-  /** 시뮬레이션 구간만 true. false로 내려가면 녹화를 끝낸다. */
+  /** 옷 선택~시뮬레이션 구간만 true. false로 내려가면 녹화를 끝낸다. */
   enabled: boolean;
+  /** 사용자가 허용한 현재 탭 캡처. 있으면 카메라/Decart보다 우선한다. */
+  screenStream: MediaStream | null;
   /** 소스 결정용 — CONNECTING 동안은 기다리고, ERROR/CLOSED면 원본으로 폴백한다. */
   decartStatus: DecartConnectionStatus;
   /** Decart 변환 스트림 — 있으면 이것을 녹화한다("내일의 모습"이 콘텐츠다). */
@@ -63,6 +65,7 @@ interface UseSessionRecorderResult {
  */
 export function useSessionRecorder({
   enabled,
+  screenStream,
   decartStatus,
   decartStream,
   cameraStream,
@@ -103,16 +106,19 @@ export function useSessionRecorder({
     if (!enabled || startedRef.current) return;
     if (typeof MediaRecorder === "undefined") return;
 
-    // 소스 결정은 lib/recording/source.ts — 실패·종료가 확정됐을 때만 원본
-    // 폴백이고, 그 전(진입 직후의 IDLE 포함)에는 다음 상태 변화까지 기다린다.
+    // 탭 캡처가 있으면 화면에 보이는 UI 전체를 최우선으로 녹화한다.
+    const screenTrack = screenStream?.getVideoTracks()[0];
     const decartTrack = decartStream?.getVideoTracks()[0];
-    const decision = decideRecordingSource(
-      decartStatus,
-      decartTrack !== undefined,
-    );
+    const decision = screenTrack
+      ? "SCREEN"
+      : decideRecordingSource(decartStatus, decartTrack !== undefined);
     if (decision === "WAIT") return;
     const videoTrack =
-      decision === "DECART" ? decartTrack : cameraStream?.getVideoTracks()[0];
+      decision === "SCREEN"
+        ? screenTrack
+        : decision === "DECART"
+          ? decartTrack
+          : cameraStream?.getVideoTracks()[0];
     if (!videoTrack) return;
 
     const mimeType = pickRecordingMimeType((candidate) =>
@@ -125,7 +131,8 @@ export function useSessionRecorder({
     }
 
     startedRef.current = true;
-    recordsDecartRef.current = decision === "DECART";
+    // 화면 캡처에도 이후 Decart가 표시되므로 g2g 값이 도착하면 음성을 맞춘다.
+    recordsDecartRef.current = decision === "DECART" || decision === "SCREEN";
 
     const recordingTracks: MediaStreamTrack[] = [videoTrack];
 
@@ -147,7 +154,11 @@ export function useSessionRecorder({
       );
       const delayNode = audioContext.createDelay(5);
       const initialDelayMs =
-        decision === "DECART" ? (syncDelayMs ?? DEFAULT_AV_SYNC_DELAY_MS) : 0;
+        decision === "DECART"
+          ? (syncDelayMs ?? DEFAULT_AV_SYNC_DELAY_MS)
+          : decision === "SCREEN"
+            ? (syncDelayMs ?? 0)
+            : 0;
       delayNode.delayTime.value = initialDelayMs / 1000;
       const destination = audioContext.createMediaStreamDestination();
       source.connect(delayNode);
@@ -204,6 +215,7 @@ export function useSessionRecorder({
     }
   }, [
     enabled,
+    screenStream,
     decartStatus,
     decartStream,
     cameraStream,
