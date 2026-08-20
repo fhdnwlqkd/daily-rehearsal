@@ -205,7 +205,8 @@ export function ExperienceSession({
 
       {/* 녹화 고지 — 촬영 중임을 관람객에게 알린다 (#94) */}
       {recorderStatus === "RECORDING" && (
-        <div className="absolute top-6 left-6 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-xl">
+        // 세로 모드에서는 슬림 헤더(로고)와 같은 높이라 겹친다 — 한 줄 아래로 내린다(#232).
+        <div className="absolute top-6 left-6 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-xl portrait:top-11 portrait:left-4">
           <motion.span
             className="h-2 w-2 rounded-full bg-red-500"
             animate={{ opacity: [1, 0.35, 1] }}
