@@ -23,3 +23,5 @@ export type {
   SttSnapshot,
   SttStatus,
 } from "./types";
+// 개발 전용(#232) — 스테이지 단독 프리뷰 (app/dev/stage-preview)
+export { StagePreview } from "./components/stage-preview";
