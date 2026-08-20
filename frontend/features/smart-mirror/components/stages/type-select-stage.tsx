@@ -79,6 +79,21 @@ export function TypeSelectStage({
     enabled: createStatus !== "READY",
   });
 
+  // 카드 탭/클릭(#232) — 폰(세로 iframe)의 1차 입력. 다른 카드 탭 = 하이라이트
+  // 이동, 하이라이트된 카드 탭 = 확정. 제스처·키보드와 같은 경로를 재사용하고,
+  // 성공 후에는 제스처 컨트롤러와 같은 조건으로 잠근다.
+  const handleCardTap = useCallback(
+    (index: number) => {
+      if (listStatus !== "READY" || createStatus === "READY") return;
+      if (index === highlightIndex) {
+        confirm();
+        return;
+      }
+      setHighlightIndex(index);
+    },
+    [listStatus, createStatus, highlightIndex, confirm],
+  );
+
   // 세션 생성 성공 → 선택된 타입과 함께 세션 층으로 올린다.
   // (하이라이트가 아니라 응답의 situationType으로 역참조 — 성공 후
   // 하이라이트가 움직여도 올라가는 타입이 흔들리지 않는다.)
@@ -120,6 +135,7 @@ export function TypeSelectStage({
               order={index + 1}
               highlighted={index === highlightIndex}
               confirmProgress={index === highlightIndex ? confirmProgress : 0}
+              onTap={() => handleCardTap(index)}
             />
           ))}
         </div>
@@ -155,6 +171,7 @@ function TypeCard({
   order,
   highlighted,
   confirmProgress,
+  onTap,
 }: {
   type: SituationType;
   /** 카드 번호(1부터). 구 명세의 gestureOrder가 사라져 배열 순서를 쓴다. */
@@ -162,6 +179,8 @@ function TypeCard({
   highlighted: boolean;
   /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
   confirmProgress: number;
+  /** 탭/클릭 입력(#232) — 폰에서는 이게 1차 조작 수단이다. */
+  onTap: () => void;
 }) {
   const charging = confirmProgress > 0;
 
@@ -169,8 +188,10 @@ function TypeCard({
     // 밝은 영상 위에서는 선택 카드를 키우는 것보다 비선택 카드를 죽이는 게
     // 멀리서도 확실하다. GlassPanel이 framer로 transform을 소유하므로
     // scale/opacity는 래퍼에서 준다.
-    <div
-      className={`transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
+    <button
+      type="button"
+      onClick={onTap}
+      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
     >
       <GlassPanel
         className={`px-[clamp(1rem,2.5vw,2rem)] py-[clamp(0.875rem,2.5vh,1.5rem)] portrait:px-5 portrait:py-3 ${
@@ -198,6 +219,6 @@ function TypeCard({
           </div>
         </div>
       </GlassPanel>
-    </div>
+    </button>
   );
 }

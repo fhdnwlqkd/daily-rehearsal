@@ -164,6 +164,33 @@ export function OutfitStage({
     ],
   );
 
+  // 카드 탭/클릭(#232) — 폰(세로 iframe)의 1차 입력. 제스처의 NEXT/PREV/CONFIRM과
+  // 같은 경로를 재사용한다: 다른 카드 탭 = 하이라이트 이동(즉시 입어보기),
+  // 하이라이트된 카드 탭 = 확정. 시간 만료 후에는 ERROR 재시도만 허용(제스처와 동일).
+  const handleCardTap = useCallback(
+    (index: number) => {
+      if (listStatus !== "READY" || confirmStatus === "READY") return;
+      if (selectionExpired) {
+        if (index === highlightIndex && confirmStatus === "ERROR") {
+          confirmHighlighted(true);
+        }
+        return;
+      }
+      if (index === highlightIndex) {
+        confirmHighlighted();
+        return;
+      }
+      setHighlightIndex(index);
+    },
+    [
+      listStatus,
+      confirmStatus,
+      selectionExpired,
+      highlightIndex,
+      confirmHighlighted,
+    ],
+  );
+
   const {
     status: gestureStatus,
     handVisible,
@@ -222,6 +249,7 @@ export function OutfitStage({
               order={index + 1}
               highlighted={index === highlightIndex}
               confirmProgress={index === highlightIndex ? confirmProgress : 0}
+              onTap={() => handleCardTap(index)}
             />
           ))}
         </div>
@@ -257,6 +285,7 @@ function OutfitCard({
   order,
   highlighted,
   confirmProgress,
+  onTap,
 }: {
   outfit: OutfitCandidate;
   /** 카드 번호(1부터) — 배열 순서. */
@@ -264,14 +293,18 @@ function OutfitCard({
   highlighted: boolean;
   /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
   confirmProgress: number;
+  /** 탭/클릭 입력(#232) — 폰에서는 이게 1차 조작 수단이다. */
+  onTap: () => void;
 }) {
   const charging = confirmProgress > 0;
 
   return (
     // 비선택 카드의 텍스트까지 흐려지지 않도록 크기·표면·썸네일로만
     // 선택 상태를 구분한다.
-    <div
-      className={`transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
+    <button
+      type="button"
+      onClick={onTap}
+      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
     >
       <GlassPanel
         className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] ${
@@ -308,6 +341,6 @@ function OutfitCard({
           </div>
         </div>
       </GlassPanel>
-    </div>
+    </button>
   );
 }
