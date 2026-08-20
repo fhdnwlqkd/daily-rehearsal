@@ -79,6 +79,21 @@ export function TypeSelectStage({
     enabled: createStatus !== "READY",
   });
 
+  // 카드 탭/클릭(#232) — 폰(세로 iframe)의 1차 입력. 다른 카드 탭 = 하이라이트
+  // 이동, 하이라이트된 카드 탭 = 확정. 제스처·키보드와 같은 경로를 재사용하고,
+  // 성공 후에는 제스처 컨트롤러와 같은 조건으로 잠근다.
+  const handleCardTap = useCallback(
+    (index: number) => {
+      if (listStatus !== "READY" || createStatus === "READY") return;
+      if (index === highlightIndex) {
+        confirm();
+        return;
+      }
+      setHighlightIndex(index);
+    },
+    [listStatus, createStatus, highlightIndex, confirm],
+  );
+
   // 세션 생성 성공 → 선택된 타입과 함께 세션 층으로 올린다.
   // (하이라이트가 아니라 응답의 situationType으로 역참조 — 성공 후
   // 하이라이트가 움직여도 올라가는 타입이 흔들리지 않는다.)
@@ -92,12 +107,13 @@ export function TypeSelectStage({
   }, [createStatus, session, situationTypes, onSessionCreated]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-12 px-8">
+    // pb: StageFrame의 TapHint(absolute bottom) 영역을 비워 안내 슬롯과 겹치지 않게 한다.
+    <div className="flex h-full flex-col items-center justify-center gap-[clamp(1rem,4.5vh,3rem)] px-[clamp(1rem,4vw,2rem)] pb-[clamp(2.25rem,7vh,3rem)] portrait:pb-0">
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-medium tracking-[0.34em] text-white/75">
+        <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-xs font-medium tracking-[0.34em] text-white/75">
           SELECT SITUATION
         </p>
-        <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
+        <h2 className="text-[clamp(1.375rem,4.5vw,3rem)] font-extralight tracking-wide break-keep">
           내일 연습할 상황을 골라주세요
         </h2>
       </div>
@@ -110,7 +126,8 @@ export function TypeSelectStage({
       )}
 
       {listStatus === "READY" && (
-        <div className="flex flex-wrap justify-center gap-6">
+        // 세로 박스(#232)에서는 카드가 어중간하게 wrap되며 넘치므로 풀폭 스택으로 바꾼다.
+        <div className="flex flex-wrap justify-center gap-[clamp(0.75rem,2vw,1.5rem)] portrait:w-full portrait:max-w-[340px] portrait:flex-col portrait:flex-nowrap portrait:items-stretch portrait:gap-3">
           {situationTypes.map((type, index) => (
             <TypeCard
               key={type.situationType}
@@ -118,13 +135,14 @@ export function TypeSelectStage({
               order={index + 1}
               highlighted={index === highlightIndex}
               confirmProgress={index === highlightIndex ? confirmProgress : 0}
+              onTap={() => handleCardTap(index)}
             />
           ))}
         </div>
       )}
 
       {/* 안내 슬롯 — 상태가 바뀌어도 높이를 고정해 카드가 출렁이지 않게 한다 */}
-      <div className="flex h-28 items-center justify-center">
+      <div className="flex h-[clamp(3.5rem,12vh,7rem)] items-center justify-center">
         {createStatus === "IDLE" && listStatus === "READY" && (
           <GestureHint
             gestureStatus={gestureStatus}
@@ -153,6 +171,7 @@ function TypeCard({
   order,
   highlighted,
   confirmProgress,
+  onTap,
 }: {
   type: SituationType;
   /** 카드 번호(1부터). 구 명세의 gestureOrder가 사라져 배열 순서를 쓴다. */
@@ -160,6 +179,8 @@ function TypeCard({
   highlighted: boolean;
   /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
   confirmProgress: number;
+  /** 탭/클릭 입력(#232) — 폰에서는 이게 1차 조작 수단이다. */
+  onTap: () => void;
 }) {
   const charging = confirmProgress > 0;
 
@@ -167,21 +188,23 @@ function TypeCard({
     // 밝은 영상 위에서는 선택 카드를 키우는 것보다 비선택 카드를 죽이는 게
     // 멀리서도 확실하다. GlassPanel이 framer로 transform을 소유하므로
     // scale/opacity는 래퍼에서 준다.
-    <div
-      className={`transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
+    <button
+      type="button"
+      onClick={onTap}
+      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
     >
       <GlassPanel
-        className={
+        className={`px-[clamp(1rem,2.5vw,2rem)] py-[clamp(0.875rem,2.5vh,1.5rem)] portrait:px-5 portrait:py-3 ${
           highlighted ? "border-white/60 bg-white/20" : "border-white/10"
-        }
+        }`}
         pulsing={highlighted}
         pulseColor="rgba(255, 255, 255, 0.35)"
       >
-        <div className="flex w-56 flex-col items-center gap-3 text-center">
+        <div className="flex w-[clamp(8rem,22vw,14rem)] flex-col items-center gap-3 text-center portrait:w-full portrait:gap-1.5">
           <span className="text-xs font-medium tracking-[0.3em] text-white/75">
             {String(order).padStart(2, "0")}
           </span>
-          <span className="text-2xl font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
+          <span className="text-[clamp(1.125rem,2vw,1.5rem)] font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
             {type.label}
           </span>
           {/* 팜홀드 차징 바 — 평소엔 투명해서 구분선처럼 안 보이고,
@@ -196,6 +219,6 @@ function TypeCard({
           </div>
         </div>
       </GlassPanel>
-    </div>
+    </button>
   );
 }

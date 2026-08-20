@@ -181,24 +181,28 @@ export function BriefingStage({
 
   // IDLE(최초 질문) 또는 FOLLOW_UP(재질문)
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-10 px-8">
-      {flow.status === "FOLLOW_UP" ? (
-        <FollowUpQuestions questions={flow.followUpQuestions} />
-      ) : (
-        <BriefingQuestion
-          title={content?.briefingTitle ?? ""}
-          example={content?.exampleAnswer ?? ""}
-        />
-      )}
+    // 상단 pt = 헤더 세이프존(#232) — 긴 STT 텍스트가 중앙정렬로 위로 확장돼
+    // 헤더를 덮지 않게 하고, 그래도 넘치면 내부 스크롤로 살린다.
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)]">
+        {flow.status === "FOLLOW_UP" ? (
+          <FollowUpQuestions questions={flow.followUpQuestions} />
+        ) : (
+          <BriefingQuestion
+            title={content?.briefingTitle ?? ""}
+            example={content?.exampleAnswer ?? ""}
+          />
+        )}
 
-      <AnswerArea
-        inputMode={inputMode}
-        stt={stt}
-        onSubmitTyped={handleAnswer}
-        sttLabel="YOUR BRIEFING"
-        typedPlaceholder="내일의 상황을 입력해 주세요"
-        autoConfirmMs={BRIEFING_AUTO_CONFIRM_MS}
-      />
+        <AnswerArea
+          inputMode={inputMode}
+          stt={stt}
+          onSubmitTyped={handleAnswer}
+          sttLabel="YOUR BRIEFING"
+          typedPlaceholder="내일의 상황을 입력해 주세요"
+          autoConfirmMs={BRIEFING_AUTO_CONFIRM_MS}
+        />
+      </div>
     </div>
   );
 }
@@ -216,15 +220,15 @@ function BriefingQuestion({
 
   return (
     <div className="w-full max-w-4xl drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-      <p className="mb-4 text-center text-xs font-light tracking-[0.34em] text-white/65">
+      <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-center text-xs font-light tracking-[0.34em] text-white/65">
         BRIEFING
       </p>
-      <GlassPanel className="w-full px-8 py-6 md:px-10">
+      <GlassPanel className="w-full px-[clamp(1.125rem,3vw,2.5rem)] py-[clamp(0.875rem,2.5vh,1.5rem)]">
         <div className="space-y-3 text-left">
           {titleSentences.map((sentence, index) => (
             <p
               key={`${sentence}-${index}`}
-              className={`text-xl leading-[1.5] tracking-[0.01em] break-keep md:text-2xl ${
+              className={`text-[clamp(1rem,2.2vw,1.5rem)] leading-[1.5] tracking-[0.01em] break-keep ${
                 index === 0
                   ? "font-medium text-white"
                   : "font-light text-white/[0.88]"
@@ -244,7 +248,7 @@ function BriefingQuestion({
             {exampleSentences.map((sentence, index) => (
               <p
                 key={`${sentence}-${index}`}
-                className="text-lg leading-[1.5] font-light break-keep text-white/[0.82] md:text-xl"
+                className="text-[clamp(0.9375rem,2vw,1.25rem)] leading-[1.5] font-light break-keep text-white/[0.82]"
               >
                 {index === 0 ? "“" : ""}
                 {sentence}
@@ -266,7 +270,7 @@ function FollowUpQuestions({ questions }: { questions: string[] }) {
         <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
           FOLLOW-UP
         </p>
-        <h2 className="text-3xl font-extralight tracking-wide md:text-4xl">
+        <h2 className="text-[clamp(1.25rem,3.5vw,2.5rem)] font-extralight tracking-wide break-keep">
           몇 가지만 더 알려주세요
         </h2>
       </div>
@@ -283,7 +287,7 @@ function FollowUpQuestions({ questions }: { questions: string[] }) {
               <span className="text-xs font-light tracking-[0.3em] text-white/45">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <span className="text-2xl font-extralight tracking-wide text-white/90">
+              <span className="text-[clamp(1.0625rem,2.2vw,1.5rem)] font-extralight tracking-wide break-keep text-white/90">
                 {question}
               </span>
             </motion.li>
@@ -324,7 +328,7 @@ function CompletedView() {
         <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
           CONTEXT READY
         </p>
-        <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
+        <h2 className="text-[clamp(1.5rem,4.5vw,3rem)] font-extralight tracking-wide">
           상황 준비 완료
         </h2>
       </motion.div>
@@ -348,8 +352,11 @@ function FailedView({ reason }: { reason: BriefingFlowFailReason | null }) {
 
 function CenterColumn({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-8">
-      {children}
+    // 헤더 세이프존 + 넘침 시 내부 스크롤 — 위 IDLE/FOLLOW_UP 컨테이너와 동일(#232).
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-6">
+        {children}
+      </div>
     </div>
   );
 }
