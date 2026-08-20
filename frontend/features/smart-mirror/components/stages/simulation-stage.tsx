@@ -289,45 +289,48 @@ export function SimulationStage({
   return (
     <>
       {countdown}
-      <div className="flex h-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)] px-[clamp(1rem,4vw,2rem)]">
-        <AnimatePresence mode="wait">
-          {revealPhase === "INTRO" ? (
-            <IntroCue
-              key={`intro-${turnKey}`}
-              turn={flow.currentTurn}
-              maxTurn={flow.maxTurn}
-              sceneCue={flow.sceneCue ?? ""}
-            />
-          ) : (
-            <motion.div
-              key={`main-${turnKey}`}
-              className="flex flex-col items-center gap-[clamp(1rem,3.5vh,2.5rem)]"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.45, ease: "easeOut" }}
-            >
-              <OpponentLine
+      {/* CenterColumn과 같은 세이프존+스크롤 구조 — 긴 피드백/재시도 화면 대응(#232) */}
+      <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(5.5rem,16vh,7.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
+        <div className="flex min-h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)]">
+          <AnimatePresence mode="wait">
+            {revealPhase === "INTRO" ? (
+              <IntroCue
+                key={`intro-${turnKey}`}
                 turn={flow.currentTurn}
-                line={flow.opponentLine ?? ""}
-                actionPrompt={flow.actionPrompt ?? ""}
+                maxTurn={flow.maxTurn}
+                sceneCue={flow.sceneCue ?? ""}
               />
+            ) : (
+              <motion.div
+                key={`main-${turnKey}`}
+                className="flex flex-col items-center gap-[clamp(1rem,3.5vh,2.5rem)]"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.45, ease: "easeOut" }}
+              >
+                <OpponentLine
+                  turn={flow.currentTurn}
+                  line={flow.opponentLine ?? ""}
+                  actionPrompt={flow.actionPrompt ?? ""}
+                />
 
-              {flow.evaluation &&
-                flow.evaluation.outcome === "RETRY_REQUIRED" && (
-                  <FeedbackPanel evaluation={flow.evaluation} />
-                )}
+                {flow.evaluation &&
+                  flow.evaluation.outcome === "RETRY_REQUIRED" && (
+                    <FeedbackPanel evaluation={flow.evaluation} />
+                  )}
 
-              <AnswerArea
-                inputMode={inputMode}
-                stt={stt}
-                onSubmitTyped={handleAnswer}
-                sttLabel="YOUR ANSWER"
-                typedPlaceholder="상대에게 할 말을 입력해 주세요"
-                autoConfirmMs={SIMULATION_AUTO_CONFIRM_MS}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+                <AnswerArea
+                  inputMode={inputMode}
+                  stt={stt}
+                  onSubmitTyped={handleAnswer}
+                  sttLabel="YOUR ANSWER"
+                  typedPlaceholder="상대에게 할 말을 입력해 주세요"
+                  autoConfirmMs={SIMULATION_AUTO_CONFIRM_MS}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
     </>
   );
@@ -399,7 +402,7 @@ function FeedbackPanel({ evaluation }: { evaluation: SimulationFeedback }) {
       transition={{ duration: 0.35, ease: "easeOut" }}
     >
       <GlassPanel
-        className={`max-w-3xl px-8 py-5 ${
+        className={`max-w-3xl px-[clamp(1.125rem,2.5vw,2rem)] py-[clamp(0.875rem,2vh,1.25rem)] ${
           evaluation.outcome === "ACCEPTED" || evaluation.turnCompleted
             ? "border-white/45"
             : "border-white/15"
@@ -414,7 +417,7 @@ function FeedbackPanel({ evaluation }: { evaluation: SimulationFeedback }) {
                 : "NEXT TURN"}
           </span>
           {evaluation.feedback && (
-            <p className="text-xl font-extralight tracking-wide text-white/90">
+            <p className="text-[clamp(1rem,2vw,1.25rem)] leading-[1.55] font-extralight tracking-wide break-keep text-white/90">
               {evaluation.feedback}
             </p>
           )}
@@ -445,8 +448,14 @@ function FailedView({ reason }: { reason: SimulationFlowFailReason | null }) {
 
 function CenterColumn({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-8">
-      {children}
+    // 상단 pt = 헤더+카운트다운 세이프존(#232) — 긴 피드백이 중앙정렬로
+    // 위로 확장돼 헤더·REC·타이머를 덮던 문제를 막는다. 그래도 넘치면
+    // 내부 스크롤로 살린다. justify-center는 공간이 남을 때만 작동하므로
+    // 짧은 콘텐츠는 기존처럼 중앙에 온다.
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(5.5rem,16vh,7.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-6">
+        {children}
+      </div>
     </div>
   );
 }
