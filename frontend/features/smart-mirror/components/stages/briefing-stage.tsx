@@ -181,24 +181,28 @@ export function BriefingStage({
 
   // IDLE(최초 질문) 또는 FOLLOW_UP(재질문)
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)] px-[clamp(1rem,4vw,2rem)]">
-      {flow.status === "FOLLOW_UP" ? (
-        <FollowUpQuestions questions={flow.followUpQuestions} />
-      ) : (
-        <BriefingQuestion
-          title={content?.briefingTitle ?? ""}
-          example={content?.exampleAnswer ?? ""}
-        />
-      )}
+    // 상단 pt = 헤더 세이프존(#232) — 긴 STT 텍스트가 중앙정렬로 위로 확장돼
+    // 헤더를 덮지 않게 하고, 그래도 넘치면 내부 스크롤로 살린다.
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)]">
+        {flow.status === "FOLLOW_UP" ? (
+          <FollowUpQuestions questions={flow.followUpQuestions} />
+        ) : (
+          <BriefingQuestion
+            title={content?.briefingTitle ?? ""}
+            example={content?.exampleAnswer ?? ""}
+          />
+        )}
 
-      <AnswerArea
-        inputMode={inputMode}
-        stt={stt}
-        onSubmitTyped={handleAnswer}
-        sttLabel="YOUR BRIEFING"
-        typedPlaceholder="내일의 상황을 입력해 주세요"
-        autoConfirmMs={BRIEFING_AUTO_CONFIRM_MS}
-      />
+        <AnswerArea
+          inputMode={inputMode}
+          stt={stt}
+          onSubmitTyped={handleAnswer}
+          sttLabel="YOUR BRIEFING"
+          typedPlaceholder="내일의 상황을 입력해 주세요"
+          autoConfirmMs={BRIEFING_AUTO_CONFIRM_MS}
+        />
+      </div>
     </div>
   );
 }
@@ -348,8 +352,11 @@ function FailedView({ reason }: { reason: BriefingFlowFailReason | null }) {
 
 function CenterColumn({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-6 px-8">
-      {children}
+    // 헤더 세이프존 + 넘침 시 내부 스크롤 — 위 IDLE/FOLLOW_UP 컨테이너와 동일(#232).
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-6">
+        {children}
+      </div>
     </div>
   );
 }
