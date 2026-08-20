@@ -68,50 +68,54 @@ function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <div className="h-full px-[clamp(24px,4vw,48px)] pt-[clamp(18px,2.5vh,28px)] pb-[clamp(58px,6vh,72px)] [@media(max-height:800px)]:pt-3 [@media(max-height:800px)]:pb-14">
-        <div className="mx-auto flex h-full min-h-0 w-full max-w-[840px] flex-col [@media(max-height:800px)]:max-w-[1040px]">
-          <header className="flex shrink-0 items-center justify-between gap-6 pb-[clamp(12px,1.8vh,18px)] [@media(max-height:800px)]:pb-2">
+      {/* 콘텐츠가 박스보다 길면(세로 모바일 등) 잘리는 대신 내부 스크롤로 살린다(#232).
+          portrait pb: 스크롤 끝에서 마지막 항목이 TapHint 아래 깔리지 않게 여유를 더 준다. */}
+      <div className="h-full overflow-y-auto px-[clamp(16px,4vw,48px)] pt-[clamp(14px,2.5vh,28px)] pb-[clamp(58px,6vh,72px)] portrait:pb-24 short:pt-3 short:pb-14">
+        <div className="mx-auto flex min-h-full w-full max-w-[840px] flex-col short:max-w-[1040px]">
+          <header className="flex shrink-0 items-center justify-between gap-6 pb-[clamp(12px,1.8vh,18px)] short:pb-2">
             <div>
               <p className="flex items-center gap-2.5 text-base font-semibold tracking-[0.14em] text-[#52616b] uppercase">
                 <span className="h-2 w-2 rounded-full bg-[#00B0F0]" />
                 Rehearsal complete
               </p>
-              <h2 className="mt-1.5 text-[clamp(38px,4.8vw,52px)] leading-[1.1] font-semibold tracking-[-0.025em] text-[#121a20] [@media(max-height:800px)]:mt-0.5 [@media(max-height:800px)]:text-[38px]">
+              <h2 className="mt-1.5 text-[clamp(24px,4.8vw,52px)] leading-[1.1] font-semibold tracking-[-0.025em] text-[#121a20] short:mt-0.5 short:text-[clamp(22px,7vh,38px)]">
                 내일을 위한 티켓
               </h2>
             </div>
-            <p className="text-right text-base leading-[1.45] text-[#66757f]">
+            <p className="text-right text-base leading-[1.45] text-[#66757f] max-[480px]:hidden">
               오늘의 연습을
               <br />한 장에 담았습니다
             </p>
           </header>
 
           <article className="relative flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-[#dce3e7] bg-white shadow-[0_16px_44px_rgba(24,39,49,0.09)]">
-            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 px-[clamp(24px,4vw,38px)] py-[clamp(12px,1.8vh,18px)] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:py-2.5">
+            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 px-[clamp(24px,4vw,38px)] py-[clamp(12px,1.8vh,18px)] short:px-8 short:py-2.5">
               <div className="min-w-0">
-                <p className="text-sm font-semibold tracking-[0.16em] text-[#73808a] uppercase">
+                <p className="text-sm font-semibold tracking-[0.16em] text-[#73808a] uppercase portrait:text-xs portrait:tracking-[0.1em]">
                   Daily Rehearsal · Result Ticket
                 </p>
-                <p className="mt-3 text-base font-semibold text-[#00B0F0] [@media(max-height:800px)]:mt-1.5">
+                <p className="mt-3 text-base font-semibold text-[#00B0F0] short:mt-1.5">
                   {snapshot.situationLabel}
                 </p>
-                <h3 className="mt-1 text-[clamp(34px,4.25vw,46px)] leading-[1.12] font-semibold tracking-[-0.025em] text-[#172027] [@media(max-height:800px)]:text-[34px]">
+                <h3 className="mt-1 text-[clamp(20px,4.25vw,46px)] leading-[1.12] font-semibold tracking-[-0.025em] break-keep text-[#172027] short:text-[clamp(18px,6.5vh,34px)]">
                   내일 기억할 세 가지
                 </h3>
-                <p className="mt-2.5 max-w-lg text-[17px] leading-[1.5] text-[#6a7881] [@media(max-height:800px)]:mt-1">
+                <p className="mt-2.5 max-w-lg text-[17px] leading-[1.5] text-[#6a7881] short:mt-1">
                   오늘의 리허설에서 찾은 행동을 내일의 장면에 가져가세요.
                 </p>
               </div>
 
+              {/* 세로(모바일)에서는 같은 화면의 QR을 스캔할 수 없다 — 헤더에서 빼고
+                  푸터의 다운로드 버튼으로 대체한다(#232). */}
               {qrPayload && (
-                <div className="shrink-0 border border-[#dce3e7] bg-white p-2.5">
+                <div className="shrink-0 border border-[#dce3e7] bg-white p-2.5 portrait:hidden">
                   <QRCodeSVG
                     value={qrPayload}
                     size={96}
                     marginSize={0}
                     bgColor="#ffffff"
                     fgColor="#172027"
-                    className="h-[clamp(78px,11vw,96px)] w-[clamp(78px,11vw,96px)]"
+                    className="h-[clamp(56px,11vw,96px)] w-[clamp(56px,11vw,96px)]"
                   />
                 </div>
               )}
@@ -119,8 +123,8 @@ function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
 
             <TicketPerforation />
 
-            <div className="flex flex-col px-[clamp(24px,4vw,38px)] pt-[clamp(14px,2vh,20px)] pb-[clamp(14px,2vh,20px)] [@media(max-height:800px)]:grid [@media(max-height:800px)]:grid-cols-[0.85fr_1.5fr] [@media(max-height:800px)]:px-8 [@media(max-height:800px)]:pt-2 [@media(max-height:800px)]:pb-3">
-              <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3.5 border-b border-[#e5eaed] pb-[clamp(14px,1.8vh,18px)] [@media(max-height:800px)]:gap-y-2.5 [@media(max-height:800px)]:border-r [@media(max-height:800px)]:border-b-0 [@media(max-height:800px)]:pr-7 [@media(max-height:800px)]:pb-0">
+            <div className="flex flex-col px-[clamp(24px,4vw,38px)] pt-[clamp(14px,2vh,20px)] pb-[clamp(14px,2vh,20px)] short:grid short:grid-cols-[0.85fr_1.5fr] short:px-8 short:pt-2 short:pb-3">
+              <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3.5 border-b border-[#e5eaed] pb-[clamp(14px,1.8vh,18px)] max-[360px]:grid-cols-1 short:gap-y-2.5 short:border-r short:border-b-0 short:pr-7 short:pb-0">
                 <TicketFact
                   label="중요한 순간"
                   value={snapshot.criticalMoment}
@@ -133,7 +137,7 @@ function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
                 />
               </dl>
 
-              <ol className="mt-1 flex flex-col divide-y divide-[#e7ecef] [@media(max-height:800px)]:mt-0 [@media(max-height:800px)]:pl-7">
+              <ol className="mt-1 flex flex-col divide-y divide-[#e7ecef] short:mt-0 short:pl-7">
                 <ChangePlan
                   number="01"
                   label="먼저 바꿀 행동"
@@ -154,18 +158,33 @@ function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
                 />
               </ol>
 
-              <footer className="flex shrink-0 items-center justify-between gap-5 border-t border-[#e5eaed] pt-[clamp(12px,1.6vh,16px)] [@media(max-height:800px)]:col-span-2 [@media(max-height:800px)]:mt-2 [@media(max-height:800px)]:pt-2">
+              <footer className="flex shrink-0 items-center justify-between gap-5 border-t border-[#e5eaed] pt-[clamp(12px,1.6vh,16px)] short:col-span-2 short:mt-2 short:pt-2">
                 <div>
                   <p className="text-base font-semibold text-[#26343d]">
                     결과와 영상 가져가기
                   </p>
                   <p className="mt-1 text-sm leading-relaxed text-[#75828b]">
-                    상단 QR을 휴대폰으로 스캔해주세요
+                    <span className="portrait:hidden">
+                      상단 QR을 휴대폰으로 스캔해주세요
+                    </span>
+                    <span className="hidden portrait:inline">
+                      오른쪽 버튼을 눌러주세요
+                    </span>
                   </p>
                 </div>
-                <span className="rounded-full border border-[#cfd9de] px-3.5 py-2 text-sm font-semibold tracking-[0.12em] text-[#53636d] uppercase">
+                <span className="rounded-full border border-[#cfd9de] px-3.5 py-2 text-sm font-semibold tracking-[0.12em] text-[#53636d] uppercase portrait:hidden">
                   Valid today
                 </span>
+                {qrPayload && (
+                  <a
+                    href={qrPayload}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hidden shrink-0 items-center rounded-full bg-[#00B0F0] px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-white portrait:inline-flex"
+                  >
+                    영상·결과 받기
+                  </a>
+                )}
               </footer>
             </div>
           </article>
@@ -269,7 +288,7 @@ function ChangePlan({
         : "text-xl";
 
   return (
-    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-x-3 py-[clamp(13px,1.8vh,18px)] [@media(max-height:800px)]:py-2.5">
+    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-x-3 py-[clamp(13px,1.8vh,18px)] short:py-2.5">
       <span className="pt-0.5 text-sm font-semibold text-[#00B0F0]">
         {number}
       </span>

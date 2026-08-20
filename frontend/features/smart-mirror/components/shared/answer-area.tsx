@@ -47,7 +47,7 @@ export function AnswerArea({
   }, [inputMode, sttStatus, sttConfirm, autoConfirmMs]);
 
   return (
-    <div className="flex min-h-44 w-full flex-col items-center justify-start gap-4">
+    <div className="flex min-h-[clamp(7rem,20vh,11rem)] w-full flex-col items-center justify-start gap-4">
       {inputMode === "KEYBOARD" ? (
         <TypedAnswerInput
           placeholder={typedPlaceholder}
@@ -98,7 +98,7 @@ function VoiceAnswer({
     <FadeIn>
       <div className="flex flex-col items-center gap-2">
         <motion.span
-          className="text-5xl"
+          className="text-[clamp(2rem,6vh,3rem)]"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           aria-hidden
@@ -146,7 +146,7 @@ function TypedAnswerInput({
           onSubmit(text);
         }}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-white/20 bg-black/40 px-6 py-4 text-center text-xl font-extralight tracking-wide text-white/90 backdrop-blur-xl placeholder:text-white/35 focus:border-white/50 focus:outline-none"
+        className="w-full rounded-2xl border border-white/20 bg-black/40 px-[clamp(1rem,2vw,1.5rem)] py-[clamp(0.625rem,1.5vh,1rem)] text-center text-[clamp(1rem,2vw,1.25rem)] font-extralight tracking-wide text-white/90 backdrop-blur-xl placeholder:text-white/35 focus:border-white/50 focus:outline-none"
       />
       <StatusLine text="음성 인식을 사용할 수 없어 키보드로 입력합니다 — Enter로 전송" />
     </div>

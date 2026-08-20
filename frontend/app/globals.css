@@ -4,6 +4,11 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* #232 iframe 임베드 — 가로 박스인데 세로가 짧은 경우(전시관 16:9 최대 1000×562).
+   기존 티켓의 max-height:800px 압축 변형이 세로 모바일 박스(높이 622~867)까지
+   잘못 걸리지 않도록 orientation을 함께 건다. */
+@custom-variant short (@media (orientation: landscape) and (max-height: 800px));
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);

@@ -78,17 +78,29 @@ export function useTicketFlow(
     errorMessage: null,
   });
   const startedRef = useRef(false);
+  const cancelledRef = useRef(false);
+  const cancelTicketPollingRef = useRef<() => void>(() => {});
+
+  // 취소는 언마운트(세션 리셋)일 때만. 아래 플로우 effect의 cleanup에서 취소하면
+  // 진행 중 deps 커밋(녹화 상태·blob 지연 도착 등)에도 cleanup이 돌아 —
+  // startedRef 탓에 재시작은 안 되면서 — UI가 중간 상태("영상을 저장하고
+  // 있습니다")에 얼어붙는다 (2026-08-20 실폰 검증에서 발견).
+  useEffect(() => {
+    cancelledRef.current = false;
+    return () => {
+      cancelledRef.current = true;
+      cancelTicketPollingRef.current();
+    };
+  }, []);
 
   useEffect(() => {
     if (!sessionId || startedRef.current || recorderStatus === "RECORDING")
       return;
 
     startedRef.current = true;
-    let cancelled = false;
-    let cancelTicketPolling = () => {};
 
     const update = (next: TicketFlowState) => {
-      if (!cancelled) setState(next);
+      if (!cancelledRef.current) setState(next);
     };
 
     const generateTicket = async () => {
@@ -102,7 +114,7 @@ export function useTicketFlow(
           intervalMs: POLL_INTERVAL_MS,
           timeoutMs: TICKET_POLL_TIMEOUT_MS,
         });
-        cancelTicketPolling = poll.cancel;
+        cancelTicketPollingRef.current = poll.cancel;
         const result = await poll.promise;
         if (result.kind !== "TERMINAL") {
           update({
@@ -171,14 +183,10 @@ export function useTicketFlow(
           recorderStatus,
         });
       }
-      if (!cancelled) await generateTicket();
+      if (!cancelledRef.current) await generateTicket();
     };
 
     void uploadVideoAndGenerateTicket();
-    return () => {
-      cancelled = true;
-      cancelTicketPolling();
-    };
   }, [recording, recorderStatus, sessionId]);
 
   return state;
