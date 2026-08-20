@@ -4,30 +4,24 @@ import { useCallback, useEffect, useState } from "react";
 
 export type CameraStatus = "pending" | "granted" | "denied";
 
-// 요청 시점의 뷰포트 방향에 맞춰 카메라 비율을 고른다 (#232 A안).
-// - 가로(부스·데스크톱 iframe): lucy-vton-latest의 네이티브 입력(1088×624, 30fps).
-//   1080p 원본을 SDK가 매 프레임 축소하게 두면 업스트림 대역폭과 인코딩
-//   부하만 커져 프레임 드롭이 늘어난다.
-// - 세로(모바일 iframe): 같은 값을 세로로 뒤집어 요청한다. 모바일 전면 카메라는
-//   세로가 네이티브라 object-cover 크롭 없이 화면과 제스처 좌표계가 일치한다.
-//   (세로 박스에서는 Decart를 켜지 않으므로 — isEmbedded 가드 — VTON 입력
-//   규격과 충돌하지 않는다.)
-function buildCameraConstraints(): MediaStreamConstraints {
-  const isPortrait =
-    typeof window !== "undefined" &&
-    window.matchMedia("(orientation: portrait)").matches;
-
-  return {
-    video: {
-      facingMode: "user",
-      width: { ideal: isPortrait ? 624 : 1088 },
-      height: { ideal: isPortrait ? 1088 : 624 },
-      frameRate: { ideal: 30, max: 30 },
-    },
-    // 오디오는 미래 STT용으로 취득만 해둔다(현재 소비처 없음).
-    audio: true,
-  };
-}
+// 뷰포트 방향과 무관하게 항상 가로로 요청한다 (#232 결정: 세로 주문안 철회).
+// lucy-vton 계열 realtime 모델은 전부 가로 입력(1088×624, 30fps)이 네이티브라
+// 세로 스트림을 올리면 변환이 스톨한다(2026-08-20 실검증 — 연결·과금만 발생).
+// 부스가 세로 디스플레이여서 "세로 뷰포트 = 모바일" 추론이 성립하지 않으므로
+// 방향 분기 없이 단일 가로 규격으로 통일한다 — 세로 화면 + 가로 스트림에서
+// Decart가 정상 동작하는 것은 실검증됨. 세로 화면의 object-cover 크롭(얼굴
+// 확대)은 감수한다. 1080p 원본을 SDK가 매 프레임 축소하게 두면 업스트림
+// 대역폭과 인코딩 부하만 커져 프레임 드롭이 늘어난다.
+const CAMERA_CONSTRAINTS: MediaStreamConstraints = {
+  video: {
+    facingMode: "user",
+    width: { ideal: 1088 },
+    height: { ideal: 624 },
+    frameRate: { ideal: 30, max: 30 },
+  },
+  // 오디오는 미래 STT용으로 취득만 해둔다(현재 소비처 없음).
+  audio: true,
+};
 
 interface UseCameraResult {
   /** 권한 허용 시의 카메라/마이크 스트림. 그 외에는 null. */
@@ -60,9 +54,8 @@ export function useCamera(): UseCameraResult {
 
     async function request() {
       try {
-        const media = await navigator.mediaDevices.getUserMedia(
-          buildCameraConstraints(),
-        );
+        const media =
+          await navigator.mediaDevices.getUserMedia(CAMERA_CONSTRAINTS);
 
         // 언마운트/재시도로 늦게 resolve된 경우: 스트림 정리하고 종료
         if (cancelled) {
