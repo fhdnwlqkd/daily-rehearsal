@@ -17,9 +17,11 @@ export function SttPanel({
     <GlassPanel
       className={`w-full ${compact ? "max-w-3xl px-6 py-4" : "max-w-4xl px-7 py-5"}`}
     >
-      <div className="flex items-start gap-5">
+      {/* 세로 박스(#232): 웨이브가 폭을 다 먹어 텍스트가 한 단어씩 줄바꿈되므로
+          웨이브 위·텍스트 아래로 쌓는다. */}
+      <div className="flex items-start gap-5 portrait:flex-col portrait:items-center portrait:gap-2">
         <AudioWave />
-        <div className="flex-1">
+        <div className="flex-1 portrait:w-full portrait:text-center">
           <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/50">
             {label}
           </p>
@@ -41,7 +43,7 @@ function RevealText({
 
   return (
     <p
-      className={`${compact ? "text-lg" : "text-2xl"} leading-relaxed font-extralight tracking-wide text-white/90`}
+      className={`${compact ? "text-[clamp(1rem,1.8vw,1.125rem)]" : "text-[clamp(1.125rem,2.2vw,1.5rem)]"} leading-relaxed font-extralight tracking-wide text-white/90`}
     >
       {words.map((word, index) => (
         <motion.span

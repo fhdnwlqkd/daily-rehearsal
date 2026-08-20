@@ -58,6 +58,12 @@ export function ExperienceSession({
   // 외부 iframe에서는 Decart 연결을 만들지 않는다. 첫 렌더를 보수적으로
   // embedded=true로 시작해 감지가 끝나기 전에 토큰이 발급되는 것도 막는다.
   const [isEmbedded, setIsEmbedded] = useState(true);
+  // 세로 뷰포트에서도 Decart를 켜지 않는다: lucy-vton은 가로(1088×624) 입력이
+  // 네이티브인데 세로 뷰포트에서는 카메라를 세로로 요청하므로(#232 A안)
+  // 변환 스트림이 스톨한다 — 연결·과금만 발생하고 변환 프레임이 안 나온다
+  // (2026-08-20 실검증). 세로 직접 접속은 원본 거울 폴백으로 진행한다.
+  // isEmbedded와 같은 이유로 보수적 초기값(true)에서 시작한다.
+  const [isPortraitViewport, setIsPortraitViewport] = useState(true);
   const [showCaptureGate, setShowCaptureGate] = useState(false);
   const [recordingDisabled, setRecordingDisabled] = useState(false);
   const {
@@ -69,6 +75,7 @@ export function ExperienceSession({
 
   useEffect(() => {
     setIsEmbedded(window.self !== window.top);
+    setIsPortraitViewport(window.matchMedia("(orientation: portrait)").matches);
   }, []);
 
   const currentPhase = experiencePhases[phaseIndex];
@@ -84,7 +91,7 @@ export function ExperienceSession({
   const decart = useDecartConnection({
     sessionId: session?.sessionId ?? null,
     cameraStream: stream,
-    enabled: isMirrorPhase && !isEmbedded,
+    enabled: isMirrorPhase && !isEmbedded && !isPortraitViewport,
   });
 
   // 화면 녹화(#94) — 현재 탭을 허용한 세션만 옷 선택부터 시뮬레이션까지
@@ -96,9 +103,10 @@ export function ExperienceSession({
   } = useSessionRecorder({
     enabled: isRecordablePhase && !recordingDisabled,
     screenStream,
-    // iframe에서 Decart를 의도적으로 끈 경우에는 연결 실패와 같은 카메라
-    // 폴백 경로를 사용해 원본 영상 녹화·업로드를 그대로 유지한다.
-    decartStatus: isEmbedded ? "CLOSED" : decart.status,
+    // iframe·세로 뷰포트에서 Decart를 의도적으로 끈 경우에는 연결 실패와 같은
+    // 카메라 폴백 경로를 사용해 원본 영상 녹화·업로드를 그대로 유지한다.
+    // (IDLE로 두면 녹화 소스 결정이 연결을 기다리며 시작되지 않는다.)
+    decartStatus: isEmbedded || isPortraitViewport ? "CLOSED" : decart.status,
     decartStream: decart.remoteStream,
     cameraStream: stream,
     syncDelayMs: decart.g2gMs,
@@ -197,7 +205,8 @@ export function ExperienceSession({
 
       {/* 녹화 고지 — 촬영 중임을 관람객에게 알린다 (#94) */}
       {recorderStatus === "RECORDING" && (
-        <div className="absolute top-6 left-6 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-xl">
+        // 세로 모드에서는 슬림 헤더(로고)와 같은 높이라 겹친다 — 한 줄 아래로 내린다(#232).
+        <div className="absolute top-6 left-6 z-50 flex items-center gap-2 rounded-full border border-white/10 bg-black/50 px-3 py-1.5 backdrop-blur-xl portrait:top-11 portrait:left-4">
           <motion.span
             className="h-2 w-2 rounded-full bg-red-500"
             animate={{ opacity: [1, 0.35, 1] }}
