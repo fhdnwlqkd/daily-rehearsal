@@ -82,15 +82,17 @@ function StageHeader({
   const isTicket = phase.id === "ticket";
 
   return (
-    <div className="absolute top-6 right-8 left-8 z-20 flex items-center justify-between">
+    // iframe 최소 폭(280px)에서도 로고·라벨·진행바가 한 줄을 유지해야 한다(#232) —
+    // 줄바꿈 대신 라벨을 숨기고 자간·바 폭을 줄인다.
+    <div className="absolute top-[clamp(12px,2.5vh,24px)] right-[clamp(14px,3vw,32px)] left-[clamp(14px,3vw,32px)] z-20 flex items-center justify-between gap-3">
       <span
-        className={`text-xs font-light tracking-[0.32em] ${isTicket ? "text-[#40515b]" : "text-white/70"}`}
+        className={`text-xs font-light tracking-[0.32em] whitespace-nowrap max-[480px]:tracking-[0.18em] ${isTicket ? "text-[#40515b]" : "text-white/70"}`}
       >
         DAILY REHEARSAL
       </span>
       <div className="flex items-center gap-3">
         <span
-          className={`text-xs font-light tracking-[0.16em] ${isTicket ? "text-[#60707a]" : "text-white/60"}`}
+          className={`text-xs font-light tracking-[0.16em] whitespace-nowrap max-[480px]:hidden ${isTicket ? "text-[#60707a]" : "text-white/60"}`}
         >
           {phase.label}
         </span>
@@ -98,7 +100,7 @@ function StageHeader({
           {Array.from({ length: totalPhases }).map((_, index) => (
             <div
               key={index}
-              className={`h-1.5 w-7 rounded-full ${
+              className={`h-1.5 w-[clamp(14px,2.6vw,28px)] rounded-full ${
                 index <= phaseIndex
                   ? isTicket
                     ? "bg-[#00B0F0]"
@@ -136,7 +138,7 @@ function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
       }}
     >
       <motion.div
-        className="border-y border-white/20 px-10 py-8 text-center"
+        className="border-y border-white/20 px-[clamp(1.25rem,5vw,2.5rem)] py-[clamp(1.25rem,4vh,2rem)] text-center"
         initial={{ y: 18, scale: 0.98 }}
         animate={{ y: [18, 0, 0, -10], scale: [0.98, 1, 1, 0.99] }}
         transition={{
@@ -145,10 +147,10 @@ function TransitionCue({ phase }: { phase: ExperiencePhaseId }) {
           ease: "easeInOut",
         }}
       >
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/55">
+        <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-xs font-light tracking-[0.34em] text-white/55">
           NEXT SEQUENCE
         </p>
-        <p className="text-5xl font-extralight tracking-wide text-white md:text-7xl">
+        <p className="text-[clamp(1.5rem,6vw,4.5rem)] font-extralight tracking-wide break-keep text-white">
           {copy[phase]}
         </p>
       </motion.div>
@@ -166,18 +168,30 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
     simulation: "마이크에 대고 답해주세요 · Enter 바로 전송 · ← 다시 말하기",
     ticket: "탭하거나 Enter를 눌러 다시 시작",
   };
+  // 세로 박스(모바일 iframe, #232)에는 키보드가 없다 — 키보드 언급을 뺀 짧은
+  // 문구로 바꾸고, 키보드 안내뿐인 스테이지에서는 힌트 자체를 숨긴다.
+  const portraitCopy: Record<ExperiencePhaseId, string> = {
+    "type-select": "",
+    briefing: "마이크에 대고 답해주세요",
+    outfit: "",
+    simulation: "마이크에 대고 답해주세요",
+    ticket: "탭해서 다시 시작",
+  };
 
   return (
     <motion.div
-      className={`absolute bottom-6 left-1/2 z-30 -translate-x-1/2 rounded-full px-5 py-2 text-center font-light tracking-[0.2em] backdrop-blur-sm ${
+      className={`absolute bottom-[clamp(10px,2vh,24px)] left-1/2 z-30 w-max max-w-[92%] -translate-x-1/2 rounded-full px-5 py-2 text-center font-light tracking-[0.2em] backdrop-blur-sm ${
         phase === "ticket"
           ? "border border-[#cbd5da] bg-white/90 text-base text-[#4d5e68] shadow-sm"
           : "bg-black/40 text-sm text-white/80"
-      }`}
+      } ${portraitCopy[phase] ? "" : "portrait:hidden"} [@media(orientation:landscape)_and_(max-height:400px)]:hidden`}
       animate={{ opacity: [0.45, 0.9, 0.45] }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
-      {copy[phase]}
+      <span className="portrait:hidden">{copy[phase]}</span>
+      {portraitCopy[phase] && (
+        <span className="hidden portrait:inline">{portraitCopy[phase]}</span>
+      )}
     </motion.div>
   );
 }

@@ -92,12 +92,13 @@ export function TypeSelectStage({
   }, [createStatus, session, situationTypes, onSessionCreated]);
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-12 px-8">
+    // pb: StageFrame의 TapHint(absolute bottom) 영역을 비워 안내 슬롯과 겹치지 않게 한다.
+    <div className="flex h-full flex-col items-center justify-center gap-[clamp(1rem,4.5vh,3rem)] px-[clamp(1rem,4vw,2rem)] pb-[clamp(2.25rem,7vh,3rem)] portrait:pb-0">
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-medium tracking-[0.34em] text-white/75">
+        <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-xs font-medium tracking-[0.34em] text-white/75">
           SELECT SITUATION
         </p>
-        <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
+        <h2 className="text-[clamp(1.375rem,4.5vw,3rem)] font-extralight tracking-wide break-keep">
           내일 연습할 상황을 골라주세요
         </h2>
       </div>
@@ -110,7 +111,8 @@ export function TypeSelectStage({
       )}
 
       {listStatus === "READY" && (
-        <div className="flex flex-wrap justify-center gap-6">
+        // 세로 박스(#232)에서는 카드가 어중간하게 wrap되며 넘치므로 풀폭 스택으로 바꾼다.
+        <div className="flex flex-wrap justify-center gap-[clamp(0.75rem,2vw,1.5rem)] portrait:w-full portrait:max-w-[340px] portrait:flex-col portrait:flex-nowrap portrait:items-stretch portrait:gap-3">
           {situationTypes.map((type, index) => (
             <TypeCard
               key={type.situationType}
@@ -124,7 +126,7 @@ export function TypeSelectStage({
       )}
 
       {/* 안내 슬롯 — 상태가 바뀌어도 높이를 고정해 카드가 출렁이지 않게 한다 */}
-      <div className="flex h-28 items-center justify-center">
+      <div className="flex h-[clamp(3.5rem,12vh,7rem)] items-center justify-center">
         {createStatus === "IDLE" && listStatus === "READY" && (
           <GestureHint
             gestureStatus={gestureStatus}
@@ -171,17 +173,17 @@ function TypeCard({
       className={`transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
     >
       <GlassPanel
-        className={
+        className={`px-[clamp(1rem,2.5vw,2rem)] py-[clamp(0.875rem,2.5vh,1.5rem)] portrait:px-5 portrait:py-3 ${
           highlighted ? "border-white/60 bg-white/20" : "border-white/10"
-        }
+        }`}
         pulsing={highlighted}
         pulseColor="rgba(255, 255, 255, 0.35)"
       >
-        <div className="flex w-56 flex-col items-center gap-3 text-center">
+        <div className="flex w-[clamp(8rem,22vw,14rem)] flex-col items-center gap-3 text-center portrait:w-full portrait:gap-1.5">
           <span className="text-xs font-medium tracking-[0.3em] text-white/75">
             {String(order).padStart(2, "0")}
           </span>
-          <span className="text-2xl font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
+          <span className="text-[clamp(1.125rem,2vw,1.5rem)] font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
             {type.label}
           </span>
           {/* 팜홀드 차징 바 — 평소엔 투명해서 구분선처럼 안 보이고,

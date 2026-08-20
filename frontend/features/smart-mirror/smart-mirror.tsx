@@ -24,7 +24,9 @@ export function SmartMirror() {
   const showPermissionGuide = status === "denied";
 
   return (
-    <div className="relative h-screen w-screen cursor-none overflow-hidden bg-black">
+    // h-dvh: iframe·모바일에서 주소창 변동에도 실제 보이는 높이를 채운다(#232).
+    // cursor-none은 부스 키오스크 잔재 — 온라인 전시(데스크톱 마우스)에서는 커서가 보여야 한다.
+    <div className="relative h-dvh w-full overflow-hidden bg-black">
       {/* Permission Guide Overlay */}
       <AnimatePresence>
         {showPermissionGuide && <PermissionGuide onRetry={retry} />}

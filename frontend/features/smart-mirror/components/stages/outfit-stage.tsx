@@ -186,13 +186,13 @@ export function OutfitStage({
   return (
     // pb-20: StageFrame의 TapHint(absolute bottom-6)가 이 아래 깔리므로
     // 하단 안내 슬롯이 그 위에서 끝나도록 여백을 확보한다 (겹침 방지).
-    <div className="flex h-full flex-col items-center px-8 pt-24 pb-20">
+    <div className="flex h-full flex-col items-center px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.25rem,11vh,6rem)] pb-[clamp(3.5rem,11vh,5.5rem)]">
       <StageCountdown label="옷 선택까지" remainingSeconds={remainingSeconds} />
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+        <p className="mb-[clamp(0.375rem,1.2vh,1rem)] text-xs font-light tracking-[0.34em] text-white/65">
           TOMORROW&apos;S LOOK
         </p>
-        <h2 className="text-3xl font-extralight tracking-wide md:text-4xl">
+        <h2 className="text-[clamp(1.25rem,3.5vw,2.5rem)] font-extralight tracking-wide break-keep">
           내일의 모습을 입어보세요
         </h2>
       </div>
@@ -213,7 +213,8 @@ export function OutfitStage({
       )}
 
       {listStatus === "READY" && (
-        <div className="flex flex-wrap justify-center gap-5">
+        // 세로 박스(#232)에서는 가로 레일이 wrap되며 넘치므로 2열 그리드로 바꾼다.
+        <div className="flex flex-wrap justify-center gap-[clamp(0.625rem,1.5vw,1.25rem)] portrait:grid portrait:w-full portrait:max-w-[360px] portrait:grid-cols-2 portrait:gap-3">
           {outfits.map((outfit, index) => (
             <OutfitCard
               key={outfit.outfitId}
@@ -227,7 +228,7 @@ export function OutfitStage({
       )}
 
       {/* 안내 슬롯 — 상태가 바뀌어도 높이를 고정해 레일이 출렁이지 않게 한다 */}
-      <div className="mt-4 flex h-24 items-center justify-center">
+      <div className="mt-[clamp(0.5rem,1.5vh,1rem)] flex h-[clamp(3rem,10vh,6rem)] items-center justify-center">
         {confirmStatus === "IDLE" && listStatus === "READY" && (
           <GestureHint
             gestureStatus={gestureStatus}
@@ -273,7 +274,7 @@ function OutfitCard({
       className={`transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
     >
       <GlassPanel
-        className={`px-5 py-4 ${
+        className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] ${
           highlighted
             ? "border-white/60 bg-white/20"
             : "border-white/20 bg-black/15"
@@ -281,7 +282,7 @@ function OutfitCard({
         pulsing={highlighted}
         pulseColor="rgba(255, 255, 255, 0.35)"
       >
-        <div className="flex w-36 flex-col items-center gap-2.5 text-center">
+        <div className="flex w-[clamp(6rem,10vw,9rem)] flex-col items-center gap-2.5 text-center portrait:w-full portrait:gap-1.5">
           <span className="text-xs font-normal tracking-[0.3em] text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
             {String(order).padStart(2, "0")}
           </span>
@@ -289,9 +290,9 @@ function OutfitCard({
           <img
             src={outfit.thumbnailUrl}
             alt={outfit.label}
-            className={`h-20 w-20 rounded-xl border border-white/15 object-cover transition-opacity duration-300 ${highlighted ? "" : "opacity-70"}`}
+            className={`h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] rounded-xl border border-white/15 object-cover transition-opacity duration-300 ${highlighted ? "" : "opacity-70"}`}
           />
-          <span className="text-lg font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
+          <span className="text-[clamp(0.875rem,1.6vw,1.125rem)] font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
             {outfit.label}
           </span>
           {/* 팜홀드 차징 바 — 차오를 때만 트랙과 함께 나타난다 (시프트 없음).

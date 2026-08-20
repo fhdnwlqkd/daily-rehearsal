@@ -272,10 +272,10 @@ export function SimulationStage({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut" }}
         >
-          <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+          <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-xs font-light tracking-[0.34em] text-white/65">
             REHEARSAL COMPLETE
           </p>
-          <h2 className="text-4xl font-extralight tracking-wide md:text-5xl">
+          <h2 className="text-[clamp(1.5rem,4.5vw,3rem)] font-extralight tracking-wide">
             리허설 완료
           </h2>
         </motion.div>
@@ -289,7 +289,7 @@ export function SimulationStage({
   return (
     <>
       {countdown}
-      <div className="flex h-full flex-col items-center justify-center gap-10 px-8">
+      <div className="flex h-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)] px-[clamp(1rem,4vw,2rem)]">
         <AnimatePresence mode="wait">
           {revealPhase === "INTRO" ? (
             <IntroCue
@@ -301,7 +301,7 @@ export function SimulationStage({
           ) : (
             <motion.div
               key={`main-${turnKey}`}
-              className="flex flex-col items-center gap-10"
+              className="flex flex-col items-center gap-[clamp(1rem,3.5vh,2.5rem)]"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.45, ease: "easeOut" }}
@@ -351,10 +351,10 @@ function IntroCue({
       exit={{ opacity: 0 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
     >
-      <p className="mb-5 text-sm font-normal tracking-[0.34em] text-white/90">
+      <p className="mb-[clamp(0.625rem,1.8vh,1.25rem)] text-sm font-normal tracking-[0.34em] text-white/90">
         SIMULATION · TURN {turn} / {maxTurn}
       </p>
-      <p className="text-2xl font-light text-white/85 md:text-3xl">
+      <p className="text-[clamp(1.125rem,2.6vw,1.875rem)] font-light break-keep text-white/85">
         {sceneCue}
       </p>
     </motion.div>
@@ -376,14 +376,16 @@ function OpponentLine({
       {/* 발화가 바뀔 때만 다시 페이드 — 같은 턴 재시도에선 출렁이지 않는다 */}
       <motion.h2
         key={`${turn}-${line}`}
-        className="text-3xl font-extralight tracking-wide md:text-4xl"
+        className="text-[clamp(1.25rem,3.2vw,2.5rem)] font-extralight tracking-wide break-keep"
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.45, ease: "easeOut" }}
       >
         “{line}”
       </motion.h2>
-      <p className="mt-5 text-lg font-light text-white/75">{actionPrompt}</p>
+      <p className="mt-[clamp(0.625rem,1.8vh,1.25rem)] text-[clamp(0.9375rem,2vw,1.125rem)] font-light break-keep text-white/75">
+        {actionPrompt}
+      </p>
     </div>
   );
 }
