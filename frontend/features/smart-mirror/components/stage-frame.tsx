@@ -185,7 +185,11 @@ function TapHint({ phase }: { phase: ExperiencePhaseId }) {
           ? "border border-[#cbd5da] bg-white/90 text-base text-[#4d5e68] shadow-sm"
           : "bg-black/40 text-sm text-white/80"
       } ${portraitCopy[phase] ? "" : "portrait:hidden"} [@media(orientation:landscape)_and_(max-height:400px)]:hidden`}
-      animate={{ opacity: [0.45, 0.9, 0.45] }}
+      // 티켓은 밝은 배경 위 콘텐츠와 겹칠 수 있어 반투명 깜빡임 대신 거의
+      // 불투명하게 유지한다 — 떠 있는 버튼처럼 읽히게.
+      animate={{
+        opacity: phase === "ticket" ? [0.88, 1, 0.88] : [0.45, 0.9, 0.45],
+      }}
       transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     >
       <span className="portrait:hidden">{copy[phase]}</span>
