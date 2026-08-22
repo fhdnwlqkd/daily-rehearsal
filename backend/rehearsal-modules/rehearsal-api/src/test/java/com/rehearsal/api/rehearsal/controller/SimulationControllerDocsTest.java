@@ -35,6 +35,7 @@ import com.rehearsal.domain.rehearsal.model.SimulationTurnAttempt;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationOutcome;
 import com.rehearsal.domain.rehearsal.model.TurnEvaluationResult;
 import com.rehearsal.domain.rehearsal.model.TurnGenerationMode;
+import com.rehearsal.domain.rehearsal.usecase.FinishSimulationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetNextOpponentLineUseCase;
 import com.rehearsal.domain.rehearsal.usecase.GetTurnEvaluationUseCase;
 import com.rehearsal.domain.rehearsal.usecase.StartSimulationUseCase;
@@ -62,6 +63,7 @@ class SimulationControllerDocsTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private StartSimulationUseCase startSimulationUseCase;
+  @MockitoBean private FinishSimulationUseCase finishSimulationUseCase;
   @MockitoBean private SubmitTurnEvaluationUseCase submitTurnEvaluationUseCase;
   @MockitoBean private GetTurnEvaluationUseCase getTurnEvaluationUseCase;
   @MockitoBean private SubmitNextOpponentLineUseCase submitNextOpponentLineUseCase;

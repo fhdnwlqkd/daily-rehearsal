@@ -2,7 +2,17 @@
 
 import { motion } from "framer-motion";
 import { QRCodeSVG } from "qrcode.react";
+import { useEffect, useState } from "react";
+import { StatusLine } from "../shared/status-line";
+import { StageFrame } from "../stage-frame";
+import { experiencePhases } from "../../data/phases";
 import { useTicketFlow } from "../../hooks/use-ticket-flow";
+import {
+  ticketPreviewData,
+  type TicketPreviewSituation,
+} from "../../lib/ticket/preview-data";
+import { buildTicketDownloadUrl } from "../../lib/ticket/download-url";
+import type { ChangeCard, TicketSnapshot } from "../../types";
 import type {
   SessionRecorderStatus,
   SessionRecording,
@@ -32,87 +42,297 @@ export function TicketStage({
   }
 
   const { snapshot, changeCard, qrPayload } = flow.ticket;
+  const downloadUrl = browserDownloadUrl(sessionId, qrPayload);
+  return (
+    <TicketCard
+      snapshot={snapshot}
+      changeCard={changeCard}
+      qrPayload={downloadUrl}
+    />
+  );
+}
+
+interface TicketCardProps {
+  snapshot: TicketSnapshot;
+  changeCard: ChangeCard;
+  qrPayload?: string;
+}
+
+function TicketCard({ snapshot, changeCard, qrPayload }: TicketCardProps) {
+  const density = getTicketDensity(snapshot, changeCard);
+
   return (
     <motion.section
-      className="mx-auto grid h-[min(78vh,760px)] w-[min(92vw,1280px)] overflow-hidden rounded-lg border border-white/30 bg-white text-neutral-950 shadow-2xl lg:grid-cols-[1.65fr_1fr]"
-      initial={{ opacity: 0, y: 18 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="absolute inset-0 overflow-hidden bg-[#e9eef1] text-[#172027]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <div className="flex min-h-0 flex-col px-7 py-8 sm:px-12 sm:py-11">
-        <p className="text-xs font-medium tracking-[0.32em] text-neutral-500">
-          CHANGE CARD
-        </p>
-        <h2 className="mt-5 text-3xl font-light sm:text-5xl">
-          내일의 변화 카드
-        </h2>
-
-        <dl className="mt-9 grid flex-1 content-start gap-0 border-t border-neutral-300">
-          <TicketFact label="상황" value={snapshot.situationLabel} />
-          <TicketFact
-            label="내일의 중요한 순간"
-            value={snapshot.criticalMoment}
-          />
-          <TicketFact label="목표 인상" value={snapshot.desiredPersonaLabel} />
-          <TicketFact
-            label="선택한 스타일"
-            value={snapshot.selectedOutfitLabel}
-          />
-        </dl>
-
-        <p className="mt-8 text-sm text-neutral-500">
-          내일의 리스크를 줄이는 행동 변화가 저장되었습니다.
-        </p>
-      </div>
-
-      <div className="flex min-h-0 flex-col bg-neutral-950 px-7 py-8 text-white sm:px-10 sm:py-11">
-        <div className="space-y-8">
-          <ChangePlan label="오늘의 행동 변화" value={changeCard.todayAction} />
-          <ChangePlan
-            label="내일 유지할 태도"
-            value={changeCard.tomorrowAttitude}
-          />
-          <ChangePlan label="If-Then" value={changeCard.ifThenPlan} />
-        </div>
-
-        <div className="mt-auto flex flex-col items-center pt-8 text-center">
-          {qrPayload && (
-            <div className="bg-white p-3">
-              <QRCodeSVG value={qrPayload} size={152} marginSize={0} />
+      {/* 콘텐츠가 박스보다 길면(세로 모바일 등) 잘리는 대신 내부 스크롤로 살린다(#232).
+          portrait pb: 스크롤 끝에서 마지막 항목이 TapHint 아래 깔리지 않게 여유를 더 준다. */}
+      <div className="h-full overflow-y-auto px-[clamp(16px,4vw,48px)] pt-[clamp(14px,2.5vh,28px)] pb-[clamp(58px,6vh,72px)] portrait:pb-24 short:pt-3 short:pb-14">
+        <div className="mx-auto flex min-h-full w-full max-w-[840px] flex-col short:max-w-[1040px]">
+          <header className="flex shrink-0 items-center justify-between gap-6 pb-[clamp(12px,1.8vh,18px)] short:pb-2">
+            <div>
+              <p className="flex items-center gap-2.5 text-base font-semibold tracking-[0.14em] text-[#52616b] uppercase">
+                <span className="h-2 w-2 rounded-full bg-[#00B0F0]" />
+                Rehearsal complete
+              </p>
+              <h2 className="mt-1.5 text-[clamp(24px,4.8vw,52px)] leading-[1.1] font-semibold tracking-[-0.025em] text-[#121a20] short:mt-0.5 short:text-[clamp(22px,7vh,38px)]">
+                내일을 위한 티켓
+              </h2>
             </div>
-          )}
-          <p className="mt-5 text-xs font-light tracking-[0.3em] text-white/55">
-            SCAN TO SAVE
-          </p>
-          <p className="mt-3 max-w-xs text-sm leading-6 text-white/50">
-            개인 폰에서 오늘의 변화 카드와 영상을 확인하세요.
-          </p>
+            <p className="text-right text-base leading-[1.45] text-[#66757f] max-[480px]:hidden">
+              오늘의 연습을
+              <br />한 장에 담았습니다
+            </p>
+          </header>
+
+          <article className="relative flex shrink-0 flex-col overflow-hidden rounded-[24px] border border-[#dce3e7] bg-white shadow-[0_16px_44px_rgba(24,39,49,0.09)]">
+            <div className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-5 px-[clamp(24px,4vw,38px)] py-[clamp(12px,1.8vh,18px)] short:px-8 short:py-2.5">
+              <div className="min-w-0">
+                <p className="text-sm font-semibold tracking-[0.16em] text-[#73808a] uppercase portrait:text-xs portrait:tracking-[0.1em]">
+                  Daily Rehearsal · Result Ticket
+                </p>
+                <p className="mt-3 text-base font-semibold text-[#00B0F0] short:mt-1.5">
+                  {snapshot.situationLabel}
+                </p>
+                <h3 className="mt-1 text-[clamp(20px,4.25vw,46px)] leading-[1.12] font-semibold tracking-[-0.025em] break-keep text-[#172027] short:text-[clamp(18px,6.5vh,34px)]">
+                  내일 기억할 세 가지
+                </h3>
+                <p className="mt-2.5 max-w-lg text-[17px] leading-[1.5] text-[#6a7881] short:mt-1">
+                  오늘의 리허설에서 찾은 행동을 내일의 장면에 가져가세요.
+                </p>
+              </div>
+
+              {/* 세로(모바일)에서는 같은 화면의 QR을 스캔할 수 없다 — 헤더에서 빼고
+                  푸터의 다운로드 버튼으로 대체한다(#232). */}
+              {qrPayload && (
+                <div className="shrink-0 border border-[#dce3e7] bg-white p-2.5 portrait:hidden">
+                  <QRCodeSVG
+                    value={qrPayload}
+                    size={96}
+                    marginSize={0}
+                    bgColor="#ffffff"
+                    fgColor="#172027"
+                    className="h-[clamp(56px,11vw,96px)] w-[clamp(56px,11vw,96px)]"
+                  />
+                </div>
+              )}
+            </div>
+
+            <TicketPerforation />
+
+            <div className="flex flex-col px-[clamp(24px,4vw,38px)] pt-[clamp(14px,2vh,20px)] pb-[clamp(14px,2vh,20px)] short:grid short:grid-cols-[0.85fr_1.5fr] short:px-8 short:pt-2 short:pb-3">
+              <dl className="grid shrink-0 grid-cols-2 gap-x-8 gap-y-3.5 border-b border-[#e5eaed] pb-[clamp(14px,1.8vh,18px)] max-[360px]:grid-cols-1 short:gap-y-2.5 short:border-r short:border-b-0 short:pr-7 short:pb-0">
+                <TicketFact
+                  label="중요한 순간"
+                  value={snapshot.criticalMoment}
+                  density={density}
+                />
+                <TicketFact
+                  label="목표 인상"
+                  value={snapshot.desiredPersonaLabel}
+                  density={density}
+                />
+              </dl>
+
+              <ol className="mt-1 flex flex-col divide-y divide-[#e7ecef] short:mt-0 short:pl-7">
+                <ChangePlan
+                  number="01"
+                  label="먼저 바꿀 행동"
+                  value={changeCard.todayAction}
+                  density={density}
+                />
+                <ChangePlan
+                  number="02"
+                  label="유지할 태도"
+                  value={changeCard.tomorrowAttitude}
+                  density={density}
+                />
+                <ChangePlan
+                  number="03"
+                  label="막히는 순간에는"
+                  value={changeCard.ifThenPlan}
+                  density={density}
+                />
+              </ol>
+
+              <footer className="flex shrink-0 items-center justify-between gap-5 border-t border-[#e5eaed] pt-[clamp(12px,1.6vh,16px)] short:col-span-2 short:mt-2 short:pt-2">
+                <div>
+                  <p className="text-base font-semibold text-[#26343d]">
+                    결과와 영상 가져가기
+                  </p>
+                  <p className="mt-1 text-sm leading-relaxed text-[#75828b]">
+                    <span className="portrait:hidden">
+                      상단 QR을 휴대폰으로 스캔해주세요
+                    </span>
+                    <span className="hidden portrait:inline">
+                      오른쪽 버튼을 눌러주세요
+                    </span>
+                  </p>
+                </div>
+                <span className="rounded-full border border-[#cfd9de] px-3.5 py-2 text-sm font-semibold tracking-[0.12em] text-[#53636d] uppercase portrait:hidden">
+                  Valid today
+                </span>
+                {qrPayload && (
+                  <a
+                    href={qrPayload}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hidden shrink-0 items-center rounded-full bg-[#00B0F0] px-4 py-2.5 text-sm font-semibold whitespace-nowrap text-white portrait:inline-flex"
+                  >
+                    영상·결과 받기
+                  </a>
+                )}
+              </footer>
+            </div>
+          </article>
         </div>
       </div>
     </motion.section>
   );
 }
 
-function TicketFact({ label, value }: { label: string; value: string }) {
+/** 백엔드·카메라 없이 실제 티켓 레이아웃을 확인하는 개발 전용 미리보기. */
+export function TicketPreview({
+  situation = "date",
+}: {
+  situation?: TicketPreviewSituation;
+}) {
+  const { snapshot, changeCard } = ticketPreviewData[situation];
+  const [qrPayload, setQrPayload] = useState<string>();
+
+  useEffect(() => {
+    const url = new URL("/dev/ticket-download-preview", window.location.origin);
+    url.searchParams.set("situation", situation);
+    setQrPayload(url.toString());
+  }, [situation]);
+
+  const phaseIndex = experiencePhases.findIndex(
+    (phase) => phase.id === "ticket",
+  );
+  const ticketPhase = experiencePhases[phaseIndex];
+  if (!ticketPhase) return null;
+
   return (
-    <div className="border-b border-neutral-200 py-5 sm:py-6">
-      <dt className="text-sm text-neutral-500">{label}</dt>
-      <dd className="mt-2 text-xl leading-snug font-light sm:text-3xl">
+    <main className="relative h-dvh w-screen overflow-hidden bg-[#e9eef1]">
+      <StageFrame
+        phase={ticketPhase}
+        phaseIndex={phaseIndex}
+        totalPhases={experiencePhases.length}
+      >
+        <TicketCard
+          snapshot={snapshot}
+          changeCard={changeCard}
+          qrPayload={qrPayload}
+        />
+      </StageFrame>
+    </main>
+  );
+}
+
+function browserDownloadUrl(
+  sessionId: string,
+  fallbackUrl?: string,
+): string | undefined {
+  if (typeof window !== "undefined") {
+    return buildTicketDownloadUrl(window.location.origin, sessionId);
+  }
+
+  return fallbackUrl;
+}
+
+function TicketFact({
+  label,
+  value,
+  density,
+}: {
+  label: string;
+  value: string;
+  density: TicketDensity;
+}) {
+  const valueSize =
+    density === "tight" || value.length > 44 ? "text-lg" : "text-xl";
+
+  return (
+    <div className="min-w-0">
+      <dt className="text-base font-semibold tracking-[0.06em] text-[#6f7e88] uppercase">
+        {label}
+      </dt>
+      <dd
+        className={`mt-1.5 leading-[1.4] font-medium break-keep text-[#26343d] ${valueSize}`}
+      >
         {value}
       </dd>
     </div>
   );
 }
 
-function ChangePlan({ label, value }: { label: string; value: string }) {
+function ChangePlan({
+  number,
+  label,
+  value,
+  density,
+}: {
+  number: string;
+  label: string;
+  value: string;
+  density: TicketDensity;
+}) {
+  const valueSize =
+    density === "tight" || value.length > 55
+      ? "text-lg"
+      : density === "compact"
+        ? "text-[19px]"
+        : "text-xl";
+
   return (
-    <div>
-      <p className="text-sm text-white/55">{label}</p>
-      <p className="mt-2 text-xl leading-relaxed font-light text-white sm:text-2xl">
-        {value}
-      </p>
+    <li className="grid grid-cols-[2.75rem_minmax(0,1fr)] items-start gap-x-3 py-[clamp(13px,1.8vh,18px)] short:py-2.5">
+      <span className="pt-0.5 text-sm font-semibold text-[#00B0F0]">
+        {number}
+      </span>
+      <div className="min-w-0">
+        <p className="text-base font-semibold tracking-[0.04em] text-[#6f7e88] uppercase">
+          {label}
+        </p>
+        <p
+          className={`mt-1.5 leading-relaxed font-medium break-keep text-[#26343d] ${valueSize}`}
+        >
+          {value}
+        </p>
+      </div>
+    </li>
+  );
+}
+
+type TicketDensity = "comfortable" | "compact" | "tight";
+
+function TicketPerforation() {
+  return (
+    <div className="relative flex h-7 shrink-0 items-center" aria-hidden>
+      <span className="absolute left-0 h-7 w-3.5 -translate-x-1/2 rounded-r-full bg-[#e9eef1]" />
+      <div className="mx-5 w-full border-t border-dashed border-[#00B0F0]/65" />
+      <span className="absolute right-0 h-7 w-3.5 translate-x-1/2 rounded-l-full bg-[#e9eef1]" />
     </div>
   );
+}
+
+function getTicketDensity(
+  snapshot: TicketSnapshot,
+  changeCard: ChangeCard,
+): TicketDensity {
+  const totalLength = [
+    snapshot.criticalMoment,
+    snapshot.desiredPersonaLabel,
+    changeCard.todayAction,
+    changeCard.tomorrowAttitude,
+    changeCard.ifThenPlan,
+  ].reduce((sum, value) => sum + value.length, 0);
+
+  if (totalLength > 300) return "tight";
+  if (totalLength > 220) return "compact";
+  return "comfortable";
 }
 
 function TicketProgress({
@@ -133,15 +353,16 @@ function TicketProgress({
           : "기록을 정리하고 있습니다");
 
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-5 px-8 text-center">
-      {status !== "FAILED" && (
-        <motion.div
-          className="h-10 w-10 rounded-full border-2 border-white/20 border-t-white"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-        />
-      )}
-      <p className="text-3xl font-light text-white sm:text-4xl">{message}</p>
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-5 bg-[#e9eef1] px-8 text-center">
+      <div>
+        <p className="mb-4 text-xs font-semibold tracking-[0.28em] text-[#00B0F0]">
+          CHANGE CARD
+        </p>
+        <h2 className="text-3xl font-semibold tracking-[-0.03em] text-[#172027] md:text-4xl">
+          티켓을 준비하고 있습니다
+        </h2>
+      </div>
+      <StatusLine text={message} error={status === "FAILED"} />
     </div>
   );
 }

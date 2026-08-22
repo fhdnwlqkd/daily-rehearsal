@@ -82,6 +82,7 @@ ECR push 권한(`AmazonEC2ContainerRegistryPowerUser`)을 가진 IAM 사용자�
 | `GEMINI_API_KEY` | Gemini API key. 없으면 앱이 기동 실패할 수 있음 |
 | `DECART_API_KEY` | Decart API key. Decart 기능을 사용하지 않으면 생략 가능 |
 | `VIDEO_STORAGE_PUBLIC_BASE_URL` | 영상/다운로드 URL의 외부 base URL. 필요 없으면 생략 가능. 예: `http://<EC2_HOST>:8080` |
+| `TICKET_DOWNLOAD_PAGE_BASE_URL` | QR이 열 모바일 프론트 주소. 미등록 시 현재 CloudFront 주소를 사용한다. |
 
 GitHub repo → Settings → Secrets and variables → Actions → **Variables**에
 `GEMINI_ENABLED`를 등록할 수 있다. `false`면 브리핑 추출, 시뮬레이션 판정/상대 발화,
@@ -89,8 +90,8 @@ GitHub repo → Settings → Secrets and variables → Actions → **Variables**
 미등록 또는 `true`면 Gemini를 사용한다. 값을 바꾼 뒤 백엔드 workflow를 다시 실행한다.
 
 같은 Variables에 `DECART_ENABLED`도 등록할 수 있다. `false`면 백엔드에서 토큰 발급을
-차단해 Decart 외부 호출과 과금을 막는다. 현재 배포 workflow는 변수가 없을 때도
-Decart는 `false`, Gemini는 `true`로 배포한다.
+차단해 Decart 외부 호출과 과금을 막는다. 미등록 또는 `true`면 Decart를 사용하며,
+현재 배포 workflow는 Decart와 Gemini를 모두 `true`로 배포한다.
 
 > 보안 강화(나중에): access key 대신 GitHub OIDC + IAM Role로 바꾸면 장기 자격증명을 GitHub에 저장하지 않아도 된다. 지금은 access key로 시작하고 익숙해진 뒤 전환을 권장.
 

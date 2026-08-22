@@ -16,7 +16,10 @@ public class ClientSessionJpaMapper {
         session.getFollowUpAttempt(),
         session.getSelectedOutfitId(),
         session.getCurrentTurn(),
-        session.getMaxTurn());
+        session.getMaxTurn(),
+        session.getVideoUrl(),
+        session.getVideoUploadStatus(),
+        session.getVideoUploadFailureReason());
   }
 
   public void updateEntity(RehearsalSessionJpaEntity entity, ClientSession session) {
@@ -27,7 +30,10 @@ public class ClientSessionJpaMapper {
         session.getFollowUpAttempt(),
         session.getSelectedOutfitId(),
         session.getCurrentTurn(),
-        session.getMaxTurn());
+        session.getMaxTurn(),
+        session.getVideoUrl(),
+        session.getVideoUploadStatus(),
+        session.getVideoUploadFailureReason());
   }
 
   public ClientSession toDomain(RehearsalSessionJpaEntity entity) {
@@ -40,6 +46,9 @@ public class ClientSessionJpaMapper {
         .selectedOutfitId(entity.getSelectedOutfitId())
         .currentTurn(entity.getCurrentTurn())
         .maxTurn(entity.getMaxTurn())
+        .videoUrl(entity.getVideoUrl())
+        .videoUploadStatus(entity.getVideoUploadStatus())
+        .videoUploadFailureReason(entity.getVideoUploadFailureReason())
         .build();
   }
 }

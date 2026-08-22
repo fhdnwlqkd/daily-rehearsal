@@ -89,7 +89,12 @@ export interface SessionContextResponse {
  * FAILED      종결 실패 — retry 가능
  */
 export type BriefingFlowStatus =
-  "IDLE" | "SUBMITTING" | "PROCESSING" | "FOLLOW_UP" | "COMPLETED" | "FAILED";
+  | "IDLE"
+  | "SUBMITTING"
+  | "PROCESSING"
+  | "FOLLOW_UP"
+  | "COMPLETED"
+  | "FAILED";
 
 /**
  * SERVER_FAILED 서버가 status=FAILED를 반환
@@ -162,7 +167,11 @@ export interface ConfirmOutfitResponse {
  * ERROR       연결 실패 — 전시는 멈추지 않고 원본 거울로 진행한다
  */
 export type DecartConnectionStatus =
-  "IDLE" | "CONNECTING" | "CONNECTED" | "CLOSED" | "ERROR";
+  | "IDLE"
+  | "CONNECTING"
+  | "CONNECTED"
+  | "CLOSED"
+  | "ERROR";
 
 /**
  * useDecartConnection(세션 층 소유)이 스테이지로 내려주는 핸들.
@@ -181,6 +190,8 @@ export interface DecartConnectionHandle {
   g2gMs: number | null;
   /** 하이라이트된 옷의 스펙을 프리뷰에 적용한다. 연속 호출 시 마지막 것이 이긴다. */
   applyOutfit: (spec: DecartSpec) => void;
+  /** 제한시간 만료 시 즉시 연결을 끊어 추가 과금을 막는다. */
+  disconnect: () => void;
 }
 
 // --- 시뮬레이션 (이슈 #68) ---
@@ -203,10 +214,15 @@ export interface SimulationStartResponse {
 }
 
 export type TurnGenerationMode =
-  "STATIC" | "NORMAL" | "RECOVERY" | "TECHNICAL_FALLBACK";
+  | "STATIC"
+  | "NORMAL"
+  | "RECOVERY"
+  | "TECHNICAL_FALLBACK";
 
 export type TurnEvaluationOutcome =
-  "ACCEPTED" | "RETRY_REQUIRED" | "FORCED_ADVANCE";
+  | "ACCEPTED"
+  | "RETRY_REQUIRED"
+  | "FORCED_ADVANCE";
 
 /**
  * 판정·다음 발화 비동기 작업의 서버 상태. PENDING만 비종결(계속 폴링).
@@ -273,6 +289,7 @@ export interface NextLineResponse {
  * ANSWERING  상대 발화 표시 + 답변 대기. 재시도 가능한 실패면 같은 턴을 유지한다
  * EVALUATING 답변 제출~판정 폴링 중
  * NEXT_LINE  턴 완료 후 다음 상대 발화 요청~폴링 중
+ * FINISHING  전체 제한시간 만료 후 서버의 남은 턴 종료 처리 중
  * COMPLETED  maxTurn 완료 — 스테이지가 onComplete를 부른다
  * FAILED     통신·서버 장애 종결 — retry 가능
  */
@@ -281,6 +298,7 @@ export type SimulationFlowStatus =
   | "ANSWERING"
   | "EVALUATING"
   | "NEXT_LINE"
+  | "FINISHING"
   | "COMPLETED"
   | "FAILED";
 
@@ -330,6 +348,8 @@ export interface VideoUploadResponse {
   sessionId: string;
   videoUrl: string | null;
   status: VideoUploadStatus;
+  /** FAILED일 때 서버 저장소가 남긴 실패 원인. 운영 진단용이다. */
+  failureReason?: string;
 }
 
 export type TicketJobStatus = "PENDING" | "COMPLETED" | "FAILED";
@@ -366,7 +386,11 @@ export interface TicketJobResponse {
  * 관리하며 여기에 추가하지 않는다 (예: briefing의 재질문, simulation의 턴).
  */
 export type ExperiencePhaseId =
-  "type-select" | "briefing" | "outfit" | "simulation" | "ticket";
+  | "type-select"
+  | "briefing"
+  | "outfit"
+  | "simulation"
+  | "ticket";
 
 export interface ExperiencePhase {
   id: ExperiencePhaseId;

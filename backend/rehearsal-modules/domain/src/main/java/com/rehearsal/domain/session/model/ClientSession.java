@@ -115,6 +115,11 @@ public class ClientSession {
     this.currentTurn++;
   }
 
+  public void expireSimulation() {
+    validateStatus(SessionStatus.REHEARSAL_PLAYING);
+    this.currentTurn = this.maxTurn + 1;
+  }
+
   public void completeSimulation() {
     validateStatus(SessionStatus.REHEARSAL_PLAYING);
     validateSimulationCompleted();

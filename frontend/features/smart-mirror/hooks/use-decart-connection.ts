@@ -7,20 +7,14 @@ import type { RealTimeClient } from "@decartai/sdk";
 import { issueDecartToken } from "../apis";
 import { mapDecartConnectionState } from "../lib/decart/connection-state";
 import { toProxiedOutfitImageUrl } from "../lib/decart/outfit-image";
+import { MAX_DECART_CONNECTION_MS } from "../lib/timing/constants";
 import type { DecartConnectionHandle, DecartSpec } from "../types";
 
 /**
  * 백엔드 outfit-spec의 model과 같은 값(전시 중 불변). 연결은 스펙 조회보다
  * 먼저 일어나므로 응답을 기다리지 않고 상수로 고정한다.
  */
-const DECART_MODEL = "lucy-vton-latest";
-
-/**
- * 과금 방어 워치독. Decart는 active generation 초당 과금이므로 관람객이
- * 이탈해 연결이 방치되면 크레딧이 계속 샌다 — 정상 체험(옷 입히기+시뮬레이션
- * 10분 내외)보다 넉넉한 상한에서 강제 해제한다.
- */
-const MAX_CONNECTION_MS = 15 * 60 * 1000;
+const DECART_MODEL = models.realtime("lucy-vton-latest");
 
 interface UseDecartConnectionArgs {
   /** 세션 생성 전에는 null — 연결하지 않는다. */
@@ -56,6 +50,7 @@ export function useDecartConnection({
   const [g2gMs, setG2gMs] = useState<number | null>(null);
 
   const clientRef = useRef<RealTimeClient | null>(null);
+  const manuallyClosedRef = useRef(false);
   // 마지막 스펙이 이기는 적용 큐 — 빠른 스와이프 연타로 setImage가 겹치면
   // 중간 옷들은 건너뛰고 최종 하이라이트만 반영한다.
   const applyQueueRef = useRef<{
@@ -114,17 +109,30 @@ export function useDecartConnection({
 
   const applyOutfit = useCallback(
     (spec: DecartSpec) => {
+      if (manuallyClosedRef.current) return;
       applyQueueRef.current.pending = spec;
       void drainApplyQueue();
     },
     [drainApplyQueue],
   );
 
+  const disconnect = useCallback(() => {
+    manuallyClosedRef.current = true;
+    applyQueueRef.current.pending = null;
+    const client = clientRef.current;
+    clientRef.current = null;
+    client?.disconnect();
+    setRemoteStream(null);
+    setG2gMs(null);
+    setStatus("CLOSED");
+  }, []);
+
   useEffect(() => {
     if (!enabled || !sessionId || !cameraStream) {
       // 연결됐던 세션이 구간을 벗어난 경우(시뮬레이션 종료 등)는 CLOSED,
       // 아직 재료가 없어 연결 전이면 IDLE 유지.
       setStatus((current) => (current === "IDLE" ? "IDLE" : "CLOSED"));
+      manuallyClosedRef.current = false;
       return;
     }
 
@@ -154,7 +162,11 @@ export function useDecartConnection({
         const videoOnlyStream = new MediaStream(sourceStream.getVideoTracks());
 
         client = await decart.realtime.connect(videoOnlyStream, {
-          model: models.realtime(DECART_MODEL),
+          model: DECART_MODEL,
+          // 서버 기본 720p 대신 큰 거울 화면에 맞는 출력을 받고, 브라우저와
+          // MediaRecorder 모두에서 안정적인 VP8 경로를 사용한다.
+          resolution: "1080p",
+          preferredVideoCodec: "vp8",
           onRemoteStream: (stream) => {
             if (!isCancelled()) setRemoteStream(stream);
           },
@@ -163,6 +175,11 @@ export function useDecartConnection({
           debugQuality: true,
           onConnectionQuality: (report) => {
             if (isCancelled() || report.warmingUp) return;
+            console.info("Decart connection quality:", {
+              quality: report.quality,
+              limitingFactor: report.limitingFactor,
+              ...report.metrics,
+            });
             const measured = report.metrics.g2gMs;
             if (measured != null) {
               setG2gMs((current) => current ?? Math.round(measured));
@@ -193,11 +210,8 @@ export function useDecartConnection({
         watchdog = setTimeout(() => {
           if (isCancelled()) return;
           console.warn("Decart connection watchdog fired — disconnecting");
-          clientRef.current = null;
-          client?.disconnect();
-          setRemoteStream(null);
-          setStatus("CLOSED");
-        }, MAX_CONNECTION_MS);
+          disconnect();
+        }, MAX_DECART_CONNECTION_MS);
       } catch (error) {
         if (isCancelled()) return;
         // 토큰 발급 실패(재입장 세션의 1회 제한 409 포함)와 WebRTC 수립
@@ -216,7 +230,7 @@ export function useDecartConnection({
       client?.disconnect();
       setRemoteStream(null);
     };
-  }, [enabled, sessionId, cameraStream, drainApplyQueue]);
+  }, [enabled, sessionId, cameraStream, drainApplyQueue, disconnect]);
 
-  return { status, remoteStream, g2gMs, applyOutfit };
+  return { status, remoteStream, g2gMs, applyOutfit, disconnect };
 }

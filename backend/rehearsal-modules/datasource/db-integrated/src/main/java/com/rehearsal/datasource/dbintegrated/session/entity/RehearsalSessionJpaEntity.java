@@ -2,6 +2,7 @@ package com.rehearsal.datasource.dbintegrated.session.entity;
 
 import com.rehearsal.domain.session.model.ContextStatus;
 import com.rehearsal.domain.session.model.SessionStatus;
+import com.rehearsal.domain.session.model.VideoUploadStatus;
 import com.rehearsal.domain.situation.model.SituationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -49,6 +50,16 @@ public class RehearsalSessionJpaEntity extends BaseJpaEntity {
   @Column(name = "max_turn", nullable = false)
   private int maxTurn;
 
+  @Column(name = "video_url", length = 500)
+  private String videoUrl;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "video_upload_status", nullable = false, length = 30)
+  private VideoUploadStatus videoUploadStatus;
+
+  @Column(name = "video_upload_failure_reason", columnDefinition = "TEXT")
+  private String videoUploadFailureReason;
+
   @Version
   @Column(name = "version", nullable = false)
   private Long version;
@@ -64,7 +75,10 @@ public class RehearsalSessionJpaEntity extends BaseJpaEntity {
       int followUpAttempt,
       String selectedOutfitId,
       int currentTurn,
-      int maxTurn) {
+      int maxTurn,
+      String videoUrl,
+      VideoUploadStatus videoUploadStatus,
+      String videoUploadFailureReason) {
     RehearsalSessionJpaEntity entity = new RehearsalSessionJpaEntity();
     entity.sessionId = sessionId;
     entity.update(
@@ -74,7 +88,10 @@ public class RehearsalSessionJpaEntity extends BaseJpaEntity {
         followUpAttempt,
         selectedOutfitId,
         currentTurn,
-        maxTurn);
+        maxTurn,
+        videoUrl,
+        videoUploadStatus,
+        videoUploadFailureReason);
     return entity;
   }
 
@@ -85,7 +102,10 @@ public class RehearsalSessionJpaEntity extends BaseJpaEntity {
       int followUpAttempt,
       String selectedOutfitId,
       int currentTurn,
-      int maxTurn) {
+      int maxTurn,
+      String videoUrl,
+      VideoUploadStatus videoUploadStatus,
+      String videoUploadFailureReason) {
     this.situationType = situationType;
     this.status = status;
     this.contextStatus = contextStatus;
@@ -93,6 +113,9 @@ public class RehearsalSessionJpaEntity extends BaseJpaEntity {
     this.selectedOutfitId = selectedOutfitId;
     this.currentTurn = currentTurn;
     this.maxTurn = maxTurn;
+    this.videoUrl = videoUrl;
+    this.videoUploadStatus = videoUploadStatus == null ? VideoUploadStatus.NONE : videoUploadStatus;
+    this.videoUploadFailureReason = videoUploadFailureReason;
   }
 
   public void complete(LocalDateTime completedAt) {

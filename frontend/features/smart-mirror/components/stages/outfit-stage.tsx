@@ -4,10 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getOutfitSpec } from "../../apis";
 import { useConfirmOutfit } from "../../hooks/use-confirm-outfit";
+import { useCountdown } from "../../hooks/use-countdown";
 import { useGestureController } from "../../hooks/use-gesture-controller";
 import { useGetOutfits } from "../../hooks/use-get-outfits";
+import { OUTFIT_SELECTION_DURATION_SECONDS } from "../../lib/timing/constants";
 import { GestureHint } from "../shared/gesture-hint";
 import { GlassPanel } from "../shared/glass-panel";
+import { StageCountdown } from "../shared/stage-countdown";
 import { StatusLine } from "../shared/status-line";
 import type {
   DecartConnectionHandle,
@@ -45,12 +48,20 @@ export function OutfitStage({
   const { outfits, status: listStatus } = useGetOutfits(sessionId);
   const { status: confirmStatus, confirm } = useConfirmOutfit(sessionId);
   const [highlightIndex, setHighlightIndex] = useState(0);
-  // 하이라이트된 옷의 스펙 — 착장 캡션(설명 문구)이 소비한다.
-  const [highlightedSpec, setHighlightedSpec] = useState<DecartSpec | null>(
-    null,
-  );
+  const [selectionExpired, setSelectionExpired] = useState(false);
+
   // 스펙은 정적 설정이라 스와이프 왕복 시 재조회하지 않는다.
   const specCacheRef = useRef(new Map<string, DecartSpec>());
+  const confirmRequestedRef = useRef(false);
+  const autoConfirmAttemptedRef = useRef(false);
+
+  const handleSelectionExpired = useCallback(() => {
+    setSelectionExpired(true);
+  }, []);
+  const remainingSeconds = useCountdown({
+    durationSeconds: OUTFIT_SELECTION_DURATION_SECONDS,
+    onExpire: handleSelectionExpired,
+  });
 
   // 진입 시 기본 옷(defaultOutfit)부터 입혀 보인다 — 목록의 첫 옷이 아닐 수 있다.
   useEffect(() => {
@@ -76,12 +87,10 @@ export function OutfitStage({
         const spec = cached ?? (await getOutfitSpec(sessionId, outfitId));
         specCacheRef.current.set(outfitId, spec);
         if (cancelled) return;
-        setHighlightedSpec(spec);
         applyOutfit(spec);
       } catch (error) {
         // 스펙 조회 실패 = 이 옷만 못 입혀보는 것 — 스와이프 진행은 막지 않는다.
         console.error("Failed to load outfit spec:", error);
-        if (!cancelled) setHighlightedSpec(null);
       }
     }
 
@@ -92,25 +101,49 @@ export function OutfitStage({
     };
   }, [highlightedId, sessionId, applyOutfit]);
 
-  const confirmHighlighted = useCallback(() => {
-    // 프리뷰 게이트(2026-08-08 결정): 변환 연결 중에는 확정을 받지 않는다 —
-    // 입혀본 모습을 보기도 전에 스테이지를 지나치는 것을 막는다. 그 외
-    // 상태(CONNECTED는 물론, 연결 실패 ERROR·종료 CLOSED·카메라 없음 IDLE)는
-    // 허용해 전시가 여기서 멈추지 않게 한다.
-    if (decart.status === "CONNECTING") return;
-    // LOADING(중복 요청)·READY(이미 확정) 중에는 막는다. ERROR는 재시도 허용.
-    if (
-      !highlighted ||
-      confirmStatus === "LOADING" ||
-      confirmStatus === "READY"
-    )
+  const confirmHighlighted = useCallback(
+    (ignorePreviewGate = false) => {
+      // 프리뷰 게이트(2026-08-08 결정): 변환 연결 중에는 확정을 받지 않는다 —
+      // 입혀본 모습을 보기도 전에 스테이지를 지나치는 것을 막는다. 그 외
+      // 상태(CONNECTED는 물론, 연결 실패 ERROR·종료 CLOSED·카메라 없음 IDLE)는
+      // 허용해 전시가 여기서 멈추지 않게 한다.
+      if (!ignorePreviewGate && decart.status === "CONNECTING") return;
+      // LOADING(중복 요청)·READY(이미 확정) 중에는 막는다. ERROR는 재시도 허용.
+      if (
+        !highlighted ||
+        confirmRequestedRef.current ||
+        confirmStatus === "LOADING" ||
+        confirmStatus === "READY"
+      )
+        return;
+      confirmRequestedRef.current = true;
+      confirm(highlighted.outfitId);
+    },
+    [decart.status, highlighted, confirmStatus, confirm],
+  );
+
+  useEffect(() => {
+    if (confirmStatus === "ERROR") confirmRequestedRef.current = false;
+  }, [confirmStatus]);
+
+  // 제한시간이 끝난 순간의 하이라이트를 잠그고 자동 확정한다. 목록 로딩이
+  // 늦었다면 첫 후보가 준비되는 즉시 한 번만 확정한다.
+  useEffect(() => {
+    if (!selectionExpired || !highlighted || autoConfirmAttemptedRef.current)
       return;
-    confirm(highlighted.outfitId);
-  }, [decart.status, highlighted, confirmStatus, confirm]);
+    autoConfirmAttemptedRef.current = true;
+    confirmHighlighted(true);
+  }, [selectionExpired, highlighted, confirmHighlighted]);
 
   const handleAction = useCallback(
     (event: GestureActionEvent) => {
       if (listStatus !== "READY") return;
+      if (selectionExpired) {
+        if (event.action === "CONFIRM" && confirmStatus === "ERROR") {
+          confirmHighlighted(true);
+        }
+        return;
+      }
 
       if (event.action === "NEXT") {
         setHighlightIndex((index) => Math.min(outfits.length - 1, index + 1));
@@ -122,7 +155,40 @@ export function OutfitStage({
         confirmHighlighted();
       }
     },
-    [listStatus, outfits.length, confirmHighlighted],
+    [
+      listStatus,
+      selectionExpired,
+      confirmStatus,
+      outfits.length,
+      confirmHighlighted,
+    ],
+  );
+
+  // 카드 탭/클릭(#232) — 폰(세로 iframe)의 1차 입력. 제스처의 NEXT/PREV/CONFIRM과
+  // 같은 경로를 재사용한다: 다른 카드 탭 = 하이라이트 이동(즉시 입어보기),
+  // 하이라이트된 카드 탭 = 확정. 시간 만료 후에는 ERROR 재시도만 허용(제스처와 동일).
+  const handleCardTap = useCallback(
+    (index: number) => {
+      if (listStatus !== "READY" || confirmStatus === "READY") return;
+      if (selectionExpired) {
+        if (index === highlightIndex && confirmStatus === "ERROR") {
+          confirmHighlighted(true);
+        }
+        return;
+      }
+      if (index === highlightIndex) {
+        confirmHighlighted();
+        return;
+      }
+      setHighlightIndex(index);
+    },
+    [
+      listStatus,
+      confirmStatus,
+      selectionExpired,
+      highlightIndex,
+      confirmHighlighted,
+    ],
   );
 
   const {
@@ -134,7 +200,9 @@ export function OutfitStage({
     stream,
     onAction: handleAction,
     // 확정 성공 후에는 인식 루프·키 입력을 정지해 이중 확정을 막는다.
-    enabled: confirmStatus !== "READY",
+    enabled:
+      confirmStatus !== "READY" &&
+      (!selectionExpired || confirmStatus === "ERROR"),
   });
 
   // 확정 성공 → 세션 층으로 올린다 (시뮬레이션 스테이지로 전환).
@@ -145,12 +213,13 @@ export function OutfitStage({
   return (
     // pb-20: StageFrame의 TapHint(absolute bottom-6)가 이 아래 깔리므로
     // 하단 안내 슬롯이 그 위에서 끝나도록 여백을 확보한다 (겹침 방지).
-    <div className="flex h-full flex-col items-center px-8 pt-24 pb-20">
+    <div className="flex h-full flex-col items-center px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.25rem,11vh,6rem)] pb-[clamp(3.5rem,11vh,5.5rem)]">
+      <StageCountdown label="옷 선택까지" remainingSeconds={remainingSeconds} />
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+        <p className="mb-[clamp(0.375rem,1.2vh,1rem)] text-xs font-light tracking-[0.34em] text-white/65">
           TOMORROW&apos;S LOOK
         </p>
-        <h2 className="text-3xl font-extralight tracking-wide md:text-4xl">
+        <h2 className="text-[clamp(1.25rem,3.5vw,2.5rem)] font-extralight tracking-wide break-keep">
           내일의 모습을 입어보세요
         </h2>
       </div>
@@ -165,29 +234,14 @@ export function OutfitStage({
         )}
       </div>
 
-      {/* 착장 캡션 — 지금 입고 있는 옷의 이름과 설명 */}
-      <div className="mb-5 h-14 text-center drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">
-        {highlighted && (
-          <>
-            <p className="text-xl font-extralight tracking-[0.06em]">
-              {highlighted.label}
-            </p>
-            {highlightedSpec && (
-              <p className="mt-1 text-sm font-light tracking-[0.08em] text-white/60">
-                {highlightedSpec.prompt}
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
       {listStatus === "LOADING" && <StatusLine text="옷장을 여는 중…" />}
       {listStatus === "ERROR" && (
         <StatusLine text="옷 목록을 불러오지 못했습니다" error />
       )}
 
       {listStatus === "READY" && (
-        <div className="flex flex-wrap justify-center gap-5">
+        // 세로 박스(#232)에서는 가로 레일이 wrap되며 넘치므로 2열 그리드로 바꾼다.
+        <div className="flex flex-wrap justify-center gap-[clamp(0.625rem,1.5vw,1.25rem)] portrait:grid portrait:w-full portrait:max-w-[360px] portrait:grid-cols-2 portrait:gap-3">
           {outfits.map((outfit, index) => (
             <OutfitCard
               key={outfit.outfitId}
@@ -195,13 +249,14 @@ export function OutfitStage({
               order={index + 1}
               highlighted={index === highlightIndex}
               confirmProgress={index === highlightIndex ? confirmProgress : 0}
+              onTap={() => handleCardTap(index)}
             />
           ))}
         </div>
       )}
 
       {/* 안내 슬롯 — 상태가 바뀌어도 높이를 고정해 레일이 출렁이지 않게 한다 */}
-      <div className="mt-4 flex h-24 items-center justify-center">
+      <div className="mt-[clamp(0.5rem,1.5vh,1rem)] flex h-[clamp(3rem,10vh,6rem)] items-center justify-center">
         {confirmStatus === "IDLE" && listStatus === "READY" && (
           <GestureHint
             gestureStatus={gestureStatus}
@@ -230,6 +285,7 @@ function OutfitCard({
   order,
   highlighted,
   confirmProgress,
+  onTap,
 }: {
   outfit: OutfitCandidate;
   /** 카드 번호(1부터) — 배열 순서. */
@@ -237,32 +293,39 @@ function OutfitCard({
   highlighted: boolean;
   /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
   confirmProgress: number;
+  /** 탭/클릭 입력(#232) — 폰에서는 이게 1차 조작 수단이다. */
+  onTap: () => void;
 }) {
   const charging = confirmProgress > 0;
 
   return (
-    // 타입 카드와 같은 문법: 비선택 카드를 죽여서 선택을 드러낸다.
-    <div
-      className={`transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
+    // 비선택 카드의 텍스트까지 흐려지지 않도록 크기·표면·썸네일로만
+    // 선택 상태를 구분한다.
+    <button
+      type="button"
+      onClick={onTap}
+      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
     >
       <GlassPanel
-        className={`px-5 py-4 ${
-          highlighted ? "border-white/60 bg-white/20" : "border-white/10"
+        className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] ${
+          highlighted
+            ? "border-white/60 bg-white/20"
+            : "border-white/20 bg-black/15"
         }`}
         pulsing={highlighted}
         pulseColor="rgba(255, 255, 255, 0.35)"
       >
-        <div className="flex w-36 flex-col items-center gap-2.5 text-center">
-          <span className="text-xs font-light tracking-[0.3em] text-white/50">
+        <div className="flex w-[clamp(6rem,10vw,9rem)] flex-col items-center gap-2.5 text-center portrait:w-full portrait:gap-1.5">
+          <span className="text-xs font-normal tracking-[0.3em] text-white/70 [text-shadow:0_1px_2px_rgba(0,0,0,0.9)]">
             {String(order).padStart(2, "0")}
           </span>
           {/* 썸네일은 <img> 표시 전용이라 CORS가 필요 없다 — 원본 URL 직결 */}
           <img
             src={outfit.thumbnailUrl}
             alt={outfit.label}
-            className="h-20 w-20 rounded-xl border border-white/15 object-cover"
+            className={`h-[clamp(2.5rem,8vh,5rem)] w-[clamp(2.5rem,8vh,5rem)] rounded-xl border border-white/15 object-cover transition-opacity duration-300 ${highlighted ? "" : "opacity-70"}`}
           />
-          <span className="text-lg font-extralight tracking-wide">
+          <span className="text-[clamp(0.875rem,1.6vw,1.125rem)] font-medium tracking-wide text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.95),0_0_1px_rgba(0,0,0,0.85)]">
             {outfit.label}
           </span>
           {/* 팜홀드 차징 바 — 차오를 때만 트랙과 함께 나타난다 (시프트 없음).
@@ -278,6 +341,6 @@ function OutfitCard({
           </div>
         </div>
       </GlassPanel>
-    </div>
+    </button>
   );
 }

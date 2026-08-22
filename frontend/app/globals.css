@@ -1,7 +1,13 @@
+@import "@sun-typeface/suit/fonts/variable/woff2/SUIT-Variable.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+/* #232 iframe 임베드 — 가로 박스인데 세로가 짧은 경우(전시관 16:9 최대 1000×562).
+   기존 티켓의 max-height:800px 압축 변형이 세로 모바일 박스(높이 622~867)까지
+   잘못 걸리지 않도록 orientation을 함께 건다. */
+@custom-variant short (@media (orientation: landscape) and (max-height: 800px));
 
 :root {
   --background: oklch(1 0 0);
@@ -75,7 +81,9 @@
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
+  --font-sans:
+    "SUIT Variable", SUIT, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
   --font-mono: "Geist Mono", "Geist Mono Fallback";
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -121,5 +129,12 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family:
+      "SUIT Variable",
+      SUIT,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
   }
 }

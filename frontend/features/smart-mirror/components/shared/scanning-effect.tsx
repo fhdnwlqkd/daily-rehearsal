@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 
 export function ScanningEffect() {
   return (
-    <div className="relative h-[500px] w-[300px] overflow-hidden">
+    <div className="relative h-[clamp(140px,32vh,500px)] w-[clamp(120px,20vh,300px)] overflow-hidden">
       {/* Scanning Line */}
       <motion.div
         className="absolute right-0 left-0 h-[2px]"
