@@ -85,6 +85,7 @@ jobs:
             umask 077
             cat > .env.backend <<'EOF'
             API_KEY=${{ secrets.API_KEY }}
+            DEMO_API_KEY=${{ secrets.DEMO_API_KEY }}
             DB_NAME=${{ secrets.DB_NAME }}
             DB_PASSWORD=${{ secrets.DB_PASSWORD }}
             GEMINI_ENABLED=${{ vars.GEMINI_ENABLED || 'true' }}
