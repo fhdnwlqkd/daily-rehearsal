@@ -41,7 +41,7 @@ export function DemoSession({
   return (
     <div
       className="absolute inset-0"
-      onClick={phase === "ticket" ? advance : undefined}
+      onClick={phase === "outfit" ? undefined : advance}
       role="presentation"
     >
       <DemoVideoBackground
