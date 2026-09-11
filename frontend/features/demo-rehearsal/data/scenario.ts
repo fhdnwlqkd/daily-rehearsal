@@ -1,7 +1,7 @@
 import type { DemoSimulationTurn } from "../types";
 
 export const DEMO_TIMING = {
-  transcriptRevealMs: 650,
+  transcriptRevealMs: 1_500,
   briefingAnalysisMs: 1800,
   followUpMergeMs: 1600,
   simulationIntroMs: 1800,
