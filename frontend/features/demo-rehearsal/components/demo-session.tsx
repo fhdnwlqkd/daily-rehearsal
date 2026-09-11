@@ -39,8 +39,15 @@ export function DemoSession({
   const visibleStream = decart.remoteStream ?? cameraStream;
 
   return (
-    <div className="absolute inset-0">
-      <DemoVideoBackground stream={visibleStream} />
+    <div
+      className="absolute inset-0"
+      onClick={phase === "ticket" ? advance : undefined}
+      role="presentation"
+    >
+      <DemoVideoBackground
+        stream={visibleStream}
+        brighten={phase === "outfit"}
+      />
       <div className="absolute inset-0 z-10">
         <DemoFrame phase={flow.phase}>
           {flow.phase === "briefing" && (
