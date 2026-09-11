@@ -4,8 +4,10 @@ import { useEffect, useRef } from "react";
 
 export function DemoVideoBackground({
   stream,
+  brighten = false,
 }: {
   stream: MediaStream | null;
+  brighten?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -21,7 +23,9 @@ export function DemoVideoBackground({
           autoPlay
           playsInline
           muted
-          className="h-full w-full object-cover"
+          className={`h-full w-full object-cover transition-[filter] duration-500 ${
+            brighten ? "brightness-[1.12] contrast-[1.03]" : ""
+          }`}
           style={{ transform: "scaleX(-1)" }}
         />
       )}
