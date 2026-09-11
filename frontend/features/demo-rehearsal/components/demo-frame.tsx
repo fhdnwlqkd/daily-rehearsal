@@ -81,15 +81,15 @@ export function DemoFrame({
         {children}
       </motion.div>
 
-      <motion.div
-        className="absolute bottom-[clamp(10px,2vh,24px)] left-1/2 z-30 w-max max-w-[92%] -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-center text-sm font-light tracking-[0.18em] text-white/80 backdrop-blur-sm"
-        animate={{ opacity: [0.55, 1, 0.55] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-      >
-        {phase === "outfit"
-          ? "←/→ 또는 스와이프로 고르고 · Enter 또는 손바닥으로 선택"
-          : "대본을 말한 뒤 Enter"}
-      </motion.div>
+      {phase === "outfit" && (
+        <motion.div
+          className="absolute bottom-[clamp(10px,2vh,24px)] left-1/2 z-30 w-max max-w-[92%] -translate-x-1/2 rounded-full bg-black/45 px-5 py-2 text-center text-sm font-light tracking-[0.18em] text-white/80 backdrop-blur-sm"
+          animate={{ opacity: [0.55, 1, 0.55] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        >
+          ←/→ 또는 스와이프로 고르고 · Enter 또는 손바닥으로 선택
+        </motion.div>
+      )}
     </div>
   );
 }
