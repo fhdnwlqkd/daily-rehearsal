@@ -181,10 +181,10 @@ export function BriefingStage({
 
   // IDLE(최초 질문) 또는 FOLLOW_UP(재질문)
   return (
-    // 상단 pt = 헤더 세이프존(#232) — 긴 STT 텍스트가 중앙정렬로 위로 확장돼
-    // 헤더를 덮지 않게 하고, 그래도 넘치면 내부 스크롤로 살린다.
-    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
-      <div className="flex min-h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)]">
+    // 세로형 미러에서는 질문과 답변을 상·하단으로 분리해 중앙 얼굴 영역을 비운다.
+    // 긴 STT 텍스트가 생기면 내부 스크롤로 내용을 보존한다.
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)] portrait:pt-[clamp(8rem,10vh,12rem)] portrait:pb-[clamp(9rem,13vh,15rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-[clamp(1rem,3.5vh,2.5rem)] portrait:justify-between portrait:gap-[clamp(4rem,12vh,12rem)]">
         {flow.status === "FOLLOW_UP" ? (
           <FollowUpQuestions questions={flow.followUpQuestions} />
         ) : (
@@ -220,7 +220,7 @@ function BriefingQuestion({
 
   return (
     <div className="w-full max-w-4xl drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-      <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-center text-xs font-light tracking-[0.34em] text-white/65">
+      <p className="mb-[clamp(0.5rem,1.5vh,1rem)] text-center text-xs font-light tracking-[0.34em] text-white/65 portrait:text-lg">
         BRIEFING
       </p>
       <GlassPanel className="w-full px-[clamp(1.125rem,3vw,2.5rem)] py-[clamp(0.875rem,2.5vh,1.5rem)]">
@@ -228,7 +228,7 @@ function BriefingQuestion({
           {titleSentences.map((sentence, index) => (
             <p
               key={`${sentence}-${index}`}
-              className={`text-[clamp(1rem,2.2vw,1.5rem)] leading-[1.5] tracking-[0.01em] break-keep ${
+              className={`text-[clamp(1rem,2.2vw,1.5rem)] leading-[1.5] tracking-[0.01em] break-keep portrait:text-[clamp(2rem,4.2vw,2.875rem)] portrait:leading-[1.35] ${
                 index === 0
                   ? "font-medium text-white"
                   : "font-light text-white/[0.88]"
@@ -241,14 +241,14 @@ function BriefingQuestion({
 
         {/* 예시는 질문과 분리해 사용자가 그대로 읽어야 하는 답으로 오해하지 않게 한다. */}
         <div className="mt-5 border-t border-white/15 pt-4">
-          <p className="text-xs font-medium tracking-[0.18em] text-white/55">
+          <p className="text-xs font-medium tracking-[0.18em] text-white/55 portrait:text-lg">
             이렇게 말해볼 수 있어요
           </p>
           <div className="mt-2 space-y-1.5">
             {exampleSentences.map((sentence, index) => (
               <p
                 key={`${sentence}-${index}`}
-                className="text-[clamp(0.9375rem,2vw,1.25rem)] leading-[1.5] font-light break-keep text-white/[0.82]"
+                className="text-[clamp(0.9375rem,2vw,1.25rem)] leading-[1.5] font-light break-keep text-white/[0.82] portrait:text-[clamp(1.5rem,2.6vw,1.75rem)] portrait:leading-[1.45]"
               >
                 {index === 0 ? "“" : ""}
                 {sentence}
@@ -265,12 +265,12 @@ function BriefingQuestion({
 /** 재질문 — 백엔드가 내려준 질문 리스트를 한 번에 보여주고 답변 한 번으로 받는다. */
 function FollowUpQuestions({ questions }: { questions: string[] }) {
   return (
-    <div className="flex max-w-3xl flex-col items-center gap-8">
+    <div className="flex w-full max-w-4xl flex-col items-center gap-8">
       <div className="text-center drop-shadow-[0_2px_16px_rgba(0,0,0,0.85)]">
-        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65">
+        <p className="mb-4 text-xs font-light tracking-[0.34em] text-white/65 portrait:text-lg">
           FOLLOW-UP
         </p>
-        <h2 className="text-[clamp(1.25rem,3.5vw,2.5rem)] font-extralight tracking-wide break-keep">
+        <h2 className="text-[clamp(1.25rem,3.5vw,2.5rem)] font-extralight tracking-wide break-keep portrait:text-[clamp(2rem,4.2vw,2.875rem)]">
           몇 가지만 더 알려주세요
         </h2>
       </div>
@@ -284,10 +284,10 @@ function FollowUpQuestions({ questions }: { questions: string[] }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.12, duration: 0.3 }}
             >
-              <span className="text-xs font-light tracking-[0.3em] text-white/45">
+              <span className="text-xs font-light tracking-[0.3em] text-white/45 portrait:text-lg">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <span className="text-[clamp(1.0625rem,2.2vw,1.5rem)] font-extralight tracking-wide break-keep text-white/90">
+              <span className="text-[clamp(1.0625rem,2.2vw,1.5rem)] font-extralight tracking-wide break-keep text-white/90 portrait:text-[clamp(1.75rem,3.4vw,2.25rem)] portrait:leading-[1.4]">
                 {question}
               </span>
             </motion.li>
@@ -352,9 +352,9 @@ function FailedView({ reason }: { reason: BriefingFlowFailReason | null }) {
 
 function CenterColumn({ children }: { children: React.ReactNode }) {
   return (
-    // 헤더 세이프존 + 넘침 시 내부 스크롤 — 위 IDLE/FOLLOW_UP 컨테이너와 동일(#232).
-    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)]">
-      <div className="flex min-h-full w-full flex-col items-center justify-center gap-6">
+    // 처리·완료 상태도 세로형 미러에서는 얼굴 아래쪽에 표시한다.
+    <div className="h-full overflow-y-auto px-[clamp(1rem,4vw,2rem)] pt-[clamp(3.5rem,10vh,5.5rem)] pb-[clamp(3.25rem,10vh,4.5rem)] portrait:pb-[clamp(9rem,13vh,15rem)]">
+      <div className="flex min-h-full w-full flex-col items-center justify-center gap-6 portrait:justify-end">
         {children}
       </div>
     </div>

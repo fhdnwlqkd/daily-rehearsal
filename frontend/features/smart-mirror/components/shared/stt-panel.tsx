@@ -22,7 +22,7 @@ export function SttPanel({
       <div className="flex items-start gap-5 portrait:flex-col portrait:items-center portrait:gap-2">
         <AudioWave />
         <div className="flex-1 portrait:w-full portrait:text-center">
-          <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/50">
+          <p className="mb-2 text-xs font-light tracking-[0.22em] text-white/50 portrait:text-lg">
             {label}
           </p>
           <RevealText text={text} compact={compact} />
@@ -43,7 +43,7 @@ function RevealText({
 
   return (
     <p
-      className={`${compact ? "text-[clamp(1rem,1.8vw,1.125rem)]" : "text-[clamp(1.125rem,2.2vw,1.5rem)]"} leading-relaxed font-extralight tracking-wide text-white/90`}
+      className={`${compact ? "text-[clamp(1rem,1.8vw,1.125rem)] portrait:text-[clamp(1.5rem,2.6vw,1.75rem)]" : "text-[clamp(1.125rem,2.2vw,1.5rem)] portrait:text-[clamp(2rem,3.4vw,2.25rem)]"} leading-relaxed font-extralight tracking-wide text-white/90`}
     >
       {words.map((word, index) => (
         <motion.span
