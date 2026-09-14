@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type RefObject } from "react";
 import { GestureHint } from "../shared/gesture-hint";
 import { GlassPanel } from "../shared/glass-panel";
 import { StatusLine } from "../shared/status-line";
 import { useGetSituationTypes } from "../../hooks/use-get-situation-types";
 import { useCreateSession } from "../../hooks/use-create-session";
 import { useGestureController } from "../../hooks/use-gesture-controller";
+import { ChargingBar } from "../shared/charging-bar";
 import type {
   CreateSessionResponse,
   GestureActionEvent,
@@ -70,7 +71,8 @@ export function TypeSelectStage({
   const {
     status: gestureStatus,
     handVisible,
-    confirmProgress,
+    confirmProgressRef,
+    charging,
   } = useGestureController({
     engine,
     stream,
@@ -134,7 +136,8 @@ export function TypeSelectStage({
               type={type}
               order={index + 1}
               highlighted={index === highlightIndex}
-              confirmProgress={index === highlightIndex ? confirmProgress : 0}
+              confirmProgressRef={confirmProgressRef}
+              highlightedNow={index === highlightIndex}
               onTap={() => handleCardTap(index)}
             />
           ))}
@@ -147,7 +150,7 @@ export function TypeSelectStage({
           <GestureHint
             gestureStatus={gestureStatus}
             handVisible={handVisible}
-            confirmProgress={confirmProgress}
+            charging={charging}
             highlightedLabel={situationTypes[highlightIndex]?.label ?? null}
             subject="타입"
           />
@@ -170,20 +173,20 @@ function TypeCard({
   type,
   order,
   highlighted,
-  confirmProgress,
+  confirmProgressRef,
+  highlightedNow,
   onTap,
 }: {
   type: SituationType;
   /** 카드 번호(1부터). 구 명세의 gestureOrder가 사라져 배열 순서를 쓴다. */
   order: number;
   highlighted: boolean;
-  /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
-  confirmProgress: number;
+  /** 팜홀드 진행률 ref — 하이라이트 카드에만 차오른다. */
+  confirmProgressRef: RefObject<number>;
+  highlightedNow: boolean;
   /** 탭/클릭 입력(#232) — 폰에서는 이게 1차 조작 수단이다. */
   onTap: () => void;
 }) {
-  const charging = confirmProgress > 0;
-
   return (
     // 밝은 영상 위에서는 선택 카드를 키우는 것보다 비선택 카드를 죽이는 게
     // 멀리서도 확실하다. GlassPanel이 framer로 transform을 소유하므로
@@ -209,14 +212,10 @@ function TypeCard({
           </span>
           {/* 팜홀드 차징 바 — 평소엔 투명해서 구분선처럼 안 보이고,
               차오를 때만 트랙과 함께 나타난다 (레이아웃 시프트 없음) */}
-          <div
-            className={`h-1 w-full overflow-hidden rounded-full transition-colors ${charging ? "bg-white/10" : "bg-transparent"}`}
-          >
-            <div
-              className="h-full rounded-full bg-white/80 transition-[width] duration-100"
-              style={{ width: `${confirmProgress * 100}%` }}
-            />
-          </div>
+          <ChargingBar
+            progressRef={confirmProgressRef}
+            active={highlightedNow}
+          />
         </div>
       </GlassPanel>
     </button>
