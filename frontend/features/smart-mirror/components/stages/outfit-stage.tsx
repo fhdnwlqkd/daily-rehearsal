@@ -240,8 +240,9 @@ export function OutfitStage({
       )}
 
       {listStatus === "READY" && (
-        // 세로 박스(#232)에서는 가로 레일이 wrap되며 넘치므로 2열 그리드로 바꾼다.
-        <div className="flex flex-wrap justify-center gap-[clamp(0.625rem,1.5vw,1.25rem)] portrait:grid portrait:w-full portrait:max-w-[360px] portrait:grid-cols-2 portrait:gap-3">
+        // 세로 화면에서도 한 줄 가로 배치를 유지한다 — 카드를 화면 폭에 맞춰
+        // 균등 분할해서 스크롤 없이 6개가 한 번에 다 보이게 한다.
+        <div className="flex w-full flex-wrap justify-center gap-[clamp(0.625rem,1.5vw,1.25rem)] portrait:flex-nowrap portrait:gap-2">
           {outfits.map((outfit, index) => (
             <OutfitCard
               key={outfit.outfitId}
@@ -300,14 +301,15 @@ function OutfitCard({
 
   return (
     // 비선택 카드의 텍스트까지 흐려지지 않도록 크기·표면·썸네일로만
-    // 선택 상태를 구분한다.
+    // 선택 상태를 구분한다. 세로 화면에서는 flex-1로 폭을 6등분해서
+    // 스크롤 없이 한 줄에 다 들어오게 한다.
     <button
       type="button"
       onClick={onTap}
-      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
+      className={`min-w-0 cursor-pointer transition-all duration-300 portrait:flex-1 portrait:basis-0 ${highlighted ? "" : "scale-95"}`}
     >
       <GlassPanel
-        className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] ${
+        className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] portrait:px-2 ${
           highlighted
             ? "border-white/60 bg-white/20"
             : "border-white/20 bg-black/15"
