@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  ChargingBar,
   useGestureController,
   type GestureActionEvent,
   type GestureEngineHandle,
@@ -76,7 +77,7 @@ export function DemoOutfitStage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [confirm]);
 
-  const { handVisible, confirmProgress } = useGestureController({
+  const { handVisible, confirmProgressRef } = useGestureController({
     engine,
     stream,
     onAction: handleAction,
@@ -130,14 +131,13 @@ export function DemoOutfitStage({
                 <p className="mt-3 max-w-36 text-sm font-medium tracking-wide text-white">
                   {outfit.label}
                 </p>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-white/90 transition-[width] duration-100"
-                    style={{
-                      width: `${selected ? confirmProgress * 100 : 0}%`,
-                    }}
-                  />
-                </div>
+                <ChargingBar
+                  progressRef={confirmProgressRef}
+                  active={selected}
+                  className="mt-3 h-1.5"
+                  trackClass="bg-white/10"
+                  fillClass="bg-white/90"
+                />
               </DemoGlassPanel>
             </button>
           );

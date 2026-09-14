@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect } from "react";
-import type { GestureEngineHandle } from "@/features/smart-mirror";
+import {
+  GestureDebugOverlay,
+  type GestureEngineHandle,
+} from "@/features/smart-mirror";
 import { useDemoDecart } from "../hooks/use-demo-decart";
 import { useDemoFlow } from "../hooks/use-demo-flow";
 import { DemoBriefingStage } from "./demo-briefing-stage";
@@ -70,6 +73,9 @@ export function DemoSession({
           {flow.phase === "ticket" && <DemoTicketStage />}
         </DemoFrame>
       </div>
+
+      {/* MediaPipe 인식 디버그(D 키) — 옷 입히기의 제스처 튜닝용 */}
+      <GestureDebugOverlay />
     </div>
   );
 }
