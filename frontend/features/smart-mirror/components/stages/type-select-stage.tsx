@@ -128,8 +128,9 @@ export function TypeSelectStage({
       )}
 
       {listStatus === "READY" && (
-        // 세로 박스(#232)에서는 카드가 어중간하게 wrap되며 넘치므로 풀폭 스택으로 바꾼다.
-        <div className="flex flex-wrap justify-center gap-[clamp(0.75rem,2vw,1.5rem)] portrait:w-full portrait:max-w-[340px] portrait:flex-col portrait:flex-nowrap portrait:items-stretch portrait:gap-3">
+        // 세로 화면에서도 한 줄 가로 배치를 유지한다 — 카드를 화면 폭에 맞춰
+        // 균등 분할해서 스크롤 없이 다 보이게 한다.
+        <div className="flex w-full flex-wrap justify-center gap-[clamp(0.75rem,2vw,1.5rem)] portrait:flex-nowrap portrait:gap-2">
           {situationTypes.map((type, index) => (
             <TypeCard
               key={type.situationType}
@@ -194,10 +195,10 @@ function TypeCard({
     <button
       type="button"
       onClick={onTap}
-      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95 opacity-50"}`}
+      className={`min-w-0 cursor-pointer transition-all duration-300 portrait:flex-1 portrait:basis-0 ${highlighted ? "" : "scale-95 opacity-50"}`}
     >
       <GlassPanel
-        className={`px-[clamp(1rem,2.5vw,2rem)] py-[clamp(0.875rem,2.5vh,1.5rem)] portrait:px-5 portrait:py-3 ${
+        className={`px-[clamp(1rem,2.5vw,2rem)] py-[clamp(0.875rem,2.5vh,1.5rem)] portrait:px-2 portrait:py-3 ${
           highlighted ? "border-white/60 bg-white/20" : "border-white/10"
         }`}
         pulsing={highlighted}
