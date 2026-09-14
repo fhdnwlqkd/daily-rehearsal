@@ -27,8 +27,15 @@ export const SWIPE_MIN_DISTANCE = 0.13;
  */
 export const SWIPE_REFRACTORY_MS = 1000;
 
-/** Open_Palm 분류를 신뢰하는 최소 점수 */
-export const PALM_MIN_SCORE = 0.6;
+/**
+ * Open_Palm 분류를 신뢰하는 최소 점수.
+ * 0.6 → 0.5: 전시장 실측이 0.67이라 여유가 0.07뿐이었다 — 손이 조금만
+ * 기울거나 손가락이 모이면 문턱 아래로 떨어지고 누적이 0으로 리셋된다
+ * (2026-09-14 현장). 손을 찾는 문턱(HAND_MIN_DETECTION_CONFIDENCE)과는
+ * 무관하고, 이미 찾은 손의 "손바닥 여부" 판정만 헐거워진다.
+ * 손바닥이 아닌데 확정이 터지면 되올릴 것.
+ */
+export const PALM_MIN_SCORE = 0.5;
 /**
  * CONFIRM 발사에 필요한 손바닥 유지 시간.
  * 1500 → 2500(차징 중 안내를 읽을 시간 확보) → 다시 1500:
