@@ -47,7 +47,7 @@ export function AnswerArea({
   }, [inputMode, sttStatus, sttConfirm, autoConfirmMs]);
 
   return (
-    <div className="flex min-h-[clamp(7rem,20vh,11rem)] w-full flex-col items-center justify-start gap-4">
+    <div className="flex min-h-[clamp(7rem,20vh,11rem)] w-full flex-col items-center justify-start gap-4 portrait:min-h-[clamp(10rem,20vh,15rem)] portrait:gap-5">
       {inputMode === "KEYBOARD" ? (
         <TypedAnswerInput
           placeholder={typedPlaceholder}
@@ -98,7 +98,7 @@ function VoiceAnswer({
     <FadeIn>
       <div className="flex flex-col items-center gap-2">
         <motion.span
-          className="text-[clamp(2rem,6vh,3rem)]"
+          className="text-[clamp(2rem,6vh,3rem)] portrait:text-[clamp(3rem,6vh,4rem)]"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
           aria-hidden
@@ -146,7 +146,7 @@ function TypedAnswerInput({
           onSubmit(text);
         }}
         placeholder={placeholder}
-        className="w-full rounded-2xl border border-white/20 bg-black/40 px-[clamp(1rem,2vw,1.5rem)] py-[clamp(0.625rem,1.5vh,1rem)] text-center text-[clamp(1rem,2vw,1.25rem)] font-extralight tracking-wide text-white/90 backdrop-blur-xl placeholder:text-white/35 focus:border-white/50 focus:outline-none"
+        className="w-full rounded-2xl border border-white/20 bg-black/40 px-[clamp(1rem,2vw,1.5rem)] py-[clamp(0.625rem,1.5vh,1rem)] text-center text-[clamp(1rem,2vw,1.25rem)] font-extralight tracking-wide text-white/90 backdrop-blur-xl placeholder:text-white/35 focus:border-white/50 focus:outline-none portrait:py-5 portrait:text-[clamp(1.75rem,3vw,2rem)]"
       />
       <StatusLine text="음성 인식을 사용할 수 없어 키보드로 입력합니다 — Enter로 전송" />
     </div>
