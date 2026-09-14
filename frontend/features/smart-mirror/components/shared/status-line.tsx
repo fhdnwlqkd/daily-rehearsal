@@ -12,7 +12,7 @@ export function StatusLine({
 }) {
   return (
     <p
-      className={`rounded-full bg-black/45 px-6 py-2.5 text-base font-light tracking-[0.2em] backdrop-blur-sm md:text-lg ${error ? "text-red-300/90" : "text-white/90"}`}
+      className={`rounded-full bg-black/45 px-6 py-2.5 text-center text-base leading-[1.45] font-light tracking-[0.12em] break-keep backdrop-blur-sm md:text-lg portrait:px-8 portrait:py-3.5 portrait:text-[clamp(1.375rem,2.3vw,1.5rem)] ${error ? "text-red-300/90" : "text-white/90"}`}
     >
       {text}
     </p>
