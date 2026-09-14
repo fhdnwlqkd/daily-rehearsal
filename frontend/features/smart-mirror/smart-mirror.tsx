@@ -5,6 +5,7 @@ import { AnimatePresence } from "framer-motion";
 import { WebcamBackground } from "./components/webcam-background";
 import { PermissionGuide } from "./components/permission-guide";
 import { ExperienceSession } from "./components/experience-session";
+import { GestureDebugOverlay } from "./components/shared/gesture-debug-overlay";
 import { useCamera } from "./hooks/use-camera";
 import { useGestureEngine } from "./hooks/use-gesture-engine";
 
@@ -42,6 +43,9 @@ export function SmartMirror() {
         stream={stream}
         onRestart={() => setSessionEpoch((epoch) => epoch + 1)}
       />
+
+      {/* MediaPipe 인식 디버그(D 키) — 세션 리셋과 무관하게 부스 층에 둔다 */}
+      <GestureDebugOverlay />
     </div>
   );
 }

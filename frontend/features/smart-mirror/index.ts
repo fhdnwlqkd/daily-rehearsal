@@ -25,3 +25,5 @@ export type {
 } from "./types";
 // 개발 전용(#232) — 스테이지 단독 프리뷰 (app/dev/stage-preview)
 export { StagePreview } from "./components/stage-preview";
+// 개발 전용 — MediaPipe 인식 디버그 오버레이(D 키). 데모 기능도 같이 쓴다.
+export { GestureDebugOverlay } from "./components/shared/gesture-debug-overlay";

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { PALM_HOLD_DURATION_MS, PALM_MAX_FRAME_CREDIT_MS } from "./constants";
+import {
+  PALM_HOLD_DURATION_MS,
+  PALM_MAX_FRAME_CREDIT_MS,
+  PALM_MAX_SPEED,
+} from "./constants";
 import { PalmHoldDetector } from "./palm-hold-detector";
 
 /** 정지한 손바닥 프레임을 일정 간격으로 공급하는 헬퍼. */
@@ -8,7 +12,7 @@ function feed(
   detector: PalmHoldDetector,
   { fromMs, toMs, stepMs }: { fromMs: number; toMs: number; stepMs: number },
 ) {
-  let last = { progress: 0, confirmed: false };
+  let last = detector.update({ openPalmScore: 1, x: 0.5, timestampMs: fromMs });
   for (let t = fromMs; t <= toMs; t += stepMs) {
     last = detector.update({ openPalmScore: 1, x: 0.5, timestampMs: t });
     if (last.confirmed) return { ...last, atMs: t };
@@ -59,6 +63,52 @@ describe("PalmHoldDetector", () => {
       stepMs: 33,
     });
     expect(result.confirmed).toBe(true);
+  });
+
+  it("누적을 막은 이유를 gate로 알려준다 — 점수 미달과 움직임을 구분", () => {
+    const detector = new PalmHoldDetector();
+
+    // 첫 프레임은 비교 대상이 없다
+    expect(
+      detector.update({ openPalmScore: 1, x: 0.5, timestampMs: 0 }).gate,
+    ).toBe("WARMING_UP");
+
+    // 정지 + 높은 점수 → 누적
+    expect(
+      detector.update({ openPalmScore: 1, x: 0.5, timestampMs: 33 }).gate,
+    ).toBe("HOLDING");
+
+    // 손 모양이 아님 → 점수 미달이 먼저 잡힌다
+    expect(
+      detector.update({ openPalmScore: 0.1, x: 0.5, timestampMs: 66 }).gate,
+    ).toBe("LOW_SCORE");
+
+    // 손 모양은 맞는데 빠르게 이동 → 움직임
+    const moving = detector.update({
+      openPalmScore: 1,
+      x: 0.9,
+      timestampMs: 99,
+    });
+    expect(moving.gate).toBe("MOVING");
+    expect(moving.speed).toBeGreaterThan(PALM_MAX_SPEED);
+  });
+
+  it("확정 직후에는 gate가 REFRACTORY로 막힌다", () => {
+    const detector = new PalmHoldDetector();
+    const fired = feed(detector, {
+      fromMs: 0,
+      toMs: PALM_HOLD_DURATION_MS * 2,
+      stepMs: 33,
+    });
+    expect(fired.confirmed).toBe(true);
+
+    const justAfter = detector.update({
+      openPalmScore: 1,
+      x: 0.5,
+      timestampMs: fired.atMs + 33,
+    });
+    expect(justAfter.gate).toBe("REFRACTORY");
+    expect(justAfter.progress).toBe(0);
   });
 
   it("손 모양이 풀리면 누적이 리셋된다", () => {

@@ -2,9 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  GESTURE_CROP_MARGIN,
+  GESTURE_INPUT_MAX_SIDE,
   HAND_LOST_GRACE_MS,
   RUNTIME_ERROR_LIMIT,
 } from "../lib/gesture/constants";
+import {
+  computeVisibleSourceRect,
+  type SourceRect,
+} from "../lib/gesture/visible-rect";
+import {
+  clearGestureDebugFrame,
+  publishGestureDebugFrame,
+} from "../lib/gesture/debug-bus";
 import { PalmHoldDetector } from "../lib/gesture/palm-hold-detector";
 import { SwipeDetector } from "../lib/gesture/swipe-detector";
 import type {
@@ -94,6 +104,12 @@ export function useGestureController({
     // 진행 중이던 play()가 AbortError로 reject된다 — 무해한 레이스라 삼킨다.
     video.play().catch(() => {});
 
+    // 인식 입력 전용 캔버스 — 카메라 프레임 전체가 아니라 "화면에 보이는
+    // 영역"만 여기로 옮겨 담아 인식에 넘긴다. 전시장 카메라가 세로 모니터보다
+    // 훨씬 넓게 찍어서, 자르지 않으면 화면 밖 관람객의 손이 후보로 들어온다.
+    const input = document.createElement("canvas");
+    const inputContext = input.getContext("2d", { willReadFrequently: false });
+
     const swipe = new SwipeDetector();
     const palm = new PalmHoldDetector();
     let rafId = 0;
@@ -105,6 +121,75 @@ export function useGestureController({
     let lastProgress = -1;
     // 손 인식이 끊긴 첫 프레임의 시각. 보이는 동안은 null.
     let handLostAt: number | null = null;
+    // 디버그 오버레이용 누적치 — 오버레이가 꺼져 있어도 계산은 가볍다(사칙연산).
+    let lastFrameAt = 0;
+    let fps = 0;
+    let lastAction: GestureAction | null = null;
+    let lastActionAtMs = 0;
+    // 이번 프레임에 실제로 인식에 넘긴 영역(카메라 픽셀 좌표) — 랜드마크는
+    // 이 사각형 기준으로 정규화돼 돌아오므로 디버그 오버레이가 되돌릴 때 쓴다.
+    let crop: SourceRect | null = null;
+
+    /**
+     * 보이는 영역만 캔버스로 옮겨 담고 그 캔버스를 인식 입력으로 돌려준다.
+     * 크롭이 불가능한 상태(메타데이터 전·2D 컨텍스트 없음)면 원본 video를
+     * 그대로 쓴다 — 인식이 멈추는 것보다 넓게라도 도는 편이 낫다.
+     */
+    function prepareInput(): HTMLVideoElement | HTMLCanvasElement {
+      if (!inputContext || video.videoWidth <= 0) {
+        crop = null;
+        return video;
+      }
+
+      const rect = computeVisibleSourceRect({
+        videoWidth: video.videoWidth,
+        videoHeight: video.videoHeight,
+        // 뷰포트를 매 프레임 읽는다 — 회전·리사이즈에 리스너 없이 따라간다.
+        displayWidth: window.innerWidth,
+        displayHeight: window.innerHeight,
+        margin: GESTURE_CROP_MARGIN,
+      });
+
+      // 크롭이 바뀌면 정규화 기준(프레임 폭)이 바뀐다 — 이전 궤적과 이어
+      // 붙이면 손이 가만히 있어도 dx가 튀어 헛스와이프가 발사된다.
+      // 전체화면 전환·회전처럼 드문 사건이라 궤적을 버리는 쪽이 안전하다.
+      if (crop && (crop.sw !== rect.sw || crop.sx !== rect.sx)) {
+        swipe.reset();
+        palm.reset();
+      }
+
+      const shrink = Math.min(
+        1,
+        GESTURE_INPUT_MAX_SIDE / Math.max(rect.sw, rect.sh),
+      );
+      const width = Math.max(1, Math.round(rect.sw * shrink));
+      const height = Math.max(1, Math.round(rect.sh * shrink));
+      if (input.width !== width || input.height !== height) {
+        input.width = width;
+        input.height = height;
+      }
+
+      inputContext.drawImage(
+        video,
+        rect.sx,
+        rect.sy,
+        rect.sw,
+        rect.sh,
+        0,
+        0,
+        width,
+        height,
+      );
+      crop = rect;
+      return input;
+    }
+
+    /** 발사된 액션을 상위로 올리면서 디버그 기록도 같이 남긴다 */
+    function emit(action: GestureAction, timestampMs: number) {
+      lastAction = action;
+      lastActionAtMs = timestampMs;
+      onActionRef.current({ action, source: "hand" });
+    }
 
     function tick() {
       rafId = requestAnimationFrame(tick);
@@ -113,6 +198,12 @@ export function useGestureController({
       lastVideoTime = video.currentTime;
 
       const now = performance.now();
+      // 지수 평활 — 프레임마다 튀는 순간 FPS 대신 읽을 수 있는 값을 만든다
+      if (lastFrameAt > 0) {
+        const instantFps = 1000 / Math.max(1, now - lastFrameAt);
+        fps = fps === 0 ? instantFps : fps * 0.8 + instantFps * 0.2;
+      }
+      lastFrameAt = now;
       try {
         // tick은 nested 함수라 TS가 바깥의 non-null 좁힘을 안으로 들고
         // 오지 못한다(TS18047) — recognizer는 const라 실제로는 항상
@@ -121,7 +212,7 @@ export function useGestureController({
           cancelAnimationFrame(rafId);
           return;
         }
-        const result = recognizer.recognizeForVideo(video, now);
+        const result = recognizer.recognizeForVideo(prepareInput(), now);
         consecutiveErrors = 0;
 
         const hand = result.landmarks[0];
@@ -142,6 +233,24 @@ export function useGestureController({
             lastProgress = 0;
             setConfirmProgress(0);
           }
+          publishGestureDebugFrame({
+            timestampMs: now,
+            landmarks: null,
+            videoWidth: video.videoWidth,
+            videoHeight: video.videoHeight,
+            crop,
+            inputCanvas: crop ? input : null,
+            gestureName: null,
+            gestureScore: 0,
+            openPalmScore: 0,
+            palmGate: "NO_HAND",
+            palmSpeed: 0,
+            swipeDx: swipe.displacement(),
+            confirmProgress: 0,
+            fps,
+            lastAction,
+            lastActionAtMs,
+          });
           return;
         }
         handLostAt = null;
@@ -160,14 +269,15 @@ export function useGestureController({
 
         const swipeAction = swipe.update(fingertipX, now);
         if (swipeAction) {
-          onActionRef.current({ action: swipeAction, source: "hand" });
+          emit(swipeAction, now);
         }
 
+        const categories = result.gestures[0] ?? [];
         const openPalmScore =
-          result.gestures[0]?.find(
-            (category) => category.categoryName === "Open_Palm",
-          )?.score ?? 0;
-        const { progress, confirmed } = palm.update({
+          categories.find((category) => category.categoryName === "Open_Palm")
+            ?.score ?? 0;
+        const topCategory = categories[0] ?? null;
+        const { progress, confirmed, gate, speed } = palm.update({
           openPalmScore,
           x: wristX,
           timestampMs: now,
@@ -178,8 +288,27 @@ export function useGestureController({
           setConfirmProgress(roundedProgress);
         }
         if (confirmed) {
-          onActionRef.current({ action: "CONFIRM", source: "hand" });
+          emit("CONFIRM", now);
         }
+
+        publishGestureDebugFrame({
+          timestampMs: now,
+          landmarks: hand,
+          videoWidth: video.videoWidth,
+          videoHeight: video.videoHeight,
+          crop,
+          inputCanvas: crop ? input : null,
+          gestureName: topCategory?.categoryName ?? null,
+          gestureScore: topCategory?.score ?? 0,
+          openPalmScore,
+          palmGate: gate,
+          palmSpeed: speed,
+          swipeDx: swipe.displacement(),
+          confirmProgress: roundedProgress,
+          fps,
+          lastAction,
+          lastActionAtMs,
+        });
       } catch (error) {
         consecutiveErrors += 1;
         if (consecutiveErrors >= RUNTIME_ERROR_LIMIT) {
@@ -195,6 +324,7 @@ export function useGestureController({
     return () => {
       cancelAnimationFrame(rafId);
       video.srcObject = null;
+      clearGestureDebugFrame();
       setHandVisible(false);
       setConfirmProgress(0);
     };
