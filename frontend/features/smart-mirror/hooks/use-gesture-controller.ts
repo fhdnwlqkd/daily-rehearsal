@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import {
   GESTURE_CROP_MARGIN,
   GESTURE_INPUT_MAX_SIDE,
@@ -40,8 +40,15 @@ export interface UseGestureControllerResult {
   status: GestureEngineStatus;
   /** 손 감지 여부 — "손을 들어주세요" 힌트용 */
   handVisible: boolean;
-  /** 0~1 팜홀드 진행률 — 차징 바 UI용 */
-  confirmProgress: number;
+  /**
+   * 0~1 팜홀드 진행률을 매 프레임 담는 ref. **state가 아니다** — 30Hz로
+   * setState하면 손이 잡히는 동안(랜드마크+제스처 분류가 매 프레임 도는
+   * 구간) 렌더가 밀려 차징 바가 중간에 멈춘 채로 확정이 발사된다
+   * (2026-09-14 현장). 바는 ChargingBar가 이 ref를 직접 읽어 그린다.
+   */
+  confirmProgressRef: RefObject<number>;
+  /** 차징 중 여부 — 리렌더가 필요한 안내 문구 전환용(0↔양수에서만 바뀐다) */
+  charging: boolean;
 }
 
 const KEY_TO_ACTION: Record<string, GestureAction> = {
@@ -63,8 +70,10 @@ export function useGestureController({
   enabled = true,
 }: UseGestureControllerOptions): UseGestureControllerResult {
   const [handVisible, setHandVisible] = useState(false);
-  const [confirmProgress, setConfirmProgress] = useState(0);
+  const [charging, setCharging] = useState(false);
   const [runtimeFailed, setRuntimeFailed] = useState(false);
+  // 매 프레임 값 — 리렌더를 유발하지 않는다(위 타입 주석 참고).
+  const confirmProgressRef = useRef(0);
 
   // 최신 콜백을 ref로 유지 — onAction이 바뀌어도 루프/리스너를 재구독하지 않는다
   const onActionRef = useRef(onAction);
@@ -231,7 +240,8 @@ export function useGestureController({
           }
           if (lastProgress !== 0) {
             lastProgress = 0;
-            setConfirmProgress(0);
+            confirmProgressRef.current = 0;
+            setCharging(false);
           }
           publishGestureDebugFrame({
             timestampMs: now,
@@ -284,8 +294,14 @@ export function useGestureController({
         });
         const roundedProgress = Math.round(progress * 100) / 100;
         if (lastProgress !== roundedProgress) {
+          // 진행률 자체는 ref로만 흘린다. state는 0↔양수가 바뀔 때만 —
+          // 안내 문구가 전환되는 순간이고, 한 번의 차징에 두 번뿐이다.
+          const wasCharging = lastProgress > 0;
           lastProgress = roundedProgress;
-          setConfirmProgress(roundedProgress);
+          confirmProgressRef.current = roundedProgress;
+          if (wasCharging !== roundedProgress > 0) {
+            setCharging(roundedProgress > 0);
+          }
         }
         if (confirmed) {
           emit("CONFIRM", now);
@@ -325,14 +341,16 @@ export function useGestureController({
       cancelAnimationFrame(rafId);
       video.srcObject = null;
       clearGestureDebugFrame();
+      confirmProgressRef.current = 0;
       setHandVisible(false);
-      setConfirmProgress(0);
+      setCharging(false);
     };
   }, [enabled, stream, engine.recognizer]);
 
   return {
     status: runtimeFailed ? "ERROR" : engine.status,
     handVisible,
-    confirmProgress,
+    confirmProgressRef,
+    charging,
   };
 }

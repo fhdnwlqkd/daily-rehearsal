@@ -8,7 +8,7 @@ interface GestureHintProps {
   gestureStatus: GestureEngineHandle["status"];
   handVisible: boolean;
   /** 0~1 팜홀드 진행률. 0보다 크면 확정 예고 상태로 전환한다. */
-  confirmProgress: number;
+  charging: boolean;
   /** 하이라이트된 항목 라벨 — 확정 예고 문구에 들어간다. */
   highlightedLabel: string | null;
   /** 스와이프 대상 명사 (예: "타입", "옷") — 안내 문구에 들어간다. */
@@ -24,7 +24,7 @@ interface GestureHintProps {
 export function GestureHint({
   gestureStatus,
   handVisible,
-  confirmProgress,
+  charging,
   highlightedLabel,
   subject,
 }: GestureHintProps) {
@@ -39,7 +39,7 @@ export function GestureHint({
   // State 3: 팜홀드 진행 중 — 확정 예고와 함께 "바꾸는 방법"도 이 자리에서
   // 가르친다. 안내를 따라 손바닥부터 편 관람객이 State 2를 건너뛰어도
   // 스와이프를 인지할 기회가 생긴다 (스와이프하면 홀드는 자동 리셋).
-  if (confirmProgress > 0) {
+  if (charging) {
     return (
       <FadeIn>
         {/* 크기·스크림은 StatusLine과 같은 급으로 맞춘다 — 같은 화면에서 안내끼리 크기가 튀지 않게 */}
