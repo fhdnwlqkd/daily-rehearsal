@@ -36,6 +36,17 @@ export class SwipeDetector {
     this.samples = [];
   }
 
+  /**
+   * 현재 윈도우의 누적 이동량(최신 - 최오래). 디버그 오버레이 전용 —
+   * SWIPE_MIN_DISTANCE와 같은 스케일이라 임계까지 얼마나 남았는지 바로 보인다.
+   */
+  displacement(): number {
+    const oldest = this.samples[0];
+    const latest = this.samples[this.samples.length - 1];
+    if (!oldest || !latest) return 0;
+    return latest.x - oldest.x;
+  }
+
   update(
     x: number,
     timestampMs: number,

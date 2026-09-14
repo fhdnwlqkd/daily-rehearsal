@@ -97,6 +97,9 @@ jobs:
             cat > .env.frontend <<'EOF'
             API_BASE_URL=http://app:8080
             API_KEY=${{ secrets.API_KEY }}
+            DEMO_PASSWORD=${{ secrets.DEMO_PASSWORD }}
+            DEMO_SESSION_SECRET=${{ secrets.DEMO_SESSION_SECRET }}
+            DEMO_API_KEY=${{ secrets.DEMO_API_KEY }}
             ECR_IMAGE_FRONTEND=${{ secrets.ECR_REGISTRY }}/${{ secrets.ECR_REPOSITORY_FRONTEND }}
             IMAGE_TAG_FRONTEND=${{ needs.build-and-push.outputs.image-tag }}
             EOF

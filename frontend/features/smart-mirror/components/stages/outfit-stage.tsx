@@ -1,11 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 
 import { getOutfitSpec } from "../../apis";
 import { useConfirmOutfit } from "../../hooks/use-confirm-outfit";
 import { useCountdown } from "../../hooks/use-countdown";
 import { useGestureController } from "../../hooks/use-gesture-controller";
+import { ChargingBar } from "../shared/charging-bar";
 import { useGetOutfits } from "../../hooks/use-get-outfits";
 import { OUTFIT_SELECTION_DURATION_SECONDS } from "../../lib/timing/constants";
 import { GestureHint } from "../shared/gesture-hint";
@@ -194,7 +201,8 @@ export function OutfitStage({
   const {
     status: gestureStatus,
     handVisible,
-    confirmProgress,
+    confirmProgressRef,
+    charging,
   } = useGestureController({
     engine,
     stream,
@@ -240,15 +248,17 @@ export function OutfitStage({
       )}
 
       {listStatus === "READY" && (
-        // 세로 박스(#232)에서는 가로 레일이 wrap되며 넘치므로 2열 그리드로 바꾼다.
-        <div className="flex flex-wrap justify-center gap-[clamp(0.625rem,1.5vw,1.25rem)] portrait:grid portrait:w-full portrait:max-w-[360px] portrait:grid-cols-2 portrait:gap-3">
+        // 세로 화면에서도 한 줄 가로 배치를 유지한다 — 카드를 화면 폭에 맞춰
+        // 균등 분할해서 스크롤 없이 6개가 한 번에 다 보이게 한다.
+        <div className="flex w-full flex-wrap justify-center gap-[clamp(0.625rem,1.5vw,1.25rem)] portrait:flex-nowrap portrait:gap-2">
           {outfits.map((outfit, index) => (
             <OutfitCard
               key={outfit.outfitId}
               outfit={outfit}
               order={index + 1}
               highlighted={index === highlightIndex}
-              confirmProgress={index === highlightIndex ? confirmProgress : 0}
+              confirmProgressRef={confirmProgressRef}
+              highlightedNow={index === highlightIndex}
               onTap={() => handleCardTap(index)}
             />
           ))}
@@ -261,7 +271,7 @@ export function OutfitStage({
           <GestureHint
             gestureStatus={gestureStatus}
             handVisible={handVisible}
-            confirmProgress={confirmProgress}
+            charging={charging}
             highlightedLabel={highlighted?.label ?? null}
             subject="옷"
           />
@@ -284,30 +294,31 @@ function OutfitCard({
   outfit,
   order,
   highlighted,
-  confirmProgress,
+  confirmProgressRef,
+  highlightedNow,
   onTap,
 }: {
   outfit: OutfitCandidate;
   /** 카드 번호(1부터) — 배열 순서. */
   order: number;
   highlighted: boolean;
-  /** 0~1 팜홀드 진행률 — 하이라이트 카드에만 차오른다. */
-  confirmProgress: number;
+  /** 팜홀드 진행률 ref — 하이라이트 카드에만 차오른다. */
+  confirmProgressRef: RefObject<number>;
+  highlightedNow: boolean;
   /** 탭/클릭 입력(#232) — 폰에서는 이게 1차 조작 수단이다. */
   onTap: () => void;
 }) {
-  const charging = confirmProgress > 0;
-
   return (
     // 비선택 카드의 텍스트까지 흐려지지 않도록 크기·표면·썸네일로만
-    // 선택 상태를 구분한다.
+    // 선택 상태를 구분한다. 세로 화면에서는 flex-1로 폭을 6등분해서
+    // 스크롤 없이 한 줄에 다 들어오게 한다.
     <button
       type="button"
       onClick={onTap}
-      className={`cursor-pointer transition-all duration-300 ${highlighted ? "" : "scale-95"}`}
+      className={`min-w-0 cursor-pointer transition-all duration-300 portrait:flex-1 portrait:basis-0 ${highlighted ? "" : "scale-95"}`}
     >
       <GlassPanel
-        className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] ${
+        className={`px-[clamp(0.75rem,1.2vw,1.25rem)] py-[clamp(0.625rem,1.5vh,1rem)] portrait:px-2 ${
           highlighted
             ? "border-white/60 bg-white/20"
             : "border-white/20 bg-black/15"
@@ -331,14 +342,13 @@ function OutfitCard({
           {/* 팜홀드 차징 바 — 차오를 때만 트랙과 함께 나타난다 (시프트 없음).
               타입 카드(h-1)보다 두껍게: 카드가 작고 시선이 거울(중앙)에 가 있어
               같은 두께로는 전시 거리에서 인지 불가 (2026-08-08 실테스트). */}
-          <div
-            className={`h-2 w-full overflow-hidden rounded-full transition-colors ${charging ? "bg-white/15" : "bg-transparent"}`}
-          >
-            <div
-              className="h-full rounded-full bg-white/90 transition-[width] duration-100"
-              style={{ width: `${confirmProgress * 100}%` }}
-            />
-          </div>
+          <ChargingBar
+            progressRef={confirmProgressRef}
+            active={highlightedNow}
+            className="h-2"
+            trackClass="bg-white/15"
+            fillClass="bg-white/90"
+          />
         </div>
       </GlassPanel>
     </button>
